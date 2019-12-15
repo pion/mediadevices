@@ -1,16 +1,15 @@
 package camera
 
 import (
-	"bytes"
 	"fmt"
-	"image/jpeg"
 	"math/rand"
 	"strings"
 	"time"
 
 	"github.com/blackjack/webcam"
-	"github.com/pion/codec/h264"
 	codecEngine "github.com/pion/codec"
+	"github.com/pion/codec/h264"
+	"github.com/pion/mediadevices/yuv"
 	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
 )
@@ -21,7 +20,7 @@ type Camera struct {
 	cam     *webcam.Webcam
 	track   *webrtc.Track
 	encoder codecEngine.Encoder
-	opts 	Options
+	opts    Options
 }
 
 func New(opts Options) (*Camera, error) {
@@ -35,14 +34,14 @@ func New(opts Options) (*Camera, error) {
 
 	var selectedFormat webcam.PixelFormat
 	for v, k := range cam.GetSupportedFormats() {
-		if strings.HasPrefix(k, "Motion-JPEG") {
+		if strings.HasPrefix(k, "YUYV") {
 			selectedFormat = v
 			break
 		}
 	}
 
 	if selectedFormat == 0 {
-		return nil, fmt.Errorf("Only Motion-JPEG supported")
+		return nil, fmt.Errorf("YUYV")
 	}
 
 	if _, _, _, err = cam.SetImageFormat(selectedFormat, uint32(width), uint32(height)); err != nil {
@@ -62,7 +61,7 @@ func New(opts Options) (*Camera, error) {
 			Width:        width,
 			Height:       height,
 			MaxFrameRate: 30,
-			Bitrate: 1000000,
+			Bitrate:      1000000,
 		})
 		if err != nil {
 			return nil, err
@@ -71,8 +70,7 @@ func New(opts Options) (*Camera, error) {
 			cam:     cam,
 			track:   track,
 			encoder: encoder,
-			opts: opts,
-
+			opts:    opts,
 		}
 	default:
 		return nil, fmt.Errorf("%s is not currently supported", opts.Codec)
@@ -83,6 +81,11 @@ func New(opts Options) (*Camera, error) {
 
 func (c *Camera) Start() error {
 	if err := c.cam.StartStreaming(); err != nil {
+		return err
+	}
+
+	decoder, err := frame.NewDecoder(frame.FormatYUY2)
+	if err != nil {
 		return err
 	}
 
@@ -106,8 +109,8 @@ func (c *Camera) Start() error {
 		if len(frame) == 0 {
 			continue
 		}
-	
-		img, err := jpeg.Decode(bytes.NewReader(frame))
+
+		img, err := decoder.Decode(frame, c.opts.Width, c.opts.Height)
 		if err != nil {
 			continue
 		}
@@ -128,8 +131,6 @@ func (c *Camera) Start() error {
 			continue
 		}
 	}
-
-	return nil
 }
 
 func (c *Camera) Track() *webrtc.Track {
