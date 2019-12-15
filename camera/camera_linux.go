@@ -17,8 +17,8 @@ import (
 )
 
 var supportedFormats = map[webcam.PixelFormat]frame.Format{
-	webcam.PixelFormat(C.V4L2_PIX_FMT_YUYV): frame.FormatYUVYUYV,
-	webcam.PixelFormat(C.V4L2_PIX_FMT_NV12): frame.FormatYUVNV21,
+	webcam.PixelFormat(C.V4L2_PIX_FMT_YUYV): frame.FormatYUYV,
+	webcam.PixelFormat(C.V4L2_PIX_FMT_NV12): frame.FormatNV21,
 }
 
 // Camera implementation using v4l2

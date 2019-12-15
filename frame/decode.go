@@ -8,14 +8,14 @@ func NewDecoder(f Format) (Decoder, error) {
 	var decoder DecoderFunc
 
 	switch f {
-	case FormatYUVI420:
+	case FormatI420:
 		decoder = decodeI420
-	case FormatYUVNV21:
+	case FormatNV21:
 		decoder = decodeNV21
-	case FormatYUVYUY2:
+	case FormatYUY2:
 		decoder = decodeYUY2
 	default:
-		return nil, fmt.Errorf("unsupported format")
+		return nil, fmt.Errorf("%s is not supported", f)
 	}
 
 	return decoder, nil
