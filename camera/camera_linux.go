@@ -1,18 +1,25 @@
 package camera
 
+// #include <linux/videodev2.h>
+import "C"
+
 import (
 	"fmt"
 	"math/rand"
-	"strings"
 	"time"
 
 	"github.com/blackjack/webcam"
 	codecEngine "github.com/pion/codec"
 	"github.com/pion/codec/h264"
-	"github.com/pion/mediadevices/yuv"
+	"github.com/pion/mediadevices/frame"
 	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
 )
+
+var supportedFormats = map[webcam.PixelFormat]frame.Format{
+	webcam.PixelFormat(C.V4L2_PIX_FMT_YUYV): frame.FormatYUVYUYV,
+	webcam.PixelFormat(C.V4L2_PIX_FMT_NV12): frame.FormatYUVNV21,
+}
 
 // Camera implementation using v4l2
 // Reference: https://linuxtv.org/downloads/v4l-dvb-apis/uapi/v4l/videodev.html#videodev
@@ -20,6 +27,7 @@ type Camera struct {
 	cam     *webcam.Webcam
 	track   *webrtc.Track
 	encoder codecEngine.Encoder
+	decoder frame.Decoder
 	opts    Options
 }
 
@@ -33,18 +41,27 @@ func New(opts Options) (*Camera, error) {
 	height := opts.Height
 
 	var selectedFormat webcam.PixelFormat
-	for v, k := range cam.GetSupportedFormats() {
-		if strings.HasPrefix(k, "YUYV") {
-			selectedFormat = v
+	camFormats := cam.GetSupportedFormats()
+	for format := range supportedFormats {
+		if _, ok := camFormats[format]; ok {
+			selectedFormat = format
 			break
 		}
 	}
 
 	if selectedFormat == 0 {
-		return nil, fmt.Errorf("YUYV")
+		msg := "your camera is not currently supported."
+		// TODO: Make it prettier
+		msg = fmt.Sprintf("%s\nyours: %v\nsupported:%v", msg, camFormats, supportedFormats)
+		return nil, fmt.Errorf(msg)
 	}
 
 	if _, _, _, err = cam.SetImageFormat(selectedFormat, uint32(width), uint32(height)); err != nil {
+		return nil, err
+	}
+
+	decoder, err := frame.NewDecoder(supportedFormats[selectedFormat])
+	if err != nil {
 		return nil, err
 	}
 
@@ -70,6 +87,7 @@ func New(opts Options) (*Camera, error) {
 			cam:     cam,
 			track:   track,
 			encoder: encoder,
+			decoder: decoder,
 			opts:    opts,
 		}
 	default:
@@ -81,11 +99,6 @@ func New(opts Options) (*Camera, error) {
 
 func (c *Camera) Start() error {
 	if err := c.cam.StartStreaming(); err != nil {
-		return err
-	}
-
-	decoder, err := frame.NewDecoder(frame.FormatYUY2)
-	if err != nil {
 		return err
 	}
 
@@ -110,7 +123,7 @@ func (c *Camera) Start() error {
 			continue
 		}
 
-		img, err := decoder.Decode(frame, c.opts.Width, c.opts.Height)
+		img, err := c.decoder.Decode(frame, c.opts.Width, c.opts.Height)
 		if err != nil {
 			continue
 		}
