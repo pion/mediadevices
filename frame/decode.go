@@ -14,6 +14,8 @@ func NewDecoder(f Format) (Decoder, error) {
 		decoder = decodeNV21
 	case FormatYUY2:
 		decoder = decodeYUY2
+	case FormatMJPEG:
+		decoder = decodeMJPEG
 	default:
 		return nil, fmt.Errorf("%s is not supported", f)
 	}

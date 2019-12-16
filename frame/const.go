@@ -11,6 +11,11 @@ const (
 	FormatNV21 = "NV21"
 	// FormatYUY2 https://www.fourcc.org/pixel-format/yuv-yuy2/
 	FormatYUY2 = "YUY2"
+
+	// Compressed Formats
+
+	// FormatMJPEG https://www.fourcc.org/mjpg/
+	FormatMJPEG = "MJPEG"
 )
 
 // YUV aliases

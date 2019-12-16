@@ -5,7 +5,7 @@ import (
 	"image"
 )
 
-func decodeI420(frame []byte, width, height int) (*image.YCbCr, error) {
+func decodeI420(frame []byte, width, height int) (image.Image, error) {
 	yi := width * height
 	cbi := yi + width*height/4
 	cri := cbi + width*height/4
@@ -25,7 +25,7 @@ func decodeI420(frame []byte, width, height int) (*image.YCbCr, error) {
 	}, nil
 }
 
-func decodeNV21(frame []byte, width, height int) (*image.YCbCr, error) {
+func decodeNV21(frame []byte, width, height int) (image.Image, error) {
 	yi := width * height
 	ci := yi + width*height/2
 
@@ -50,7 +50,7 @@ func decodeNV21(frame []byte, width, height int) (*image.YCbCr, error) {
 	}, nil
 }
 
-func decodeYUY2(frame []byte, width, height int) (*image.YCbCr, error) {
+func decodeYUY2(frame []byte, width, height int) (image.Image, error) {
 	yi := width * height
 	ci := yi / 2
 	fi := yi + 2*ci
