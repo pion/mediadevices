@@ -6,8 +6,8 @@ import (
 
 	"github.com/pion/codec"
 	"github.com/pion/codec/h264"
-	"github.com/pion/mediadevices/driver"
-	"github.com/pion/mediadevices/frame"
+	"github.com/pion/mediadevices/pkg/driver"
+	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/webrtc/v2"
 )
 

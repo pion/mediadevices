@@ -1,7 +1,7 @@
 package driver
 
 import (
-	"github.com/pion/mediadevices/frame"
+	"github.com/pion/mediadevices/pkg/frame"
 )
 
 type State uint
