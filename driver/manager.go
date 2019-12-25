@@ -1,8 +1,6 @@
 package driver
 
-import (
-	uuid "github.com/satori/go.uuid"
-)
+import "fmt"
 
 type manager struct {
 	drivers map[string]Driver
@@ -13,18 +11,20 @@ var Manager = &manager{
 	drivers: make(map[string]Driver),
 }
 
-func (m *manager) register(d Driver) {
-	id := uuid.NewV4()
-	m.drivers[id.String()] = d
+func (m *manager) register(a Adapter) error {
+	d := wrapAdapter(a)
+	if d == nil {
+		return fmt.Errorf("adapter has to be either VideoAdapter/AudioAdapter")
+	}
+
+	m.drivers[d.ID()] = d
+	return nil
 }
 
-func (m *manager) Query() []QueryResult {
-	results := make([]QueryResult, 0)
-	for id, d := range m.drivers {
-		results = append(results, QueryResult{
-			ID:     id,
-			Driver: d,
-		})
+func (m *manager) Query() []Driver {
+	results := make([]Driver, 0)
+	for _, d := range m.drivers {
+		results = append(results, d)
 	}
 
 	return results

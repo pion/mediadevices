@@ -16,7 +16,7 @@ type camera struct {
 	formats map[webcam.PixelFormat]frame.Format
 }
 
-var _ VideoDriver = &camera{}
+var _ VideoAdapter = &camera{}
 
 func init() {
 	// TODO: Probably try to get more cameras

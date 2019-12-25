@@ -25,7 +25,7 @@ type videoTrack struct {
 	encoder codec.Encoder
 }
 
-func newVideoTrack(pc *webrtc.PeerConnection, id string, d driver.VideoDriver, spec driver.VideoSpec, codecName string) (*videoTrack, error) {
+func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, spec driver.VideoSpec, codecName string) (*videoTrack, error) {
 	var err error
 	decoder, err := frame.NewDecoder(spec.FrameFormat)
 	if err != nil {
@@ -51,7 +51,7 @@ func newVideoTrack(pc *webrtc.PeerConnection, id string, d driver.VideoDriver, s
 		return nil, err
 	}
 
-	track, err := pc.NewTrack(payloadType, rand.Uint32(), "video", id)
+	track, err := pc.NewTrack(payloadType, rand.Uint32(), "video", d.ID())
 	if err != nil {
 		encoder.Close()
 		return nil, err
