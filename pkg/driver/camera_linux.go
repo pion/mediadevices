@@ -14,6 +14,8 @@ type camera struct {
 	path    string
 	cam     *webcam.Webcam
 	formats map[webcam.PixelFormat]frame.Format
+	reversedFormats map[frame.Format]webcam.PixelFormat
+	specs 	[]VideoSpec
 }
 
 var _ VideoAdapter = &camera{}
@@ -27,13 +29,21 @@ func init() {
 }
 
 func newCamera(path string) *camera {
+	formats := map[webcam.PixelFormat]frame.Format{
+		webcam.PixelFormat(C.V4L2_PIX_FMT_YUYV): frame.FormatYUYV,
+		webcam.PixelFormat(C.V4L2_PIX_FMT_NV12): frame.FormatNV21,
+		webcam.PixelFormat(C.V4L2_PIX_FMT_MJPEG): frame.FormatMJPEG,
+	}
+
+	reversedFormats := make(map[frame.Format]webcam.PixelFormat)
+	for k, v := range formats {
+		reversedFormats[v] = k
+	}
+
 	return &camera{
 		path: path,
-		formats: map[webcam.PixelFormat]frame.Format{
-			webcam.PixelFormat(C.V4L2_PIX_FMT_YUYV): frame.FormatYUYV,
-			webcam.PixelFormat(C.V4L2_PIX_FMT_NV12): frame.FormatNV21,
-			webcam.PixelFormat(C.V4L2_PIX_FMT_MJPEG): frame.FormatMJPEG,
-		},
+		formats: formats,
+		reversedFormats: reversedFormats,
 	}
 }
 
@@ -43,11 +53,24 @@ func (c *camera) Open() error {
 		return err
 	}
 
+	specs := make([]VideoSpec, 0)
+	for format := range cam.GetSupportedFormats() {
+		for _, frameSize := range cam.GetSupportedFrameSizes(format) {
+			specs = append(specs, VideoSpec{
+				Width:  int(frameSize.MaxWidth),
+				Height: int(frameSize.MaxHeight),
+				FrameFormat: c.formats[format],
+			})
+		}
+	}
+
 	c.cam = cam
+	c.specs = specs
 	return nil
 }
 
 func (c *camera) Close() error {
+	c.specs = nil
 	if c.cam == nil {
 		return nil
 	}
@@ -56,6 +79,12 @@ func (c *camera) Close() error {
 }
 
 func (c *camera) Start(spec VideoSpec, cb DataCb) error {
+	pf := c.reversedFormats[spec.FrameFormat]
+	_, _, _, err := c.cam.SetImageFormat(pf, uint32(spec.Width), uint32(spec.Height))
+	if err != nil {
+		return err
+	}
+
 	if err := c.cam.StartStreaming(); err != nil {
 		return err
 	}
@@ -89,19 +118,12 @@ func (c *camera) Stop() error {
 }
 
 func (c *camera) Info() Info {
-	return Info{}
+	return Info{
+		Kind: 		Video,
+		DeviceType: Camera,
+	}
 }
 
 func (c *camera) Specs() []VideoSpec {
-	specs := make([]VideoSpec, 0)
-	for format := range c.cam.GetSupportedFormats() {
-		// TODO: get width and height resolutions from camera
-		specs = append(specs, VideoSpec{
-			Width:  640,
-			Height: 480,
-			FrameFormat: c.formats[format],
-		})
-	}
-
-	return specs
+	return c.specs
 }
