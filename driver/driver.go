@@ -15,10 +15,12 @@ const (
 
 type DataCb func(b []byte)
 
-type Driver interface {
+type OpenCloser interface {
 	Open() error
-	Stop() error
 	Close() error
+}
+
+type Infoer interface {
 	Info() Info
 }
 
@@ -26,9 +28,9 @@ type Info struct {
 	Kind Kind
 }
 
-type VideoDriver interface {
-	Driver
+type VideoCapable interface {
 	Start(spec VideoSpec, cb DataCb) error
+	Stop() error
 	Specs() []VideoSpec
 }
 
@@ -37,16 +39,42 @@ type VideoSpec struct {
 	FrameFormat   frame.Format
 }
 
-type AudioDriver interface {
-	Driver
+type AudioCapable interface {
 	Start(spec AudioSpec, cb DataCb) error
+	Stop() error
 	Specs() []AudioSpec
 }
 
 type AudioSpec struct {
 }
 
-type QueryResult struct {
-	ID     string
-	Driver Driver
+type Adapter interface {
+	OpenCloser
+	Infoer
+}
+
+type VideoAdapter interface {
+	Adapter
+	VideoCapable
+}
+
+type AudioAdapter interface {
+	Adapter
+	AudioCapable
+}
+
+type Driver interface {
+	Adapter
+	ID() string
+	Status() State
+}
+
+type VideoDriver interface {
+	Driver
+	VideoCapable
+}
+
+type AudioDriver interface {
+	Driver
+	AudioCapable
 }

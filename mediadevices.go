@@ -20,15 +20,15 @@ type mediaDevices struct {
 
 func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaStream, error) {
 	// TODO: It should return media stream based on constraints
-	r := driver.Manager.Query()[0]
-	err := r.Driver.Open()
+	d := driver.Manager.Query()[0]
+	err := d.Open()
 	if err != nil {
 		return nil, err
 	}
-	d := r.Driver.(driver.VideoDriver)
-	spec := d.Specs()[0]
+	vd := d.(driver.VideoDriver)
+	spec := vd.Specs()[0]
 
-	tracker, err := newVideoTrack(m.pc, r.ID, d, spec, webrtc.H264)
+	tracker, err := newVideoTrack(m.pc, vd, spec, webrtc.H264)
 	if err != nil {
 		return nil, err
 	}
