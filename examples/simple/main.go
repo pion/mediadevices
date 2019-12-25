@@ -36,8 +36,8 @@ func main() {
 		panic(err)
 	}
 
-	for _, track := range s.GetTracks() {
-		_, err = peerConnection.AddTrack(track)
+	for _, tracker := range s.GetTracks() {
+		_, err = peerConnection.AddTrack(tracker.Track())
 		if err != nil {
 			panic(err)
 		}
