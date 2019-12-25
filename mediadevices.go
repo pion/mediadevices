@@ -1,7 +1,7 @@
 package mediadevices
 
 import (
-	"github.com/pion/mediadevices/driver"
+	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/webrtc/v2"
 )
 

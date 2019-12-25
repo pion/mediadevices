@@ -5,7 +5,7 @@ import "C"
 
 import (
 	"github.com/blackjack/webcam"
-	"github.com/pion/mediadevices/frame"
+	"github.com/pion/mediadevices/pkg/frame"
 )
 
 // Camera implementation using v4l2
