@@ -1,7 +1,7 @@
 package mediadevices
 
 import (
-	"github.com/pion/mediadevices/camera"
+	"github.com/pion/mediadevices/driver"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -20,21 +20,23 @@ type mediaDevices struct {
 
 func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaStream, error) {
 	// TODO: It should return media stream based on constraints
-	c, err := camera.New(camera.Options{
-		PC:     m.pc,
-		Codec:  webrtc.H264,
-		Width:  640,
-		Height: 480,
-	})
+	r := driver.Manager.Query()[0]
+	err := r.Driver.Open()
+	if err != nil {
+		return nil, err
+	}
+	d := r.Driver.(driver.VideoDriver)
+	spec := d.Specs()[0]
+
+	tracker, err := newVideoTrack(m.pc, r.ID, d, spec, webrtc.H264)
 	if err != nil {
 		return nil, err
 	}
 
-	s, err := NewMediaStream(c.Track())
+	s, err := NewMediaStream(tracker)
 	if err != nil {
 		return nil, err
 	}
 
-	go c.Start()
 	return s, nil
 }
