@@ -6,3 +6,9 @@ const (
 	Video Kind = "video"
 	Audio      = "audio"
 )
+
+type DeviceType string
+
+const (
+	Camera DeviceType = "camera"	
+)

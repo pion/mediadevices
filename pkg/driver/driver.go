@@ -26,6 +26,7 @@ type Infoer interface {
 
 type Info struct {
 	Kind Kind
+	DeviceType DeviceType
 }
 
 type VideoCapable interface {
