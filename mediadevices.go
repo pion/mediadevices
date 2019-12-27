@@ -46,7 +46,7 @@ func (m *mediaDevices) videoSelect(constraints VideoTrackConstraints) (tracker, 
 	drivers := driver.Manager.Query(videoFilterFn)
 
 	var bestDriver driver.VideoDriver
-	var bestSpec driver.VideoSpec
+	var bestSetting driver.VideoSetting
 	minFitnessDist := math.Inf(1)
 
 	for _, d := range drivers {
@@ -55,19 +55,19 @@ func (m *mediaDevices) videoSelect(constraints VideoTrackConstraints) (tracker, 
 		if wasClosed {
 			err := d.Open()
 			if err != nil {
-				// Skip this driver if we failed to open because we can't get the specs
+				// Skip this driver if we failed to open because we can't get the settings
 				continue
 			}
 		}
 
 		vd := d.(driver.VideoDriver)
-		for _, spec := range vd.Specs() {
-			fitnessDist := constraints.fitnessDistance(spec)
+		for _, setting := range vd.Settings() {
+			fitnessDist := constraints.fitnessDistance(setting)
 
 			if fitnessDist < minFitnessDist {
 				minFitnessDist = fitnessDist
 				bestDriver = vd
-				bestSpec = spec
+				bestSetting = setting
 			}
 		}
 
@@ -87,5 +87,5 @@ func (m *mediaDevices) videoSelect(constraints VideoTrackConstraints) (tracker, 
 			return nil, fmt.Errorf("failed in opening the best video driver")
 		}
 	}
-	return newVideoTrack(m.pc, bestDriver, bestSpec, constraints.Codec)
+	return newVideoTrack(m.pc, bestDriver, bestSetting, constraints.Codec)
 }

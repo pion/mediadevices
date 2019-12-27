@@ -15,7 +15,7 @@ type camera struct {
 	cam     *webcam.Webcam
 	formats map[webcam.PixelFormat]frame.Format
 	reversedFormats map[frame.Format]webcam.PixelFormat
-	specs 	[]VideoSpec
+	settings 	[]VideoSetting
 }
 
 var _ VideoAdapter = &camera{}
@@ -53,10 +53,10 @@ func (c *camera) Open() error {
 		return err
 	}
 
-	specs := make([]VideoSpec, 0)
+	settings := make([]VideoSetting, 0)
 	for format := range cam.GetSupportedFormats() {
 		for _, frameSize := range cam.GetSupportedFrameSizes(format) {
-			specs = append(specs, VideoSpec{
+			settings = append(settings, VideoSetting{
 				Width:  int(frameSize.MaxWidth),
 				Height: int(frameSize.MaxHeight),
 				FrameFormat: c.formats[format],
@@ -65,12 +65,12 @@ func (c *camera) Open() error {
 	}
 
 	c.cam = cam
-	c.specs = specs
+	c.settings = settings
 	return nil
 }
 
 func (c *camera) Close() error {
-	c.specs = nil
+	c.settings = nil
 	if c.cam == nil {
 		return nil
 	}
@@ -78,9 +78,9 @@ func (c *camera) Close() error {
 	return c.cam.StopStreaming()
 }
 
-func (c *camera) Start(spec VideoSpec, cb DataCb) error {
-	pf := c.reversedFormats[spec.FrameFormat]
-	_, _, _, err := c.cam.SetImageFormat(pf, uint32(spec.Width), uint32(spec.Height))
+func (c *camera) Start(setting VideoSetting, cb DataCb) error {
+	pf := c.reversedFormats[setting.FrameFormat]
+	_, _, _, err := c.cam.SetImageFormat(pf, uint32(setting.Width), uint32(setting.Height))
 	if err != nil {
 		return err
 	}
@@ -124,6 +124,6 @@ func (c *camera) Info() Info {
 	}
 }
 
-func (c *camera) Specs() []VideoSpec {
-	return c.specs
+func (c *camera) Settings() []VideoSetting {
+	return c.settings
 }

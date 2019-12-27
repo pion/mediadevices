@@ -18,7 +18,7 @@ type VideoTrackConstraints struct {
 }
 
 // fitnessDistance is an implementation for https://w3c.github.io/mediacapture-main/#dfn-fitness-distance
-func (c *VideoTrackConstraints) fitnessDistance(s driver.VideoSpec) float64 {
+func (c *VideoTrackConstraints) fitnessDistance(s driver.VideoSetting) float64 {
 	var dist float64
 
 	if s.Width != c.Width {
