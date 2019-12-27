@@ -19,14 +19,14 @@ type videoTrack struct {
 	t       *webrtc.Track
 	s       *sampler
 	d       driver.VideoDriver
-	spec    driver.VideoSpec
+	setting driver.VideoSetting
 	decoder frame.Decoder
 	encoder codec.Encoder
 }
 
-func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, spec driver.VideoSpec, codecName Codec) (*videoTrack, error) {
+func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, setting driver.VideoSetting, codecName Codec) (*videoTrack, error) {
 	var err error
-	decoder, err := frame.NewDecoder(spec.FrameFormat)
+	decoder, err := frame.NewDecoder(setting.FrameFormat)
 	if err != nil {
 		return nil, err
 	}
@@ -37,8 +37,8 @@ func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, spec driver.
 	default:
 		payloadType = webrtc.DefaultPayloadTypeH264
 		encoder, err = h264.NewEncoder(h264.Options{
-			Width:        spec.Width,
-			Height:       spec.Height,
+			Width:        setting.Width,
+			Height:       setting.Height,
 			Bitrate:      1000000,
 			MaxFrameRate: 30,
 		})
@@ -58,17 +58,17 @@ func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, spec driver.
 		t:       track,
 		s:       newSampler(track.Codec().ClockRate),
 		d:       d,
-		spec:    spec,
+		setting: setting,
 		decoder: decoder,
 		encoder: encoder,
 	}
 
-	go d.Start(spec, vt.dataCb)
+	go d.Start(setting, vt.dataCb)
 	return &vt, nil
 }
 
 func (vt *videoTrack) dataCb(b []byte) {
-	img, err := vt.decoder.Decode(b, vt.spec.Width, vt.spec.Height)
+	img, err := vt.decoder.Decode(b, vt.setting.Width, vt.setting.Height)
 	if err != nil {
 		// TODO: probably do some logging here
 		return

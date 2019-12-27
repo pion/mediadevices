@@ -25,28 +25,28 @@ type Infoer interface {
 }
 
 type Info struct {
-	Kind Kind
+	Kind       Kind
 	DeviceType DeviceType
 }
 
 type VideoCapable interface {
-	Start(spec VideoSpec, cb DataCb) error
+	Start(setting VideoSetting, cb DataCb) error
 	Stop() error
-	Specs() []VideoSpec
+	Settings() []VideoSetting
 }
 
-type VideoSpec struct {
+type VideoSetting struct {
 	Width, Height int
 	FrameFormat   frame.Format
 }
 
 type AudioCapable interface {
-	Start(spec AudioSpec, cb DataCb) error
+	Start(setting AudioSetting, cb DataCb) error
 	Stop() error
-	Specs() []AudioSpec
+	Settings() []AudioSetting
 }
 
-type AudioSpec struct {
+type AudioSetting struct {
 }
 
 type Adapter interface {
