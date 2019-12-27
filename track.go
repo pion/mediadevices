@@ -1,7 +1,6 @@
 package mediadevices
 
 import (
-	"fmt"
 	"math/rand"
 
 	"github.com/pion/codec"
@@ -25,7 +24,7 @@ type videoTrack struct {
 	encoder codec.Encoder
 }
 
-func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, spec driver.VideoSpec, codecName string) (*videoTrack, error) {
+func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, spec driver.VideoSpec, codecName Codec) (*videoTrack, error) {
 	var err error
 	decoder, err := frame.NewDecoder(spec.FrameFormat)
 	if err != nil {
@@ -35,7 +34,7 @@ func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, spec driver.
 	var payloadType uint8
 	var encoder codec.Encoder
 	switch codecName {
-	case webrtc.H264:
+	default:
 		payloadType = webrtc.DefaultPayloadTypeH264
 		encoder, err = h264.NewEncoder(h264.Options{
 			Width:        spec.Width,
@@ -43,8 +42,6 @@ func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, spec driver.
 			Bitrate:      1000000,
 			MaxFrameRate: 30,
 		})
-	default:
-		err = fmt.Errorf("%s is currently not supported", codecName)
 	}
 
 	if err != nil {

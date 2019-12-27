@@ -31,7 +31,14 @@ func main() {
 
 	mediaDevices := mediadevices.NewMediaDevices(peerConnection)
 
-	s, err := mediaDevices.GetUserMedia(mediadevices.MediaStreamConstraints{})
+	s, err := mediaDevices.GetUserMedia(mediadevices.MediaStreamConstraints{
+		Video: mediadevices.VideoTrackConstraints{
+			Enabled: true,
+			Width:   800,                    // This is just an ideal value
+			Height:  480,                    // This is just an ideal value
+			Codec:   mediadevices.CodecH264, // This is default, you may omit this
+		},
+	})
 	if err != nil {
 		panic(err)
 	}
