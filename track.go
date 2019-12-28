@@ -10,6 +10,8 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
+// Tracker is an interface that represent MediaStreamTrack
+// Reference: https://w3c.github.io/mediacapture-main/#mediastreamtrack
 type Tracker interface {
 	Track() *webrtc.Track
 	Stop()
