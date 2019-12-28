@@ -6,11 +6,17 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
+// MediaStream is an interface that represents a collection of existing tracks.
 type MediaStream interface {
+	// GetAudioTracks implements https://w3c.github.io/mediacapture-main/#dom-mediastream-getaudiotracks
 	GetAudioTracks() []Tracker
+	// GetVideoTracks implements https://w3c.github.io/mediacapture-main/#dom-mediastream-getvideotracks
 	GetVideoTracks() []Tracker
+	// GetTracks implements https://w3c.github.io/mediacapture-main/#dom-mediastream-gettracks
 	GetTracks() []Tracker
+	// AddTrack implements https://w3c.github.io/mediacapture-main/#dom-mediastream-addtrack
 	AddTrack(t Tracker)
+	// RemoveTrack implements https://w3c.github.io/mediacapture-main/#dom-mediastream-removetrack
 	RemoveTrack(t Tracker)
 }
 
@@ -36,17 +42,14 @@ func NewMediaStream(trackers ...Tracker) (MediaStream, error) {
 	return &m, nil
 }
 
-// GetAudioTracks implements https://w3c.github.io/mediacapture-main/#dom-mediastream-getaudiotracks
 func (m *mediaStream) GetAudioTracks() []Tracker {
 	return m.queryTracks(webrtc.RTPCodecTypeAudio)
 }
 
-// GetVideoTracks implements https://w3c.github.io/mediacapture-main/#dom-mediastream-getvideotracks
 func (m *mediaStream) GetVideoTracks() []Tracker {
 	return m.queryTracks(webrtc.RTPCodecTypeVideo)
 }
 
-// GetTracks implements https://w3c.github.io/mediacapture-main/#dom-mediastream-gettracks
 func (m *mediaStream) GetTracks() []Tracker {
 	return m.queryTracks(rtpCodecTypeDefault)
 }
@@ -67,7 +70,6 @@ func (m *mediaStream) queryTracks(t webrtc.RTPCodecType) []Tracker {
 	return result
 }
 
-// AddTrack implements https://w3c.github.io/mediacapture-main/#dom-mediastream-addtrack
 func (m *mediaStream) AddTrack(t Tracker) {
 	m.l.Lock()
 	defer m.l.Unlock()
@@ -80,7 +82,6 @@ func (m *mediaStream) AddTrack(t Tracker) {
 	m.trackers[id] = t
 }
 
-// RemoveTrack implements https://w3c.github.io/mediacapture-main/#dom-mediastream-removetrack
 func (m *mediaStream) RemoveTrack(t Tracker) {
 	m.l.Lock()
 	defer m.l.Unlock()

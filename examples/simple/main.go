@@ -34,9 +34,9 @@ func main() {
 	s, err := mediaDevices.GetUserMedia(mediadevices.MediaStreamConstraints{
 		Video: mediadevices.VideoTrackConstraints{
 			Enabled: true,
-			Width:   800,                    // This is just an ideal value
-			Height:  480,                    // This is just an ideal value
-			Codec:   mediadevices.CodecH264, // This is default, you may omit this
+			Width:   800,                    // Optional. This is just an ideal value.
+			Height:  480,                    // Optional. This is just an ideal value.
+			Codec:   mediadevices.CodecH264, // Optional. H2642 is the default.
 		},
 	})
 	if err != nil {

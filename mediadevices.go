@@ -13,6 +13,9 @@ type MediaDevices interface {
 	GetUserMedia(constraints MediaStreamConstraints) (MediaStream, error)
 }
 
+// NewMediaDevices creates MediaDevices interface that provides access to connected media input devices
+// like cameras and microphones, as well as screen sharing.
+// In essence, it lets you obtain access to any hardware source of media data.
 func NewMediaDevices(pc *webrtc.PeerConnection) MediaDevices {
 	return &mediaDevices{pc}
 }
@@ -21,6 +24,9 @@ type mediaDevices struct {
 	pc *webrtc.PeerConnection
 }
 
+// GetUserMedia prompts the user for permission to use a media input which produces a MediaStream
+// with tracks containing the requested types of media.
+// Reference: https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
 func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaStream, error) {
 	// TODO: It should return media stream based on constraints
 	trackers := make([]Tracker, 0)
@@ -41,6 +47,8 @@ func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaSt
 	return s, nil
 }
 
+// videoSelect implements SelectSettings algorithm for video type.
+// Reference: https://w3c.github.io/mediacapture-main/#dfn-selectsettings
 func (m *mediaDevices) videoSelect(constraints VideoTrackConstraints) (Tracker, error) {
 	videoFilterFn := driver.FilterKind(driver.Video)
 	drivers := driver.GetManager().Query(videoFilterFn)

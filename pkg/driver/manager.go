@@ -19,10 +19,12 @@ var manager = &Manager{
 	drivers: make(map[string]Driver),
 }
 
+// GetManager gets manager singleton instance
 func GetManager() *Manager {
 	return manager
 }
 
+// Register registers adapter to be discoverable by Query
 func (m *Manager) Register(a Adapter) error {
 	d := wrapAdapter(a)
 	if d == nil {
@@ -33,6 +35,7 @@ func (m *Manager) Register(a Adapter) error {
 	return nil
 }
 
+// Query queries by using f to filter drivers, and simply return the filtered results.
 func (m *Manager) Query(f FilterFn) []Driver {
 	results := make([]Driver, 0)
 	for _, d := range m.drivers {
