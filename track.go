@@ -10,7 +10,7 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
-type tracker interface {
+type Tracker interface {
 	Track() *webrtc.Track
 	Stop()
 }

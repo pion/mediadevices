@@ -25,7 +25,7 @@ func init() {
 	// Get default camera
 	defaultCam := newCamera("/dev/video0")
 
-	Manager.register(defaultCam)
+	GetManager().Register(defaultCam)
 }
 
 func newCamera(path string) *camera {

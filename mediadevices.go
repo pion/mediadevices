@@ -23,7 +23,7 @@ type mediaDevices struct {
 
 func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaStream, error) {
 	// TODO: It should return media stream based on constraints
-	trackers := make([]tracker, 0)
+	trackers := make([]Tracker, 0)
 	if constraints.Video.Enabled {
 		tracker, err := m.videoSelect(constraints.Video)
 		if err != nil {
@@ -41,9 +41,9 @@ func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaSt
 	return s, nil
 }
 
-func (m *mediaDevices) videoSelect(constraints VideoTrackConstraints) (tracker, error) {
+func (m *mediaDevices) videoSelect(constraints VideoTrackConstraints) (Tracker, error) {
 	videoFilterFn := driver.FilterKind(driver.Video)
-	drivers := driver.Manager.Query(videoFilterFn)
+	drivers := driver.GetManager().Query(videoFilterFn)
 
 	var bestDriver driver.VideoDriver
 	var bestSetting driver.VideoSetting
