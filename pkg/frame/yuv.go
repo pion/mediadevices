@@ -59,7 +59,7 @@ func decodeYUY2(frame []byte, width, height int) (image.Image, error) {
 		return nil, fmt.Errorf("frame length (%d) less than expected (%d)", len(frame), fi)
 	}
 
-	y := make([]byte, yi, yi)
+	y := make([]byte, yi)
 	cb := make([]byte, ci)
 	cr := make([]byte, ci)
 
