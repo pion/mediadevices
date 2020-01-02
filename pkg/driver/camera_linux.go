@@ -96,15 +96,17 @@ func (c *camera) Start(setting VideoSetting, cb DataCb) error {
 		case *webcam.Timeout:
 			continue
 		default:
-			return err
+			// Camera has been stopped. We don't need to return an error.
+			return nil 
 		}
 
 		frame, err := c.cam.ReadFrame()
 		if err != nil {
-			// TODO: Add a better error handling
-			return err
+			// Camera has been stopped. We don't need to return an error.
+			return nil
 		}
 
+		// Frame is not ready.
 		if len(frame) == 0 {
 			continue
 		}
