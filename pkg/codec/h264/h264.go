@@ -37,9 +37,9 @@ type h264Encoder struct {
 	encoder *C.Encoder
 }
 
-var _ codec.Encoder = &h264Encoder{}
+var _ codec.VideoEncoder = &h264Encoder{}
 
-func NewEncoder(opts Options) (codec.Encoder, error) {
+func NewEncoder(opts Options) (codec.VideoEncoder, error) {
 	encoder, err := C.enc_new(opts.translate())
 	if err != nil {
 		// TODO: better error message

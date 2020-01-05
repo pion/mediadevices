@@ -2,12 +2,12 @@ package codec
 
 import "image"
 
-type Encoder interface {
+type VideoEncoder interface {
 	Encode(img image.Image) ([]byte, error)
 	Close() error
 }
 
-type Decoder interface {
+type VideoDecoder interface {
 	Decode([]byte) (image.Image, error)
 	Close() error
 }

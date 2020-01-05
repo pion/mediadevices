@@ -23,7 +23,7 @@ type videoTrack struct {
 	d       driver.VideoDriver
 	setting driver.VideoSetting
 	decoder frame.Decoder
-	encoder codec.Encoder
+	encoder codec.VideoEncoder
 }
 
 func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, setting driver.VideoSetting, codecName Codec) (*videoTrack, error) {
@@ -34,7 +34,7 @@ func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, setting driv
 	}
 
 	var payloadType uint8
-	var encoder codec.Encoder
+	var encoder codec.VideoEncoder
 	switch codecName {
 	default:
 		payloadType = webrtc.DefaultPayloadTypeH264
