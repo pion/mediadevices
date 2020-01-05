@@ -3,8 +3,8 @@ package mediadevices
 import (
 	"math/rand"
 
-	"github.com/pion/codec"
-	"github.com/pion/codec/h264"
+	"github.com/pion/mediadevices/pkg/codec"
+	"github.com/pion/mediadevices/pkg/codec/h264"
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/webrtc/v2"
