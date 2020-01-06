@@ -5,7 +5,7 @@ import (
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
-	_ "github.com/pion/mediadevices/pkg/codec/h264" // This is required to register h264 video encoder
+	_ "github.com/pion/mediadevices/pkg/codec/openh264" // This is required to register h264 video encoder
 	"github.com/pion/webrtc/v2"
 )
 
