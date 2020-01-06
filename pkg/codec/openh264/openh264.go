@@ -1,4 +1,4 @@
-package h264
+package openh264
 
 // #cgo CFLAGS: -I${SRCDIR}/../../../cvendor/include
 // #cgo CXXFLAGS: -I${SRCDIR}/../../../cvendor/include
@@ -17,11 +17,11 @@ import (
 	"unsafe"
 )
 
-type h264Encoder struct {
-	encoder *C.Encoder
+type encoder struct {
+	engine *C.Encoder
 }
 
-var _ codec.VideoEncoder = &h264Encoder{}
+var _ codec.VideoEncoder = &encoder{}
 var _ codec.VideoEncoderBuilder = codec.VideoEncoderBuilder(NewEncoder)
 
 func init() {
@@ -29,7 +29,7 @@ func init() {
 }
 
 func NewEncoder(s codec.VideoSetting) (codec.VideoEncoder, error) {
-	encoder, err := C.enc_new(C.EncoderOptions{
+	cEncoder, err := C.enc_new(C.EncoderOptions{
 		width:          C.int(s.Width),
 		height:         C.int(s.Height),
 		target_bitrate: C.int(s.TargetBitRate),
@@ -41,18 +41,15 @@ func NewEncoder(s codec.VideoSetting) (codec.VideoEncoder, error) {
 		return nil, fmt.Errorf("failed in creating encoder")
 	}
 
-	e := h264Encoder{
-		encoder: encoder,
-	}
-	return &e, nil
+	return &encoder{cEncoder}, nil
 }
 
-func (e *h264Encoder) Encode(img image.Image) ([]byte, error) {
+func (e *encoder) Encode(img image.Image) ([]byte, error) {
 	// TODO: Convert img to YCbCr since openh264 only accepts YCbCr
 	// TODO: Convert img to 4:2:0 format which what openh264 accepts
 	yuvImg := img.(*image.YCbCr)
 	bounds := yuvImg.Bounds()
-	s, err := C.enc_encode(e.encoder, C.Frame{
+	s, err := C.enc_encode(e.engine, C.Frame{
 		y:      unsafe.Pointer(&yuvImg.Y[0]),
 		u:      unsafe.Pointer(&yuvImg.Cb[0]),
 		v:      unsafe.Pointer(&yuvImg.Cr[0]),
@@ -67,7 +64,7 @@ func (e *h264Encoder) Encode(img image.Image) ([]byte, error) {
 	return C.GoBytes(unsafe.Pointer(s.data), s.data_len), nil
 }
 
-func (e *h264Encoder) Close() error {
-	C.enc_free(e.encoder)
+func (e *encoder) Close() error {
+	C.enc_free(e.engine)
 	return nil
 }
