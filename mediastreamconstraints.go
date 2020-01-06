@@ -14,7 +14,7 @@ type MediaTrackConstraints bool
 type VideoTrackConstraints struct {
 	Enabled       bool
 	Width, Height int
-	Codec         Codec
+	Codec         string
 }
 
 // fitnessDistance is an implementation for https://w3c.github.io/mediacapture-main/#dfn-fitness-distance
