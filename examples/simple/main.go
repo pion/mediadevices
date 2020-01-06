@@ -5,6 +5,7 @@ import (
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
+	_ "github.com/pion/mediadevices/pkg/codec/h264" // This is required to register h264 video encoder
 	"github.com/pion/webrtc/v2"
 )
 
@@ -34,9 +35,9 @@ func main() {
 	s, err := mediaDevices.GetUserMedia(mediadevices.MediaStreamConstraints{
 		Video: mediadevices.VideoTrackConstraints{
 			Enabled: true,
-			Width:   800,                    // Optional. This is just an ideal value.
-			Height:  480,                    // Optional. This is just an ideal value.
-			Codec:   mediadevices.CodecH264, // Optional. H2642 is the default.
+			Width:   800, // Optional. This is just an ideal value.
+			Height:  480, // Optional. This is just an ideal value.
+			Codec:   webrtc.H264,
 		},
 	})
 	if err != nil {

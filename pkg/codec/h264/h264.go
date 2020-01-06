@@ -12,35 +12,30 @@ import "C"
 import (
 	"fmt"
 	"github.com/pion/mediadevices/pkg/codec"
+	"github.com/pion/webrtc/v2"
 	"image"
 	"unsafe"
 )
-
-type Options struct {
-	Width        int
-	Height       int
-	Bitrate      int
-	MaxFrameRate float32
-}
-
-// https://github.com/cisco/openh264/wiki/TypesAndStructures#sencparambase
-func (h *Options) translate() C.EncoderOptions {
-	return C.EncoderOptions{
-		width:          C.int(h.Width),
-		height:         C.int(h.Height),
-		target_bitrate: C.int(h.Bitrate),
-		max_fps:        C.float(h.MaxFrameRate),
-	}
-}
 
 type h264Encoder struct {
 	encoder *C.Encoder
 }
 
 var _ codec.VideoEncoder = &h264Encoder{}
+var _ codec.VideoEncoderBuilder = codec.VideoEncoderBuilder(NewEncoder)
 
-func NewEncoder(opts Options) (codec.VideoEncoder, error) {
-	encoder, err := C.enc_new(opts.translate())
+func init() {
+	codec.Register(webrtc.H264, codec.VideoEncoderBuilder(NewEncoder))
+}
+
+func NewEncoder(s codec.VideoSetting) (codec.VideoEncoder, error) {
+	encoder, err := C.enc_new(C.EncoderOptions{
+		width:          C.int(s.Width),
+		height:         C.int(s.Height),
+		target_bitrate: C.int(s.TargetBitRate),
+		max_bitrate:	C.int(s.MaxBitRate),
+		max_fps:        C.float(s.FrameRate),
+	})
 	if err != nil {
 		// TODO: better error message
 		return nil, fmt.Errorf("failed in creating encoder")

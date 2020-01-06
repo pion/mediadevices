@@ -1,10 +1,10 @@
 package mediadevices
 
 import (
+	"fmt"
 	"math/rand"
 
 	"github.com/pion/mediadevices/pkg/codec"
-	"github.com/pion/mediadevices/pkg/codec/h264"
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/webrtc/v2"
@@ -26,31 +26,36 @@ type videoTrack struct {
 	encoder codec.VideoEncoder
 }
 
-func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, setting driver.VideoSetting, codecName Codec) (*videoTrack, error) {
+func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, setting driver.VideoSetting, codecName string) (*videoTrack, error) {
 	var err error
 	decoder, err := frame.NewDecoder(setting.FrameFormat)
 	if err != nil {
 		return nil, err
 	}
 
-	var payloadType uint8
-	var encoder codec.VideoEncoder
-	switch codecName {
-	default:
-		payloadType = webrtc.DefaultPayloadTypeH264
-		encoder, err = h264.NewEncoder(h264.Options{
-			Width:        setting.Width,
-			Height:       setting.Height,
-			Bitrate:      1000000,
-			MaxFrameRate: 30,
-		})
+	var selectedCodec *webrtc.RTPCodec
+	codecs := pc.GetRegisteredRTPCodecs(webrtc.RTPCodecTypeVideo)
+	for _, c := range codecs {
+		if c.Name == codecName {
+			selectedCodec = c
+			break
+		}
+	}
+	if selectedCodec == nil {
+		return nil, fmt.Errorf("video track: %s is not registered in media engine", codecName)
 	}
 
+	encoder, err := codec.BuildVideoEncoder(codecName, codec.VideoSetting{
+		Width:         setting.Width,
+		Height:        setting.Height,
+		TargetBitRate: 1000000,
+		FrameRate:     30,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	track, err := pc.NewTrack(payloadType, rand.Uint32(), "video", d.ID())
+	track, err := pc.NewTrack(selectedCodec.PayloadType, rand.Uint32(), "video", d.ID())
 	if err != nil {
 		encoder.Close()
 		return nil, err
