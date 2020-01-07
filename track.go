@@ -70,7 +70,12 @@ func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, setting driv
 		encoder: encoder,
 	}
 
-	go d.Start(setting, vt.dataCb)
+	err = d.Start(setting, vt.dataCb)
+	if err != nil {
+		encoder.Close()
+		return nil, err
+	}
+
 	return &vt, nil
 }
 
