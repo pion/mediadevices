@@ -1,8 +1,10 @@
 package driver
 
-import uuid "github.com/satori/go.uuid"
+import (
+	"fmt"
 
-import "fmt"
+	uuid "github.com/satori/go.uuid"
+)
 
 func wrapAdapter(a Adapter) Driver {
 	var d Driver
@@ -68,11 +70,25 @@ func (w *videoAdapterWrapper) Start(setting VideoSetting, cb DataCb) error {
 		return fmt.Errorf("invalid state: driver has been started")
 	}
 
-	prevState := w.state
-	w.state = StateOpened
-	err := w.VideoAdapter.Start(setting, cb)
-	if err != nil {
-		w.state = prevState
+	// Make sure if there were 2 errors sent to errCh, none of the
+	// callers will be blocked.
+	errCh := make(chan error, 2)
+
+	go func() {
+		first := true
+		errCh <- w.VideoAdapter.Start(setting, func(b []byte) {
+			if first {
+				errCh <- nil
+				first = false
+			}
+			cb(b)
+		})
+	}()
+
+	// Block until either we receive an error or the first frame
+	err := <-errCh
+	if err == nil {
+		w.state = StateStarted
 	}
 	return err
 }
