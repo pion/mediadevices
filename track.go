@@ -17,24 +17,23 @@ type Tracker interface {
 	Stop()
 }
 
-type videoTrack struct {
-	t       *webrtc.Track
-	s       *sampler
-	d       driver.VideoDriver
-	setting driver.VideoSetting
-	decoder frame.Decoder
-	encoder codec.VideoEncoder
+type track struct {
+	pc *webrtc.PeerConnection
+	t  *webrtc.Track
+	s  *sampler
 }
 
-func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, setting driver.VideoSetting, codecName string) (*videoTrack, error) {
-	var err error
-	decoder, err := frame.NewDecoder(setting.FrameFormat)
-	if err != nil {
-		return nil, err
+func newTrack(pc *webrtc.PeerConnection, d driver.Driver, codecName string) (*track, error) {
+	var kind webrtc.RTPCodecType
+	switch d.Info().Kind {
+	case driver.Video:
+		kind = webrtc.RTPCodecTypeVideo
+	case driver.Audio:
+		kind = webrtc.RTPCodecTypeAudio
 	}
 
+	codecs := pc.GetRegisteredRTPCodecs(kind)
 	var selectedCodec *webrtc.RTPCodec
-	codecs := pc.GetRegisteredRTPCodecs(webrtc.RTPCodecTypeVideo)
 	for _, c := range codecs {
 		if c.Name == codecName {
 			selectedCodec = c
@@ -42,7 +41,44 @@ func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, setting driv
 		}
 	}
 	if selectedCodec == nil {
-		return nil, fmt.Errorf("video track: %s is not registered in media engine", codecName)
+		return nil, fmt.Errorf("track: %s is not registered in media engine", codecName)
+	}
+
+	t, err := pc.NewTrack(selectedCodec.PayloadType, rand.Uint32(), kind.String(), d.ID())
+	if err != nil {
+		return nil, err
+	}
+
+	return &track{
+		pc: pc,
+		t:  t,
+		s:  newSampler(t),
+	}, nil
+}
+
+func (t *track) Track() *webrtc.Track {
+	return t.t
+}
+
+type videoTrack struct {
+	*track
+	d       driver.VideoDriver
+	setting driver.VideoSetting
+	decoder frame.Decoder
+	encoder codec.VideoEncoder
+}
+
+var _ Tracker = &videoTrack{}
+
+func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, setting driver.VideoSetting, codecName string) (*videoTrack, error) {
+	t, err := newTrack(pc, d, codecName)
+	if err != nil {
+		return nil, err
+	}
+
+	decoder, err := frame.NewDecoder(setting.FrameFormat)
+	if err != nil {
+		return nil, err
 	}
 
 	encoder, err := codec.BuildVideoEncoder(codecName, codec.VideoSetting{
@@ -55,15 +91,8 @@ func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, setting driv
 		return nil, err
 	}
 
-	track, err := pc.NewTrack(selectedCodec.PayloadType, rand.Uint32(), "video", d.ID())
-	if err != nil {
-		encoder.Close()
-		return nil, err
-	}
-
 	vt := videoTrack{
-		t:       track,
-		s:       newSampler(track.Codec().ClockRate),
+		track:   t,
 		d:       d,
 		setting: setting,
 		decoder: decoder,
@@ -92,16 +121,11 @@ func (vt *videoTrack) dataCb(b []byte) {
 		return
 	}
 
-	sample := vt.s.sample(encoded)
-	err = vt.t.WriteSample(sample)
+	err = vt.s.sample(encoded)
 	if err != nil {
 		// TODO: probably do some logging here
 		return
 	}
-}
-
-func (vt *videoTrack) Track() *webrtc.Track {
-	return vt.t
 }
 
 func (vt *videoTrack) Stop() {
@@ -110,26 +134,18 @@ func (vt *videoTrack) Stop() {
 }
 
 type audioTrack struct {
-	t       *webrtc.Track
-	s       *sampler
+	*track
 	d       driver.AudioDriver
 	setting driver.AudioSetting
 	encoder codec.AudioEncoder
 }
 
-func newAudioTrack(pc *webrtc.PeerConnection, d driver.AudioDriver, setting driver.AudioSetting, codecName string) (*audioTrack, error) {
-	var err error
+var _ Tracker = &audioTrack{}
 
-	var selectedCodec *webrtc.RTPCodec
-	codecs := pc.GetRegisteredRTPCodecs(webrtc.RTPCodecTypeAudio)
-	for _, c := range codecs {
-		if c.Name == codecName {
-			selectedCodec = c
-			break
-		}
-	}
-	if selectedCodec == nil {
-		return nil, fmt.Errorf("audio track: %s is not registered in media engine", codecName)
+func newAudioTrack(pc *webrtc.PeerConnection, d driver.AudioDriver, setting driver.AudioSetting, codecName string) (*audioTrack, error) {
+	t, err := newTrack(pc, d, codecName)
+	if err != nil {
+		return nil, err
 	}
 
 	encoder, err := codec.BuildAudioEncoder(codecName, codec.AudioSetting{
@@ -139,15 +155,8 @@ func newAudioTrack(pc *webrtc.PeerConnection, d driver.AudioDriver, setting driv
 		return nil, err
 	}
 
-	track, err := pc.NewTrack(selectedCodec.PayloadType, rand.Uint32(), "audio", d.ID())
-	if err != nil {
-		encoder.Close()
-		return nil, err
-	}
-
 	vt := audioTrack{
-		t:       track,
-		s:       newSampler(track.Codec().ClockRate),
+		track:   t,
 		d:       d,
 		setting: setting,
 		encoder: encoder,
@@ -169,16 +178,11 @@ func (vt *audioTrack) dataCb(b []int16) {
 		return
 	}
 
-	sample := vt.s.sample(encoded)
-	err = vt.t.WriteSample(sample)
+	err = vt.s.sample(encoded)
 	if err != nil {
 		// TODO: probably do some logging here
 		return
 	}
-}
-
-func (vt *audioTrack) Track() *webrtc.Track {
-	return vt.t
 }
 
 func (vt *audioTrack) Stop() {
