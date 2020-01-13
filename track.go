@@ -108,3 +108,80 @@ func (vt *videoTrack) Stop() {
 	vt.d.Stop()
 	vt.encoder.Close()
 }
+
+type audioTrack struct {
+	t       *webrtc.Track
+	s       *sampler
+	d       driver.AudioDriver
+	setting driver.AudioSetting
+	encoder codec.AudioEncoder
+}
+
+func newAudioTrack(pc *webrtc.PeerConnection, d driver.AudioDriver, setting driver.AudioSetting, codecName string) (*audioTrack, error) {
+	var err error
+
+	var selectedCodec *webrtc.RTPCodec
+	codecs := pc.GetRegisteredRTPCodecs(webrtc.RTPCodecTypeAudio)
+	for _, c := range codecs {
+		if c.Name == codecName {
+			selectedCodec = c
+			break
+		}
+	}
+	if selectedCodec == nil {
+		return nil, fmt.Errorf("audio track: %s is not registered in media engine", codecName)
+	}
+
+	encoder, err := codec.BuildAudioEncoder(codecName, codec.AudioSetting{
+		SampleRate: setting.SampleRate,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	track, err := pc.NewTrack(selectedCodec.PayloadType, rand.Uint32(), "audio", d.ID())
+	if err != nil {
+		encoder.Close()
+		return nil, err
+	}
+
+	vt := audioTrack{
+		t:       track,
+		s:       newSampler(track.Codec().ClockRate),
+		d:       d,
+		setting: setting,
+		encoder: encoder,
+	}
+
+	err = d.Start(setting, vt.dataCb)
+	if err != nil {
+		encoder.Close()
+		return nil, err
+	}
+
+	return &vt, nil
+}
+
+func (vt *audioTrack) dataCb(b []int16) {
+	encoded, err := vt.encoder.Encode(b)
+	if err != nil {
+		// TODO: probably do some logging here
+		return
+	}
+
+	sample := vt.s.sample(encoded)
+	err = vt.t.WriteSample(sample)
+	if err != nil {
+		// TODO: probably do some logging here
+		return
+	}
+}
+
+func (vt *audioTrack) Track() *webrtc.Track {
+	return vt.t
+}
+
+func (vt *audioTrack) Stop() {
+	vt.d.Stop()
+	vt.encoder.Close()
+}

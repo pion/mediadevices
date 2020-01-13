@@ -6,6 +6,7 @@ import (
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
 	_ "github.com/pion/mediadevices/pkg/codec/openh264" // This is required to register h264 video encoder
+	_ "github.com/pion/mediadevices/pkg/codec/opus"     // This is required to register opus audio encoder
 	"github.com/pion/webrtc/v2"
 )
 
@@ -33,6 +34,10 @@ func main() {
 	mediaDevices := mediadevices.NewMediaDevices(peerConnection)
 
 	s, err := mediaDevices.GetUserMedia(mediadevices.MediaStreamConstraints{
+		Audio: mediadevices.AudioTrackConstraints{
+			Enabled: true,
+			Codec:   webrtc.Opus,
+		},
 		Video: mediadevices.VideoTrackConstraints{
 			Enabled: true,
 			Width:   800, // Optional. This is just an ideal value.

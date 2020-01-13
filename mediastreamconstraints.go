@@ -5,11 +5,9 @@ import "github.com/pion/mediadevices/pkg/driver"
 import "math"
 
 type MediaStreamConstraints struct {
-	Audio MediaTrackConstraints
+	Audio AudioTrackConstraints
 	Video VideoTrackConstraints
 }
-
-type MediaTrackConstraints bool
 
 type VideoTrackConstraints struct {
 	Enabled       bool
@@ -31,6 +29,26 @@ func (c *VideoTrackConstraints) fitnessDistance(s driver.VideoSetting) float64 {
 		actualHeight := float64(s.Height)
 		idealHeight := float64(c.Height)
 		dist += math.Abs(actualHeight-idealHeight) / math.Max(math.Abs(actualHeight), math.Abs(idealHeight))
+	}
+
+	return dist
+}
+
+type AudioTrackConstraints struct {
+	Enabled    bool
+	Codec      string
+	SampleRate int
+}
+
+// fitnessDistance is an implementation for https://w3c.github.io/mediacapture-main/#dfn-fitness-distance
+func (c *AudioTrackConstraints) fitnessDistance(s driver.AudioSetting) float64 {
+	var dist float64
+
+	if s.SampleRate != c.SampleRate {
+		actualSampleRate := float64(s.SampleRate)
+		idealSampleRate := float64(c.SampleRate)
+		max := math.Max(math.Abs(actualSampleRate), math.Abs(idealSampleRate))
+		dist += math.Abs(actualSampleRate-idealSampleRate) / max
 	}
 
 	return dist
