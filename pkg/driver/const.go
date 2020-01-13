@@ -10,5 +10,6 @@ const (
 type DeviceType string
 
 const (
-	Camera DeviceType = "camera"	
+	Camera     DeviceType = "camera"
+	Microphone            = "microphone"
 )

@@ -14,6 +14,7 @@ const (
 )
 
 type DataCb func(b []byte)
+type AudioDataCb func(b []int16)
 
 type OpenCloser interface {
 	Open() error
@@ -41,12 +42,13 @@ type VideoSetting struct {
 }
 
 type AudioCapable interface {
-	Start(setting AudioSetting, cb DataCb) error
+	Start(setting AudioSetting, cb AudioDataCb) error
 	Stop() error
 	Settings() []AudioSetting
 }
 
 type AudioSetting struct {
+	SampleRate int
 }
 
 type Adapter interface {

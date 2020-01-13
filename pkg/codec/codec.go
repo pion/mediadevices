@@ -20,3 +20,14 @@ type VideoSetting struct {
 
 type VideoEncoderBuilder func(s VideoSetting) (VideoEncoder, error)
 type VideoDecoderBuilder func(s VideoSetting) (VideoDecoder, error)
+
+type AudioEncoder interface {
+	Encode([]int16) ([]byte, error)
+	Close() error
+}
+
+type AudioSetting struct {
+	SampleRate int
+}
+
+type AudioEncoderBuilder func(s AudioSetting) (AudioEncoder, error)

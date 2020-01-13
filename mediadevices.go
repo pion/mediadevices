@@ -30,8 +30,18 @@ type mediaDevices struct {
 func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaStream, error) {
 	// TODO: It should return media stream based on constraints
 	trackers := make([]Tracker, 0)
+
 	if constraints.Video.Enabled {
 		tracker, err := m.videoSelect(constraints.Video)
+		if err != nil {
+			return nil, err
+		}
+
+		trackers = append(trackers, tracker)
+	}
+
+	if constraints.Audio.Enabled {
+		tracker, err := m.audioSelect(constraints.Audio)
 		if err != nil {
 			return nil, err
 		}
@@ -96,4 +106,55 @@ func (m *mediaDevices) videoSelect(constraints VideoTrackConstraints) (Tracker, 
 		}
 	}
 	return newVideoTrack(m.pc, bestDriver, bestSetting, constraints.Codec)
+}
+
+// audioSelect implements SelectSettings algorithm for audio type.
+// Reference: https://w3c.github.io/mediacapture-main/#dfn-selectsettings
+func (m *mediaDevices) audioSelect(constraints AudioTrackConstraints) (Tracker, error) {
+	audioFilterFn := driver.FilterKind(driver.Audio)
+	drivers := driver.GetManager().Query(audioFilterFn)
+
+	var bestDriver driver.AudioDriver
+	var bestSetting driver.AudioSetting
+	minFitnessDist := math.Inf(1)
+
+	for _, d := range drivers {
+		wasClosed := d.Status() == driver.StateClosed
+
+		if wasClosed {
+			err := d.Open()
+			if err != nil {
+				// Skip this driver if we failed to open because we can't get the settings
+				continue
+			}
+		}
+
+		ad := d.(driver.AudioDriver)
+		for _, setting := range ad.Settings() {
+			fitnessDist := constraints.fitnessDistance(setting)
+
+			if fitnessDist < minFitnessDist {
+				minFitnessDist = fitnessDist
+				bestDriver = ad
+				bestSetting = setting
+			}
+		}
+
+		if wasClosed {
+			// Since it was closed, we should close it to avoid a leak
+			d.Close()
+		}
+	}
+
+	if bestDriver == nil {
+		return nil, fmt.Errorf("failed to find the best setting")
+	}
+
+	if bestDriver.Status() == driver.StateClosed {
+		err := bestDriver.Open()
+		if err != nil {
+			return nil, fmt.Errorf("failed in opening the best audio driver")
+		}
+	}
+	return newAudioTrack(m.pc, bestDriver, bestSetting, constraints.Codec)
 }
