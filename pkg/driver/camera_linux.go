@@ -4,8 +4,12 @@ package driver
 import "C"
 
 import (
+	"image"
+	"io"
+
 	"github.com/blackjack/webcam"
 	"github.com/pion/mediadevices/pkg/frame"
+	"github.com/pion/mediadevices/pkg/io/video"
 )
 
 // Camera implementation using v4l2
@@ -78,41 +82,51 @@ func (c *camera) Close() error {
 	return c.cam.StopStreaming()
 }
 
-func (c *camera) Start(setting VideoSetting, cb DataCb) error {
-	pf := c.reversedFormats[setting.FrameFormat]
-	_, _, _, err := c.cam.SetImageFormat(pf, uint32(setting.Width), uint32(setting.Height))
+func (c *camera) Start(setting VideoSetting) (video.Reader, error) {
+	decoder, err := frame.NewDecoder(setting.FrameFormat)
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	pf := c.reversedFormats[setting.FrameFormat]
+	_, _, _, err = c.cam.SetImageFormat(pf, uint32(setting.Width), uint32(setting.Height))
+	if err != nil {
+		return nil, err
 	}
 
 	if err := c.cam.StartStreaming(); err != nil {
-		return err
+		return nil, err
 	}
 
-	for {
-		err := c.cam.WaitForFrame(5)
-		switch err.(type) {
-		case nil:
-		case *webcam.Timeout:
-			continue
-		default:
-			// Camera has been stopped. We don't need to return an error.
-			return nil 
-		}
+	r := video.ReaderFunc(func() (img image.Image, err error) {
+		// Wait until a frame is ready
+		for {
+			err := c.cam.WaitForFrame(5)
+			switch err.(type) {
+			case nil:
+			case *webcam.Timeout:
+				continue
+			default:
+				// Camera has been stopped.
+				return nil, io.EOF
+			}
 
-		frame, err := c.cam.ReadFrame()
-		if err != nil {
-			// Camera has been stopped. We don't need to return an error.
-			return nil
-		}
+			b, err := c.cam.ReadFrame()
+			if err != nil {
+				// Camera has been stopped.
+				return nil, io.EOF
+			}
 
-		// Frame is not ready.
-		if len(frame) == 0 {
-			continue
-		}
+			// Frame is not ready.
+			if len(b) == 0 {
+				continue
+			}
 
-		cb(frame)
-	}
+			return decoder.Decode(b, setting.Width, setting.Height)
+		}
+	})
+
+	return r, nil
 }
 
 func (c *camera) Stop() error {

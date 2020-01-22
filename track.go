@@ -7,7 +7,7 @@ import (
 
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/driver"
-	"github.com/pion/mediadevices/pkg/frame"
+	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -65,8 +65,7 @@ type videoTrack struct {
 	*track
 	d       driver.VideoDriver
 	setting driver.VideoSetting
-	decoder frame.Decoder
-	encoder codec.VideoEncoder
+	encoder io.ReadCloser
 }
 
 var _ Tracker = &videoTrack{}
@@ -77,12 +76,12 @@ func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, setting driv
 		return nil, err
 	}
 
-	decoder, err := frame.NewDecoder(setting.FrameFormat)
+	r, err := d.Start(setting)
 	if err != nil {
 		return nil, err
 	}
 
-	encoder, err := codec.BuildVideoEncoder(codecName, codec.VideoSetting{
+	encoder, err := codec.BuildVideoEncoder(codecName, r, codec.VideoSetting{
 		Width:         setting.Width,
 		Height:        setting.Height,
 		TargetBitRate: 1000000,
@@ -96,36 +95,30 @@ func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, setting driv
 		track:   t,
 		d:       d,
 		setting: setting,
-		decoder: decoder,
 		encoder: encoder,
 	}
 
-	err = d.Start(setting, vt.dataCb)
-	if err != nil {
-		encoder.Close()
-		return nil, err
-	}
-
+	go vt.start()
 	return &vt, nil
 }
 
-func (vt *videoTrack) dataCb(b []byte) {
-	img, err := vt.decoder.Decode(b, vt.setting.Width, vt.setting.Height)
-	if err != nil {
-		// TODO: probably do some logging here
-		return
-	}
+func (vt *videoTrack) start() {
+	var n int
+	var err error
+	buff := make([]byte, 1024)
+	for {
+		n, err = vt.encoder.Read(buff)
+		if err != nil {
+			if e, ok := err.(*mio.InsufficientBufferError); ok {
+				buff = make([]byte, 2*e.RequiredSize)
+				continue
+			}
 
-	encoded, err := vt.encoder.Encode(img)
-	if err != nil {
-		// TODO: probably do some logging here
-		return
-	}
+			// TODO: better error handling
+			panic(err)
+		}
 
-	err = vt.s.sample(encoded)
-	if err != nil {
-		// TODO: probably do some logging here
-		return
+		vt.s.sample(buff[:n])
 	}
 }
 

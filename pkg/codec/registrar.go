@@ -2,8 +2,10 @@ package codec
 
 import (
 	"fmt"
-	"github.com/pion/mediadevices/pkg/io/audio"
 	"io"
+
+	"github.com/pion/mediadevices/pkg/io/audio"
+	"github.com/pion/mediadevices/pkg/io/video"
 )
 
 var (
@@ -20,13 +22,13 @@ func Register(name string, builder interface{}) {
 	}
 }
 
-func BuildVideoEncoder(name string, s VideoSetting) (VideoEncoder, error) {
+func BuildVideoEncoder(name string, r video.Reader, s VideoSetting) (io.ReadCloser, error) {
 	b, ok := videoEncoders[name]
 	if !ok {
 		return nil, fmt.Errorf("codec: can't find %s video encoder", name)
 	}
 
-	return b(s)
+	return b(r, s)
 }
 
 func BuildAudioEncoder(name string, r audio.Reader, s AudioSetting) (io.ReadCloser, error) {

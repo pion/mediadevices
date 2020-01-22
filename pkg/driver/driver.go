@@ -1,8 +1,9 @@
 package driver
 
 import (
-	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/frame"
+	"github.com/pion/mediadevices/pkg/io/audio"
+	"github.com/pion/mediadevices/pkg/io/video"
 )
 
 type State uint
@@ -13,8 +14,6 @@ const (
 	StateStarted
 	StateStopped
 )
-
-type DataCb func(b []byte)
 
 type OpenCloser interface {
 	Open() error
@@ -31,7 +30,7 @@ type Info struct {
 }
 
 type VideoCapable interface {
-	Start(setting VideoSetting, cb DataCb) error
+	Start(setting VideoSetting) (video.Reader, error)
 	Stop() error
 	Settings() []VideoSetting
 }
