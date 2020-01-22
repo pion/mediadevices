@@ -1,15 +1,11 @@
 package codec
 
 import (
-	"github.com/pion/mediadevices/pkg/io/audio"
-	"image"
 	"io"
-)
 
-type VideoEncoder interface {
-	Encode(img image.Image) ([]byte, error)
-	Close() error
-}
+	"github.com/pion/mediadevices/pkg/io/audio"
+	"github.com/pion/mediadevices/pkg/io/video"
+)
 
 type VideoSetting struct {
 	Width, Height             int
@@ -17,7 +13,7 @@ type VideoSetting struct {
 	FrameRate                 float32
 }
 
-type VideoEncoderBuilder func(s VideoSetting) (VideoEncoder, error)
+type VideoEncoderBuilder func(r video.Reader, s VideoSetting) (io.ReadCloser, error)
 
 type AudioSetting struct {
 	InSampleRate, OutSampleRate int

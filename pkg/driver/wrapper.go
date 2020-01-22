@@ -2,7 +2,7 @@ package driver
 
 import (
 	"fmt"
-
+	"github.com/pion/mediadevices/pkg/io/video"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -61,36 +61,20 @@ func (w *videoAdapterWrapper) Close() error {
 	return err
 }
 
-func (w *videoAdapterWrapper) Start(setting VideoSetting, cb DataCb) error {
+func (w *videoAdapterWrapper) Start(setting VideoSetting) (video.Reader, error) {
 	if w.state == StateClosed {
-		return fmt.Errorf("invalid state: driver hasn't been opened")
+		return nil, fmt.Errorf("invalid state: driver hasn't been opened")
 	}
 
 	if w.state == StateStarted {
-		return fmt.Errorf("invalid state: driver has been started")
+		return nil, fmt.Errorf("invalid state: driver has been started")
 	}
 
-	// Make sure if there were 2 errors sent to errCh, none of the
-	// callers will be blocked.
-	errCh := make(chan error, 2)
-
-	go func() {
-		first := true
-		errCh <- w.VideoAdapter.Start(setting, func(b []byte) {
-			if first {
-				errCh <- nil
-				first = false
-			}
-			cb(b)
-		})
-	}()
-
-	// Block until either we receive an error or the first frame
-	err := <-errCh
+	r, err := w.VideoAdapter.Start(setting)
 	if err == nil {
 		w.state = StateStarted
 	}
-	return err
+	return r, err
 }
 
 func (w *videoAdapterWrapper) Stop() error {
