@@ -11,11 +11,6 @@ type VideoEncoder interface {
 	Close() error
 }
 
-type VideoDecoder interface {
-	Decode([]byte) (image.Image, error)
-	Close() error
-}
-
 type VideoSetting struct {
 	Width, Height             int
 	TargetBitRate, MaxBitRate int
@@ -23,7 +18,6 @@ type VideoSetting struct {
 }
 
 type VideoEncoderBuilder func(s VideoSetting) (VideoEncoder, error)
-type VideoDecoderBuilder func(s VideoSetting) (VideoDecoder, error)
 
 type AudioSetting struct {
 	InSampleRate, OutSampleRate int
