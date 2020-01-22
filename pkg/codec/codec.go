@@ -1,6 +1,10 @@
 package codec
 
-import "image"
+import (
+	"github.com/pion/mediadevices/pkg/io/audio"
+	"image"
+	"io"
+)
 
 type VideoEncoder interface {
 	Encode(img image.Image) ([]byte, error)
@@ -21,13 +25,10 @@ type VideoSetting struct {
 type VideoEncoderBuilder func(s VideoSetting) (VideoEncoder, error)
 type VideoDecoderBuilder func(s VideoSetting) (VideoDecoder, error)
 
-type AudioEncoder interface {
-	Encode([]int16) ([]byte, error)
-	Close() error
-}
-
 type AudioSetting struct {
-	SampleRate int
+	InSampleRate, OutSampleRate int
+	// Latency in ms
+	Latency float64
 }
 
-type AudioEncoderBuilder func(s AudioSetting) (AudioEncoder, error)
+type AudioEncoderBuilder func(r audio.Reader, s AudioSetting) (io.ReadCloser, error)

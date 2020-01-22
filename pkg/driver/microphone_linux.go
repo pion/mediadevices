@@ -1,12 +1,16 @@
 package driver
 
 import (
+	"io"
+
 	"github.com/jfreymuth/pulse"
+	"github.com/pion/mediadevices/pkg/io/audio"
 )
 
 type microphone struct {
-	c *pulse.Client
-	s *pulse.RecordStream
+	c           *pulse.Client
+	s           *pulse.RecordStream
+	samplesChan chan<- []float32
 }
 
 var _ AudioAdapter = &microphone{}
@@ -34,31 +38,60 @@ func (m *microphone) Close() error {
 	return nil
 }
 
-func (m *microphone) Start(setting AudioSetting, cb AudioDataCb) error {
-	buff := make([]int16, 960)
-	n := 0
-	handler := func(b []int16) {
-		for n+len(b) >= 960 {
-			nCopied := copy(buff[n:], b)
-			cb(buff)
-			n = 0
-			b = b[nCopied:]
+func (m *microphone) Start(setting AudioSetting) (audio.Reader, error) {
+	var options []pulse.RecordOption
+	if setting.Mono {
+		options = append(options, pulse.RecordMono)
+	} else {
+		options = append(options, pulse.RecordStereo)
+	}
+	options = append(options, pulse.RecordSampleRate(48000), pulse.RecordBufferFragmentSize(512))
+
+	samplesChan := make(chan []float32, 1)
+	var buff []float32
+	var bi int
+	var more bool
+
+	reader := audio.ReaderFunc(func(samples [][2]float32) (n int, err error) {
+		for i := range samples {
+			// if we don't have anything left in buff, we'll wait until we receive
+			// more samples
+			if bi == len(buff) {
+				buff, more = <-samplesChan
+				if !more {
+					return i, io.EOF
+				}
+				bi = 0
+			}
+
+			samples[i][0] = buff[bi]
+			if !setting.Mono {
+				samples[i][1] = buff[bi+1]
+				bi++
+			}
+			bi++
 		}
-		nCopied := copy(buff[n:], b)
-		n += nCopied
+
+		return len(samples), nil
+	})
+
+	handler := func(b []float32) {
+		samplesChan <- b
 	}
 
-	stream, err := m.c.NewRecord(handler, pulse.RecordSampleRate(48000), pulse.RecordLatency(0.005))
+	stream, err := m.c.NewRecord(handler, options...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	stream.Start()
 	m.s = stream
-	return nil
+	m.samplesChan = samplesChan
+	return reader, nil
 }
 
 func (m *microphone) Stop() error {
+	close(m.samplesChan)
 	m.s.Stop()
 	return nil
 }
@@ -71,10 +104,8 @@ func (m *microphone) Info() Info {
 }
 
 func (m *microphone) Settings() []AudioSetting {
-	src, err := m.c.DefaultSource()
-	if err != nil {
-		return nil
-	}
-
-	return []AudioSetting{AudioSetting{src.SampleRate()}}
+	return []AudioSetting{AudioSetting{
+		SampleRate: 48000,
+		Mono:       false,
+	}}
 }

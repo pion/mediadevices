@@ -2,6 +2,7 @@ package mediadevices
 
 import (
 	"fmt"
+	"io"
 	"math/rand"
 
 	"github.com/pion/mediadevices/pkg/codec"
@@ -137,7 +138,7 @@ type audioTrack struct {
 	*track
 	d       driver.AudioDriver
 	setting driver.AudioSetting
-	encoder codec.AudioEncoder
+	encoder io.ReadCloser
 }
 
 var _ Tracker = &audioTrack{}
@@ -148,44 +149,43 @@ func newAudioTrack(pc *webrtc.PeerConnection, d driver.AudioDriver, setting driv
 		return nil, err
 	}
 
-	encoder, err := codec.BuildAudioEncoder(codecName, codec.AudioSetting{
-		SampleRate: setting.SampleRate,
-	})
+	reader, err := d.Start(setting)
 	if err != nil {
 		return nil, err
 	}
 
-	vt := audioTrack{
+	codecSetting := codec.AudioSetting{
+		InSampleRate: setting.SampleRate,
+	}
+
+	encoder, err := codec.BuildAudioEncoder(codecName, reader, codecSetting)
+	if err != nil {
+		return nil, err
+	}
+
+	at := audioTrack{
 		track:   t,
 		d:       d,
 		setting: setting,
 		encoder: encoder,
 	}
-
-	err = d.Start(setting, vt.dataCb)
-	if err != nil {
-		encoder.Close()
-		return nil, err
-	}
-
-	return &vt, nil
+	go at.start()
+	return &at, nil
 }
 
-func (vt *audioTrack) dataCb(b []int16) {
-	encoded, err := vt.encoder.Encode(b)
-	if err != nil {
-		// TODO: probably do some logging here
-		return
-	}
-
-	err = vt.s.sample(encoded)
-	if err != nil {
-		// TODO: probably do some logging here
-		return
+func (t *audioTrack) start() {
+	buff := make([]byte, 1024)
+	for {
+		n, err := t.encoder.Read(buff)
+		if err != nil {
+			// TODO: better error handling
+			panic(err)
+		}
+		t.s.sample(buff[:n])
 	}
 }
 
-func (vt *audioTrack) Stop() {
-	vt.d.Stop()
-	vt.encoder.Close()
+func (t *audioTrack) Stop() {
+	t.d.Stop()
+	t.encoder.Close()
 }

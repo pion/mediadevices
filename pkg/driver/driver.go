@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/frame"
 )
 
@@ -14,7 +15,6 @@ const (
 )
 
 type DataCb func(b []byte)
-type AudioDataCb func(b []int16)
 
 type OpenCloser interface {
 	Open() error
@@ -42,13 +42,14 @@ type VideoSetting struct {
 }
 
 type AudioCapable interface {
-	Start(setting AudioSetting, cb AudioDataCb) error
+	Start(setting AudioSetting) (audio.Reader, error)
 	Stop() error
 	Settings() []AudioSetting
 }
 
 type AudioSetting struct {
 	SampleRate int
+	Mono       bool
 }
 
 type Adapter interface {
