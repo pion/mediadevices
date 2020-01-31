@@ -4,6 +4,7 @@ import (
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
+	"time"
 )
 
 type State uint
@@ -48,6 +49,7 @@ type AudioCapable interface {
 
 type AudioSetting struct {
 	SampleRate int
+	Latency    time.Duration
 	Mono       bool
 }
 

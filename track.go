@@ -9,6 +9,7 @@ import (
 	"github.com/pion/mediadevices/pkg/driver"
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v2/pkg/media"
 )
 
 // Tracker is an interface that represent MediaStreamTrack
@@ -168,13 +169,18 @@ func newAudioTrack(pc *webrtc.PeerConnection, d driver.AudioDriver, setting driv
 
 func (t *audioTrack) start() {
 	buff := make([]byte, 1024)
+	sampleSize := uint32(float64(t.setting.SampleRate) * t.setting.Latency.Seconds())
 	for {
 		n, err := t.encoder.Read(buff)
 		if err != nil {
 			// TODO: better error handling
 			panic(err)
 		}
-		t.s.sample(buff[:n])
+
+		t.t.WriteSample(media.Sample{
+			Data:    buff[:n],
+			Samples: sampleSize,
+		})
 	}
 }
 
