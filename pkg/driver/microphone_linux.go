@@ -2,6 +2,7 @@ package driver
 
 import (
 	"io"
+	"time"
 
 	"github.com/jfreymuth/pulse"
 	"github.com/pion/mediadevices/pkg/io/audio"
@@ -45,7 +46,8 @@ func (m *microphone) Start(setting AudioSetting) (audio.Reader, error) {
 	} else {
 		options = append(options, pulse.RecordStereo)
 	}
-	options = append(options, pulse.RecordSampleRate(48000), pulse.RecordBufferFragmentSize(512))
+	latency := setting.Latency.Seconds()
+	options = append(options, pulse.RecordSampleRate(setting.SampleRate), pulse.RecordLatency(latency))
 
 	samplesChan := make(chan []float32, 1)
 	var buff []float32
@@ -106,6 +108,7 @@ func (m *microphone) Info() Info {
 func (m *microphone) Settings() []AudioSetting {
 	return []AudioSetting{AudioSetting{
 		SampleRate: 48000,
+		Latency:    time.Millisecond * 20,
 		Mono:       false,
 	}}
 }

@@ -4,6 +4,8 @@ import "github.com/pion/mediadevices/pkg/driver"
 
 import "math"
 
+import "time"
+
 type MediaStreamConstraints struct {
 	Audio AudioTrackConstraints
 	Video VideoTrackConstraints
@@ -38,6 +40,7 @@ type AudioTrackConstraints struct {
 	Enabled    bool
 	Codec      string
 	SampleRate int
+	Latency    time.Duration
 }
 
 // fitnessDistance is an implementation for https://w3c.github.io/mediacapture-main/#dfn-fitness-distance
@@ -49,6 +52,12 @@ func (c *AudioTrackConstraints) fitnessDistance(s driver.AudioSetting) float64 {
 		idealSampleRate := float64(c.SampleRate)
 		max := math.Max(math.Abs(actualSampleRate), math.Abs(idealSampleRate))
 		dist += math.Abs(actualSampleRate-idealSampleRate) / max
+	}
+	if s.Latency != c.Latency {
+		actualLatency := float64(s.Latency)
+		idealLatency := float64(c.Latency)
+		max := math.Max(math.Abs(actualLatency), math.Abs(idealLatency))
+		dist += math.Abs(actualLatency-idealLatency) / max
 	}
 
 	return dist
