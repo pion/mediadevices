@@ -100,7 +100,6 @@ func (m *microphone) Stop() error {
 
 func (m *microphone) Info() Info {
 	return Info{
-		Kind:       Audio,
 		DeviceType: Microphone,
 	}
 }

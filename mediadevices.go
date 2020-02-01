@@ -60,8 +60,7 @@ func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaSt
 // videoSelect implements SelectSettings algorithm for video type.
 // Reference: https://w3c.github.io/mediacapture-main/#dfn-selectsettings
 func (m *mediaDevices) videoSelect(constraints VideoTrackConstraints) (Tracker, error) {
-	videoFilterFn := driver.FilterKind(driver.Video)
-	drivers := driver.GetManager().Query(videoFilterFn)
+	drivers := driver.GetManager().VideoDrivers()
 
 	var bestDriver driver.VideoDriver
 	var bestSetting driver.VideoSetting
@@ -111,8 +110,7 @@ func (m *mediaDevices) videoSelect(constraints VideoTrackConstraints) (Tracker, 
 // audioSelect implements SelectSettings algorithm for audio type.
 // Reference: https://w3c.github.io/mediacapture-main/#dfn-selectsettings
 func (m *mediaDevices) audioSelect(constraints AudioTrackConstraints) (Tracker, error) {
-	audioFilterFn := driver.FilterKind(driver.Audio)
-	drivers := driver.GetManager().Query(audioFilterFn)
+	drivers := driver.GetManager().AudioDrivers()
 
 	var bestDriver driver.AudioDriver
 	var bestSetting driver.AudioSetting

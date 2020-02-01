@@ -27,10 +27,10 @@ type track struct {
 
 func newTrack(pc *webrtc.PeerConnection, d driver.Driver, codecName string) (*track, error) {
 	var kind webrtc.RTPCodecType
-	switch d.Info().Kind {
-	case driver.Video:
+	switch d.(type) {
+	case driver.VideoDriver:
 		kind = webrtc.RTPCodecTypeVideo
-	case driver.Audio:
+	case driver.AudioDriver:
 		kind = webrtc.RTPCodecTypeAudio
 	}
 

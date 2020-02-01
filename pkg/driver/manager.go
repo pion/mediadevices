@@ -2,13 +2,9 @@ package driver
 
 import "fmt"
 
+// FilterFn is being used to decide if a driver should be included in the
+// query result.
 type FilterFn func(Driver) bool
-
-func FilterKind(k Kind) FilterFn {
-	return func(d Driver) bool {
-		return d.Info().Kind == k
-	}
-}
 
 // Manager is a singleton to manage multiple drivers and their states
 type Manager struct {
@@ -45,4 +41,20 @@ func (m *Manager) Query(f FilterFn) []Driver {
 	}
 
 	return results
+}
+
+// VideoDrivers gets a list of registered VideoDriver
+func (m *Manager) VideoDrivers() []Driver {
+	return m.Query(func(d Driver) bool {
+		_, ok := d.(VideoDriver)
+		return ok
+	})
+}
+
+// AudioDrivers gets a list of registered AudioDriver
+func (m *Manager) AudioDrivers() []Driver {
+	return m.Query(func(d Driver) bool {
+		_, ok := d.(AudioDriver)
+		return ok
+	})
 }
