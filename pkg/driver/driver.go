@@ -7,15 +7,6 @@ import (
 	"time"
 )
 
-type State uint
-
-const (
-	StateClosed State = iota
-	StateOpened
-	StateStarted
-	StateStopped
-)
-
 type OpenCloser interface {
 	Open() error
 	Close() error

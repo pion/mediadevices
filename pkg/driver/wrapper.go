@@ -1,7 +1,7 @@
 package driver
 
 import (
-	"fmt"
+	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	uuid "github.com/satori/go.uuid"
 )
@@ -9,84 +9,62 @@ import (
 func wrapAdapter(a Adapter) Driver {
 	var d Driver
 	id := uuid.NewV4().String()
+	wrapper := adapterWrapper{Adapter: a, id: id}
 
 	switch v := a.(type) {
-	case VideoAdapter:
+	case VideoCapable:
 		d = &videoAdapterWrapper{
-			VideoAdapter: v,
-			id:           id,
+			adapterWrapper: &wrapper,
+			VideoCapable:   v,
 		}
-	case AudioAdapter:
+	case AudioCapable:
 		d = &audioAdapterWrapper{
-			AudioAdapter: v,
-			id:           id,
+			adapterWrapper: &wrapper,
+			AudioCapable:   v,
 		}
 	}
 
 	return d
 }
 
-// TODO: Add state validation
-type videoAdapterWrapper struct {
-	VideoAdapter
+type adapterWrapper struct {
+	Adapter
 	id    string
 	state State
 }
 
-func (w *videoAdapterWrapper) ID() string {
+func (w *adapterWrapper) ID() string {
 	return w.id
 }
 
-func (w *videoAdapterWrapper) Status() State {
+func (w *adapterWrapper) Status() State {
 	return w.state
 }
 
-func (w *videoAdapterWrapper) Open() error {
-	if w.state != StateClosed {
-		return fmt.Errorf("invalid state: driver is already opened")
-	}
-
-	err := w.VideoAdapter.Open()
-	if err == nil {
-		w.state = StateOpened
-	}
-	return err
+func (w *adapterWrapper) Open() error {
+	return w.state.Update(StateOpened, w.Adapter.Open)
 }
 
-func (w *videoAdapterWrapper) Close() error {
-	err := w.VideoAdapter.Close()
-	if err == nil {
-		w.state = StateClosed
-	}
-	return err
+func (w *adapterWrapper) Close() error {
+	return w.state.Update(StateClosed, w.Adapter.Close)
 }
 
-func (w *videoAdapterWrapper) Start(setting VideoSetting) (video.Reader, error) {
-	if w.state == StateClosed {
-		return nil, fmt.Errorf("invalid state: driver hasn't been opened")
-	}
+// TODO: Add state validation
+type videoAdapterWrapper struct {
+	*adapterWrapper
+	VideoCapable
+}
 
-	if w.state == StateStarted {
-		return nil, fmt.Errorf("invalid state: driver has been started")
-	}
-
-	r, err := w.VideoAdapter.Start(setting)
-	if err == nil {
-		w.state = StateStarted
-	}
-	return r, err
+func (w *videoAdapterWrapper) Start(setting VideoSetting) (r video.Reader, err error) {
+	w.state.Update(StateStarted, func() error {
+		r, err = w.VideoCapable.Start(setting)
+		return err
+	})
+	return
 }
 
 func (w *videoAdapterWrapper) Stop() error {
-	if w.state != StateStarted {
-		return fmt.Errorf("invalid state: driver hasn't been started")
-	}
-
-	err := w.VideoAdapter.Stop()
-	if err == nil {
-		w.state = StateStopped
-	}
-	return err
+	return w.state.Update(StateStopped, w.VideoCapable.Stop)
 }
 
 func (w *videoAdapterWrapper) Settings() []VideoSetting {
@@ -94,20 +72,30 @@ func (w *videoAdapterWrapper) Settings() []VideoSetting {
 		return nil
 	}
 
-	return w.VideoAdapter.Settings()
+	return w.VideoCapable.Settings()
 }
 
-// TODO: Add state validation
 type audioAdapterWrapper struct {
-	AudioAdapter
-	id    string
-	state State
+	*adapterWrapper
+	AudioCapable
 }
 
-func (w *audioAdapterWrapper) ID() string {
-	return w.id
+func (w *audioAdapterWrapper) Start(setting AudioSetting) (r audio.Reader, err error) {
+	w.state.Update(StateStarted, func() error {
+		r, err = w.AudioCapable.Start(setting)
+		return err
+	})
+	return
 }
 
-func (w *audioAdapterWrapper) Status() State {
-	return w.state
+func (w *audioAdapterWrapper) Stop() error {
+	return w.state.Update(StateStopped, w.AudioCapable.Stop)
+}
+
+func (w *audioAdapterWrapper) Settings() []AudioSetting {
+	if w.state == StateClosed {
+		return nil
+	}
+
+	return w.AudioCapable.Settings()
 }
