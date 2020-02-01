@@ -9,7 +9,7 @@ Go implementation of the [MediaDevices](https://developer.mozilla.org/en-US/docs
 | Interface  | Linux | Mac | Windows |
 | :--------: | :---: | :-: | :-----: |
 |   Camera   |  ✔️   | ✖️  |   ✖️    |
-| Microphone |  ✖️   | ✖️  |   ✖️    |
+| Microphone |  ✔️   | ✖️  |   ✖️    |
 
 ### Camera
 
