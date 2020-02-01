@@ -15,11 +15,11 @@ import (
 // Camera implementation using v4l2
 // Reference: https://linuxtv.org/downloads/v4l-dvb-apis/uapi/v4l/videodev.html#videodev
 type camera struct {
-	path    string
-	cam     *webcam.Webcam
-	formats map[webcam.PixelFormat]frame.Format
+	path            string
+	cam             *webcam.Webcam
+	formats         map[webcam.PixelFormat]frame.Format
 	reversedFormats map[frame.Format]webcam.PixelFormat
-	settings 	[]VideoSetting
+	settings        []VideoSetting
 }
 
 var _ VideoAdapter = &camera{}
@@ -34,8 +34,8 @@ func init() {
 
 func newCamera(path string) *camera {
 	formats := map[webcam.PixelFormat]frame.Format{
-		webcam.PixelFormat(C.V4L2_PIX_FMT_YUYV): frame.FormatYUYV,
-		webcam.PixelFormat(C.V4L2_PIX_FMT_NV12): frame.FormatNV21,
+		webcam.PixelFormat(C.V4L2_PIX_FMT_YUYV):  frame.FormatYUYV,
+		webcam.PixelFormat(C.V4L2_PIX_FMT_NV12):  frame.FormatNV21,
 		webcam.PixelFormat(C.V4L2_PIX_FMT_MJPEG): frame.FormatMJPEG,
 	}
 
@@ -45,8 +45,8 @@ func newCamera(path string) *camera {
 	}
 
 	return &camera{
-		path: path,
-		formats: formats,
+		path:            path,
+		formats:         formats,
 		reversedFormats: reversedFormats,
 	}
 }
@@ -61,8 +61,8 @@ func (c *camera) Open() error {
 	for format := range cam.GetSupportedFormats() {
 		for _, frameSize := range cam.GetSupportedFrameSizes(format) {
 			settings = append(settings, VideoSetting{
-				Width:  int(frameSize.MaxWidth),
-				Height: int(frameSize.MaxHeight),
+				Width:       int(frameSize.MaxWidth),
+				Height:      int(frameSize.MaxHeight),
 				FrameFormat: c.formats[format],
 			})
 		}
@@ -135,7 +135,6 @@ func (c *camera) Stop() error {
 
 func (c *camera) Info() Info {
 	return Info{
-		Kind: 		Video,
 		DeviceType: Camera,
 	}
 }

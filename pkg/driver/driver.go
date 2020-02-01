@@ -1,10 +1,11 @@
 package driver
 
 import (
+	"time"
+
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
-	"time"
 )
 
 type OpenCloser interface {
@@ -17,7 +18,6 @@ type Infoer interface {
 }
 
 type Info struct {
-	Kind       Kind
 	DeviceType DeviceType
 }
 
