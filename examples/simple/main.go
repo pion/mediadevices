@@ -7,6 +7,7 @@ import (
 	"github.com/pion/mediadevices/examples/internal/signal"
 	_ "github.com/pion/mediadevices/pkg/codec/openh264" // This is required to register h264 video encoder
 	_ "github.com/pion/mediadevices/pkg/codec/opus"     // This is required to register opus audio encoder
+	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -40,9 +41,11 @@ func main() {
 		},
 		Video: mediadevices.VideoTrackConstraints{
 			Enabled: true,
-			Width:   800, // Optional. This is just an ideal value.
-			Height:  480, // Optional. This is just an ideal value.
-			Codec:   webrtc.H264,
+			Property: video.Property{
+				Width:  800, // Optional. This is just an ideal value.
+				Height: 480, // Optional. This is just an ideal value.
+			},
+			Codec: webrtc.H264,
 		},
 	})
 	if err != nil {

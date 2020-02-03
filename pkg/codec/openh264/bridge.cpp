@@ -27,7 +27,7 @@ Encoder *enc_new(const EncoderOptions opts) {
   params.iPicWidth = opts.width;
   params.iPicHeight = opts.height;
   params.iTargetBitrate = opts.target_bitrate;
-  params.iMaxBitrate = opts.max_bitrate;
+  params.iMaxBitrate = opts.target_bitrate;
   params.iRCMode = RC_BITRATE_MODE;
   params.fMaxFrameRate = opts.max_fps;
   params.bEnableFrameSkip = true;
@@ -40,7 +40,7 @@ Encoder *enc_new(const EncoderOptions opts) {
   params.sSpatialLayers[0].iVideoHeight = params.iPicHeight;
   params.sSpatialLayers[0].fFrameRate = params.fMaxFrameRate;
   params.sSpatialLayers[0].iSpatialBitrate = params.iTargetBitrate;
-  params.sSpatialLayers[0].iMaxSpatialBitrate = params.iMaxBitrate;
+  params.sSpatialLayers[0].iMaxSpatialBitrate = params.iTargetBitrate;
   // Single NAL unit mode
   params.sSpatialLayers[0].sSliceArgument.uiSliceNum = 1;
   params.sSpatialLayers[0].sSliceArgument.uiSliceMode = SM_SIZELIMITED_SLICE;

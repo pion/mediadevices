@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"time"
 
-	"github.com/pion/mediadevices/pkg/driver"
+	"github.com/pion/mediadevices/pkg/io/audio"
+	"github.com/pion/mediadevices/pkg/io/video"
 )
 
 type MediaStreamConstraints struct {
@@ -49,28 +49,27 @@ func (c comparisons) fitnessDistance() float64 {
 }
 
 type VideoTrackConstraints struct {
-	Enabled       bool
-	Width, Height int
-	Codec         string
+	video.Property
+	Enabled bool
+	Codec   string
 }
 
-func (c *VideoTrackConstraints) fitnessDistance(s driver.VideoSetting) float64 {
+func (c *VideoTrackConstraints) fitnessDistance(prop video.AdvancedProperty) float64 {
 	cmps := comparisons{}
-	cmps.Add(s.Width, c.Width)
-	cmps.Add(s.Height, c.Height)
+	cmps.Add(prop.Width, c.Width)
+	cmps.Add(prop.Height, c.Height)
 	return cmps.fitnessDistance()
 }
 
 type AudioTrackConstraints struct {
-	Enabled    bool
-	Codec      string
-	SampleRate int
-	Latency    time.Duration
+	audio.Property
+	Enabled bool
+	Codec   string
 }
 
-func (c *AudioTrackConstraints) fitnessDistance(s driver.AudioSetting) float64 {
+func (c *AudioTrackConstraints) fitnessDistance(prop audio.AdvancedProperty) float64 {
 	cmps := comparisons{}
-	cmps.Add(s.SampleRate, c.SampleRate)
-	cmps.Add(s.Latency, c.Latency)
+	cmps.Add(prop.SampleRate, c.SampleRate)
+	cmps.Add(prop.Latency, c.Latency)
 	return cmps.fitnessDistance()
 }

@@ -5,6 +5,8 @@ import (
 	"math"
 
 	"github.com/pion/mediadevices/pkg/driver"
+	"github.com/pion/mediadevices/pkg/io/audio"
+	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -63,7 +65,7 @@ func (m *mediaDevices) videoSelect(constraints VideoTrackConstraints) (Tracker, 
 	drivers := driver.GetManager().VideoDrivers()
 
 	var bestDriver driver.VideoDriver
-	var bestSetting driver.VideoSetting
+	var bestProp video.AdvancedProperty
 	minFitnessDist := math.Inf(1)
 
 	for _, d := range drivers {
@@ -78,13 +80,13 @@ func (m *mediaDevices) videoSelect(constraints VideoTrackConstraints) (Tracker, 
 		}
 
 		vd := d.(driver.VideoDriver)
-		for _, setting := range vd.Settings() {
-			fitnessDist := constraints.fitnessDistance(setting)
+		for _, prop := range vd.Properties() {
+			fitnessDist := constraints.fitnessDistance(prop)
 
 			if fitnessDist < minFitnessDist {
 				minFitnessDist = fitnessDist
 				bestDriver = vd
-				bestSetting = setting
+				bestProp = prop
 			}
 		}
 
@@ -104,7 +106,7 @@ func (m *mediaDevices) videoSelect(constraints VideoTrackConstraints) (Tracker, 
 			return nil, fmt.Errorf("failed in opening the best video driver")
 		}
 	}
-	return newVideoTrack(m.pc, bestDriver, bestSetting, constraints.Codec)
+	return newVideoTrack(m.pc, bestDriver, bestProp, constraints.Codec)
 }
 
 // audioSelect implements SelectSettings algorithm for audio type.
@@ -113,7 +115,7 @@ func (m *mediaDevices) audioSelect(constraints AudioTrackConstraints) (Tracker, 
 	drivers := driver.GetManager().AudioDrivers()
 
 	var bestDriver driver.AudioDriver
-	var bestSetting driver.AudioSetting
+	var bestProp audio.AdvancedProperty
 	minFitnessDist := math.Inf(1)
 
 	for _, d := range drivers {
@@ -128,13 +130,13 @@ func (m *mediaDevices) audioSelect(constraints AudioTrackConstraints) (Tracker, 
 		}
 
 		ad := d.(driver.AudioDriver)
-		for _, setting := range ad.Settings() {
-			fitnessDist := constraints.fitnessDistance(setting)
+		for _, prop := range ad.Properties() {
+			fitnessDist := constraints.fitnessDistance(prop)
 
 			if fitnessDist < minFitnessDist {
 				minFitnessDist = fitnessDist
 				bestDriver = ad
-				bestSetting = setting
+				bestProp = prop
 			}
 		}
 
@@ -154,5 +156,5 @@ func (m *mediaDevices) audioSelect(constraints AudioTrackConstraints) (Tracker, 
 			return nil, fmt.Errorf("failed in opening the best audio driver")
 		}
 	}
-	return newAudioTrack(m.pc, bestDriver, bestSetting, constraints.Codec)
+	return newAudioTrack(m.pc, bestDriver, bestProp, constraints.Codec)
 }

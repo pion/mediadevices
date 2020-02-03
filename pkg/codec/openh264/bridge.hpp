@@ -18,7 +18,7 @@ typedef struct Frame {
 
 typedef struct EncoderOptions {
   int width, height;
-  int target_bitrate, max_bitrate;
+  int target_bitrate;
   float max_fps;
 } EncoderOptions;
 

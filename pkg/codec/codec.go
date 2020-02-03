@@ -7,18 +7,5 @@ import (
 	"github.com/pion/mediadevices/pkg/io/video"
 )
 
-type VideoSetting struct {
-	Width, Height             int
-	TargetBitRate, MaxBitRate int
-	FrameRate                 float32
-}
-
-type VideoEncoderBuilder func(r video.Reader, s VideoSetting) (io.ReadCloser, error)
-
-type AudioSetting struct {
-	InSampleRate, OutSampleRate int
-	// Latency in ms
-	Latency float64
-}
-
-type AudioEncoderBuilder func(r audio.Reader, s AudioSetting) (io.ReadCloser, error)
+type VideoEncoderBuilder func(r video.Reader, prop video.AdvancedProperty) (io.ReadCloser, error)
+type AudioEncoderBuilder func(r audio.Reader, inProp, outProp audio.AdvancedProperty) (io.ReadCloser, error)

@@ -1,9 +1,6 @@
 package driver
 
 import (
-	"time"
-
-	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 )
@@ -22,26 +19,15 @@ type Info struct {
 }
 
 type VideoCapable interface {
-	Start(setting VideoSetting) (video.Reader, error)
+	Start(prop video.AdvancedProperty) (video.Reader, error)
 	Stop() error
-	Settings() []VideoSetting
-}
-
-type VideoSetting struct {
-	Width, Height int
-	FrameFormat   frame.Format
+	Properties() []video.AdvancedProperty
 }
 
 type AudioCapable interface {
-	Start(setting AudioSetting) (audio.Reader, error)
+	Start(prop audio.AdvancedProperty) (audio.Reader, error)
 	Stop() error
-	Settings() []AudioSetting
-}
-
-type AudioSetting struct {
-	SampleRate int
-	Latency    time.Duration
-	Mono       bool
+	Properties() []audio.AdvancedProperty
 }
 
 type Adapter interface {
