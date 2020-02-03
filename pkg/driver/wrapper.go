@@ -55,9 +55,9 @@ type videoAdapterWrapper struct {
 	VideoCapable
 }
 
-func (w *videoAdapterWrapper) Start(setting VideoSetting) (r video.Reader, err error) {
+func (w *videoAdapterWrapper) Start(prop video.AdvancedProperty) (r video.Reader, err error) {
 	w.state.Update(StateStarted, func() error {
-		r, err = w.VideoCapable.Start(setting)
+		r, err = w.VideoCapable.Start(prop)
 		return err
 	})
 	return
@@ -67,12 +67,12 @@ func (w *videoAdapterWrapper) Stop() error {
 	return w.state.Update(StateStopped, w.VideoCapable.Stop)
 }
 
-func (w *videoAdapterWrapper) Settings() []VideoSetting {
+func (w *videoAdapterWrapper) Properties() []video.AdvancedProperty {
 	if w.state == StateClosed {
 		return nil
 	}
 
-	return w.VideoCapable.Settings()
+	return w.VideoCapable.Properties()
 }
 
 type audioAdapterWrapper struct {
@@ -80,9 +80,9 @@ type audioAdapterWrapper struct {
 	AudioCapable
 }
 
-func (w *audioAdapterWrapper) Start(setting AudioSetting) (r audio.Reader, err error) {
+func (w *audioAdapterWrapper) Start(prop audio.AdvancedProperty) (r audio.Reader, err error) {
 	w.state.Update(StateStarted, func() error {
-		r, err = w.AudioCapable.Start(setting)
+		r, err = w.AudioCapable.Start(prop)
 		return err
 	})
 	return
@@ -92,10 +92,10 @@ func (w *audioAdapterWrapper) Stop() error {
 	return w.state.Update(StateStopped, w.AudioCapable.Stop)
 }
 
-func (w *audioAdapterWrapper) Settings() []AudioSetting {
+func (w *audioAdapterWrapper) Properties() []audio.AdvancedProperty {
 	if w.state == StateClosed {
 		return nil
 	}
 
-	return w.AudioCapable.Settings()
+	return w.AudioCapable.Properties()
 }

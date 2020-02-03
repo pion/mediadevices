@@ -39,15 +39,15 @@ func (m *microphone) Close() error {
 	return nil
 }
 
-func (m *microphone) Start(setting AudioSetting) (audio.Reader, error) {
+func (m *microphone) Start(prop audio.AdvancedProperty) (audio.Reader, error) {
 	var options []pulse.RecordOption
-	if setting.Mono {
+	if prop.ChannelCount == 1 {
 		options = append(options, pulse.RecordMono)
 	} else {
 		options = append(options, pulse.RecordStereo)
 	}
-	latency := setting.Latency.Seconds()
-	options = append(options, pulse.RecordSampleRate(setting.SampleRate), pulse.RecordLatency(latency))
+	latency := prop.Latency.Seconds()
+	options = append(options, pulse.RecordSampleRate(prop.SampleRate), pulse.RecordLatency(latency))
 
 	samplesChan := make(chan []float32, 1)
 	var buff []float32
@@ -67,7 +67,7 @@ func (m *microphone) Start(setting AudioSetting) (audio.Reader, error) {
 			}
 
 			samples[i][0] = buff[bi]
-			if !setting.Mono {
+			if prop.ChannelCount == 2 {
 				samples[i][1] = buff[bi+1]
 				bi++
 			}
@@ -104,10 +104,18 @@ func (m *microphone) Info() Info {
 	}
 }
 
-func (m *microphone) Settings() []AudioSetting {
-	return []AudioSetting{AudioSetting{
-		SampleRate: 48000,
-		Latency:    time.Millisecond * 20,
-		Mono:       false,
-	}}
+func (m *microphone) Properties() []audio.AdvancedProperty {
+	// TODO: Get actual properties
+	monoProp := audio.AdvancedProperty{
+		Property: audio.Property{
+			SampleRate:   48000,
+			Latency:      time.Millisecond * 20,
+			ChannelCount: 1,
+		},
+	}
+
+	stereoProp := monoProp
+	stereoProp.ChannelCount = 2
+
+	return []audio.AdvancedProperty{monoProp, stereoProp}
 }

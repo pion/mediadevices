@@ -11,19 +11,21 @@ import "C"
 
 import (
 	"fmt"
+	"image"
 	"io"
+	"unsafe"
+
 	"github.com/pion/mediadevices/pkg/codec"
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
+
 	"github.com/pion/webrtc/v2"
-	"image"
-	"unsafe"
 )
 
 type encoder struct {
 	engine *C.Encoder
-	r		video.Reader
-	buff 	[]byte
+	r      video.Reader
+	buff   []byte
 }
 
 var _ codec.VideoEncoderBuilder = codec.VideoEncoderBuilder(NewEncoder)
@@ -32,13 +34,12 @@ func init() {
 	codec.Register(webrtc.H264, codec.VideoEncoderBuilder(NewEncoder))
 }
 
-func NewEncoder(r video.Reader, s codec.VideoSetting) (io.ReadCloser, error) {
+func NewEncoder(r video.Reader, prop video.AdvancedProperty) (io.ReadCloser, error) {
 	cEncoder, err := C.enc_new(C.EncoderOptions{
-		width:          C.int(s.Width),
-		height:         C.int(s.Height),
-		target_bitrate: C.int(s.TargetBitRate),
-		max_bitrate:	C.int(s.MaxBitRate),
-		max_fps:        C.float(s.FrameRate),
+		width:          C.int(prop.Width),
+		height:         C.int(prop.Height),
+		target_bitrate: C.int(prop.BitRate),
+		max_fps:        C.float(prop.FrameRate),
 	})
 	if err != nil {
 		// TODO: better error message
@@ -47,7 +48,7 @@ func NewEncoder(r video.Reader, s codec.VideoSetting) (io.ReadCloser, error) {
 
 	return &encoder{
 		engine: cEncoder,
-		r: 		r,
+		r:      r,
 	}, nil
 }
 

@@ -19,7 +19,7 @@ type camera struct {
 	cam             *webcam.Webcam
 	formats         map[webcam.PixelFormat]frame.Format
 	reversedFormats map[frame.Format]webcam.PixelFormat
-	settings        []VideoSetting
+	properties      []video.AdvancedProperty
 }
 
 var _ VideoAdapter = &camera{}
@@ -57,24 +57,26 @@ func (c *camera) Open() error {
 		return err
 	}
 
-	settings := make([]VideoSetting, 0)
+	properties := make([]video.AdvancedProperty, 0)
 	for format := range cam.GetSupportedFormats() {
 		for _, frameSize := range cam.GetSupportedFrameSizes(format) {
-			settings = append(settings, VideoSetting{
-				Width:       int(frameSize.MaxWidth),
-				Height:      int(frameSize.MaxHeight),
+			properties = append(properties, video.AdvancedProperty{
+				Property: video.Property{
+					Width:  int(frameSize.MaxWidth),
+					Height: int(frameSize.MaxHeight),
+				},
 				FrameFormat: c.formats[format],
 			})
 		}
 	}
 
 	c.cam = cam
-	c.settings = settings
+	c.properties = properties
 	return nil
 }
 
 func (c *camera) Close() error {
-	c.settings = nil
+	c.properties = nil
 	if c.cam == nil {
 		return nil
 	}
@@ -82,14 +84,14 @@ func (c *camera) Close() error {
 	return c.cam.StopStreaming()
 }
 
-func (c *camera) Start(setting VideoSetting) (video.Reader, error) {
-	decoder, err := frame.NewDecoder(setting.FrameFormat)
+func (c *camera) Start(prop video.AdvancedProperty) (video.Reader, error) {
+	decoder, err := frame.NewDecoder(prop.FrameFormat)
 	if err != nil {
 		return nil, err
 	}
 
-	pf := c.reversedFormats[setting.FrameFormat]
-	_, _, _, err = c.cam.SetImageFormat(pf, uint32(setting.Width), uint32(setting.Height))
+	pf := c.reversedFormats[prop.FrameFormat]
+	_, _, _, err = c.cam.SetImageFormat(pf, uint32(prop.Width), uint32(prop.Height))
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +124,7 @@ func (c *camera) Start(setting VideoSetting) (video.Reader, error) {
 				continue
 			}
 
-			return decoder.Decode(b, setting.Width, setting.Height)
+			return decoder.Decode(b, prop.Width, prop.Height)
 		}
 	})
 
@@ -139,6 +141,6 @@ func (c *camera) Info() Info {
 	}
 }
 
-func (c *camera) Settings() []VideoSetting {
-	return c.settings
+func (c *camera) Properties() []video.AdvancedProperty {
+	return c.properties
 }

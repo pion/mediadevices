@@ -8,6 +8,8 @@ import (
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/driver"
 	mio "github.com/pion/mediadevices/pkg/io"
+	"github.com/pion/mediadevices/pkg/io/audio"
+	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
 )
@@ -64,39 +66,36 @@ func (t *track) Track() *webrtc.Track {
 
 type videoTrack struct {
 	*track
-	d       driver.VideoDriver
-	setting driver.VideoSetting
-	encoder io.ReadCloser
+	d        driver.VideoDriver
+	property video.AdvancedProperty
+	encoder  io.ReadCloser
 }
 
 var _ Tracker = &videoTrack{}
 
-func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, setting driver.VideoSetting, codecName string) (*videoTrack, error) {
+func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, prop video.AdvancedProperty, codecName string) (*videoTrack, error) {
 	t, err := newTrack(pc, d, codecName)
 	if err != nil {
 		return nil, err
 	}
 
-	r, err := d.Start(setting)
+	r, err := d.Start(prop)
 	if err != nil {
 		return nil, err
 	}
 
-	encoder, err := codec.BuildVideoEncoder(codecName, r, codec.VideoSetting{
-		Width:         setting.Width,
-		Height:        setting.Height,
-		TargetBitRate: 1000000,
-		FrameRate:     30,
-	})
+	// TODO: Remove hardcoded bitrate
+	prop.BitRate = 100000
+	encoder, err := codec.BuildVideoEncoder(codecName, r, prop)
 	if err != nil {
 		return nil, err
 	}
 
 	vt := videoTrack{
-		track:   t,
-		d:       d,
-		setting: setting,
-		encoder: encoder,
+		track:    t,
+		d:        d,
+		property: prop,
+		encoder:  encoder,
 	}
 
 	go vt.start()
@@ -130,38 +129,38 @@ func (vt *videoTrack) Stop() {
 
 type audioTrack struct {
 	*track
-	d       driver.AudioDriver
-	setting driver.AudioSetting
-	encoder io.ReadCloser
+	d        driver.AudioDriver
+	property audio.AdvancedProperty
+	encoder  io.ReadCloser
 }
 
 var _ Tracker = &audioTrack{}
 
-func newAudioTrack(pc *webrtc.PeerConnection, d driver.AudioDriver, setting driver.AudioSetting, codecName string) (*audioTrack, error) {
+func newAudioTrack(pc *webrtc.PeerConnection, d driver.AudioDriver, prop audio.AdvancedProperty, codecName string) (*audioTrack, error) {
 	t, err := newTrack(pc, d, codecName)
 	if err != nil {
 		return nil, err
 	}
 
-	reader, err := d.Start(setting)
+	reader, err := d.Start(prop)
 	if err != nil {
 		return nil, err
 	}
 
-	codecSetting := codec.AudioSetting{
-		InSampleRate: setting.SampleRate,
-	}
+	// TODO: Not sure how to decide inProp and outProp
+	inProp := prop
+	outProp := prop
 
-	encoder, err := codec.BuildAudioEncoder(codecName, reader, codecSetting)
+	encoder, err := codec.BuildAudioEncoder(codecName, reader, inProp, outProp)
 	if err != nil {
 		return nil, err
 	}
 
 	at := audioTrack{
-		track:   t,
-		d:       d,
-		setting: setting,
-		encoder: encoder,
+		track:    t,
+		d:        d,
+		property: prop,
+		encoder:  encoder,
 	}
 	go at.start()
 	return &at, nil
@@ -169,7 +168,7 @@ func newAudioTrack(pc *webrtc.PeerConnection, d driver.AudioDriver, setting driv
 
 func (t *audioTrack) start() {
 	buff := make([]byte, 1024)
-	sampleSize := uint32(float64(t.setting.SampleRate) * t.setting.Latency.Seconds())
+	sampleSize := uint32(float64(t.property.SampleRate) * t.property.Latency.Seconds())
 	for {
 		n, err := t.encoder.Read(buff)
 		if err != nil {

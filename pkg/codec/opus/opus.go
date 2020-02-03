@@ -29,24 +29,25 @@ func init() {
 	codec.Register(webrtc.Opus, codec.AudioEncoderBuilder(NewEncoder))
 }
 
-func NewEncoder(r audio.Reader, s codec.AudioSetting) (io.ReadCloser, error) {
-	if s.InSampleRate == 0 {
-		return nil, fmt.Errorf("opus: InSampleRate is required")
+func NewEncoder(r audio.Reader, inProp, outProp audio.AdvancedProperty) (io.ReadCloser, error) {
+	if inProp.SampleRate == 0 {
+		return nil, fmt.Errorf("opus: inProp.SampleRate is required")
 	}
 
-	if s.OutSampleRate == 0 {
-		s.OutSampleRate = 48000
+	if outProp.SampleRate == 0 {
+		outProp.SampleRate = 48000
 	}
 
-	if s.Latency == 0 {
-		s.Latency = 20
+	if inProp.Latency == 0 {
+		inProp.Latency = 20
 	}
 
 	// Select the nearest supported latency
 	var targetLatency float64
+	latencyInMS := float64(inProp.Latency.Milliseconds())
 	nearestDist := math.Inf(+1)
 	for _, latency := range latencies {
-		dist := math.Abs(latency - s.Latency)
+		dist := math.Abs(latency - latencyInMS)
 		if dist >= nearestDist {
 			break
 		}
@@ -58,16 +59,16 @@ func NewEncoder(r audio.Reader, s codec.AudioSetting) (io.ReadCloser, error) {
 	// Since audio.Reader only supports stereo mode, channels is always 2
 	channels := 2
 
-	engine, err := opus.NewEncoder(s.OutSampleRate, channels, opus.AppVoIP)
+	engine, err := opus.NewEncoder(outProp.SampleRate, channels, opus.AppVoIP)
 	if err != nil {
 		return nil, err
 	}
 
-	inBuffSize := targetLatency * float64(s.OutSampleRate) / 1000
+	inBuffSize := targetLatency * float64(outProp.SampleRate) / 1000
 	inBuff := make([][2]float32, int(inBuffSize))
 	streamer := audio.ToBeep(r)
-	newSampleRate := beep.SampleRate(s.OutSampleRate)
-	oldSampleRate := beep.SampleRate(s.InSampleRate)
+	newSampleRate := beep.SampleRate(outProp.SampleRate)
+	oldSampleRate := beep.SampleRate(inProp.SampleRate)
 	streamer = beep.Resample(3, oldSampleRate, newSampleRate, streamer)
 
 	reader := audio.FromBeep(streamer)
