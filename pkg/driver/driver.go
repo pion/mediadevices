@@ -3,60 +3,25 @@ package driver
 import (
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
+	"github.com/pion/mediadevices/pkg/prop"
 )
 
-type OpenCloser interface {
-	Open() error
-	Close() error
+type VideoRecorder interface {
+	VideoRecord(p prop.Media) (r video.Reader, err error)
 }
 
-type Infoer interface {
-	Info() Info
-}
-
-type Info struct {
-	DeviceType DeviceType
-}
-
-type VideoCapable interface {
-	Start(prop video.AdvancedProperty) (video.Reader, error)
-	Stop() error
-	Properties() []video.AdvancedProperty
-}
-
-type AudioCapable interface {
-	Start(prop audio.AdvancedProperty) (audio.Reader, error)
-	Stop() error
-	Properties() []audio.AdvancedProperty
+type AudioRecorder interface {
+	AudioRecord(p prop.Media) (r audio.Reader, err error)
 }
 
 type Adapter interface {
-	OpenCloser
-	Infoer
-}
-
-type VideoAdapter interface {
-	Adapter
-	VideoCapable
-}
-
-type AudioAdapter interface {
-	Adapter
-	AudioCapable
+	Open() error
+	Close() error
+	Properties() []prop.Media
 }
 
 type Driver interface {
 	Adapter
 	ID() string
 	Status() State
-}
-
-type VideoDriver interface {
-	Driver
-	VideoCapable
-}
-
-type AudioDriver interface {
-	Driver
-	AudioCapable
 }

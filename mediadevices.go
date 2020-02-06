@@ -5,8 +5,7 @@ import (
 	"math"
 
 	"github.com/pion/mediadevices/pkg/driver"
-	"github.com/pion/mediadevices/pkg/io/audio"
-	"github.com/pion/mediadevices/pkg/io/video"
+	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -33,8 +32,17 @@ func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaSt
 	// TODO: It should return media stream based on constraints
 	trackers := make([]Tracker, 0)
 
-	if constraints.Video.Enabled {
-		tracker, err := m.videoSelect(constraints.Video)
+	var videoConstraints, audioConstraints MediaTrackConstraints
+	if constraints.Video != nil {
+		constraints.Video(&videoConstraints)
+	}
+
+	if constraints.Audio != nil {
+		constraints.Audio(&audioConstraints)
+	}
+
+	if videoConstraints.Enabled {
+		tracker, err := m.selectVideo(videoConstraints)
 		if err != nil {
 			return nil, err
 		}
@@ -42,8 +50,8 @@ func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaSt
 		trackers = append(trackers, tracker)
 	}
 
-	if constraints.Audio.Enabled {
-		tracker, err := m.audioSelect(constraints.Audio)
+	if audioConstraints.Enabled {
+		tracker, err := m.selectAudio(audioConstraints)
 		if err != nil {
 			return nil, err
 		}
@@ -59,102 +67,76 @@ func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaSt
 	return s, nil
 }
 
-// videoSelect implements SelectSettings algorithm for video type.
-// Reference: https://w3c.github.io/mediacapture-main/#dfn-selectsettings
-func (m *mediaDevices) videoSelect(constraints VideoTrackConstraints) (Tracker, error) {
-	drivers := driver.GetManager().VideoDrivers()
-
-	var bestDriver driver.VideoDriver
-	var bestProp video.AdvancedProperty
-	minFitnessDist := math.Inf(1)
+func queryDriverProperties(filter driver.FilterFn) map[driver.Driver][]prop.Media {
+	var needToClose []driver.Driver
+	drivers := driver.GetManager().Query(filter)
+	m := make(map[driver.Driver][]prop.Media)
 
 	for _, d := range drivers {
-		wasClosed := d.Status() == driver.StateClosed
-
-		if wasClosed {
+		if d.Status() == driver.StateClosed {
 			err := d.Open()
 			if err != nil {
-				// Skip this driver if we failed to open because we can't get the settings
+				// Skip this driver if we failed to open because we can't get the properties
 				continue
 			}
+			needToClose = append(needToClose, d)
 		}
 
-		vd := d.(driver.VideoDriver)
-		for _, prop := range vd.Properties() {
-			fitnessDist := constraints.fitnessDistance(prop)
-
-			if fitnessDist < minFitnessDist {
-				minFitnessDist = fitnessDist
-				bestDriver = vd
-				bestProp = prop
-			}
-		}
-
-		if wasClosed {
-			// Since it was closed, we should close it to avoid a leak
-			d.Close()
-		}
+		m[d] = d.Properties()
 	}
 
-	if bestDriver == nil {
-		return nil, fmt.Errorf("failed to find the best setting")
+	for _, d := range needToClose {
+		// Since it was closed, we should close it to avoid a leak
+		d.Close()
 	}
 
-	if bestDriver.Status() == driver.StateClosed {
-		err := bestDriver.Open()
-		if err != nil {
-			return nil, fmt.Errorf("failed in opening the best video driver")
-		}
-	}
-	return newVideoTrack(m.pc, bestDriver, bestProp, constraints.Codec)
+	return m
 }
 
-// audioSelect implements SelectSettings algorithm for audio type.
+// select implements SelectSettings algorithm.
 // Reference: https://w3c.github.io/mediacapture-main/#dfn-selectsettings
-func (m *mediaDevices) audioSelect(constraints AudioTrackConstraints) (Tracker, error) {
-	drivers := driver.GetManager().AudioDrivers()
-
-	var bestDriver driver.AudioDriver
-	var bestProp audio.AdvancedProperty
+func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints) (driver.Driver, MediaTrackConstraints, error) {
+	var bestDriver driver.Driver
+	var bestProp prop.Media
 	minFitnessDist := math.Inf(1)
 
-	for _, d := range drivers {
-		wasClosed := d.Status() == driver.StateClosed
-
-		if wasClosed {
-			err := d.Open()
-			if err != nil {
-				// Skip this driver if we failed to open because we can't get the settings
-				continue
-			}
-		}
-
-		ad := d.(driver.AudioDriver)
-		for _, prop := range ad.Properties() {
-			fitnessDist := constraints.fitnessDistance(prop)
-
+	driverProperties := queryDriverProperties(filter)
+	for d, props := range driverProperties {
+		for _, p := range props {
+			fitnessDist := constraints.Media.FitnessDistance(p)
 			if fitnessDist < minFitnessDist {
 				minFitnessDist = fitnessDist
-				bestDriver = ad
-				bestProp = prop
+				bestDriver = d
+				bestProp = p
 			}
-		}
-
-		if wasClosed {
-			// Since it was closed, we should close it to avoid a leak
-			d.Close()
 		}
 	}
 
 	if bestDriver == nil {
-		return nil, fmt.Errorf("failed to find the best setting")
+		return nil, MediaTrackConstraints{}, fmt.Errorf("failed to find the best driver that fits the constraints")
 	}
 
-	if bestDriver.Status() == driver.StateClosed {
-		err := bestDriver.Open()
-		if err != nil {
-			return nil, fmt.Errorf("failed in opening the best audio driver")
-		}
+	bestConstraint := MediaTrackConstraints{
+		Media:   bestProp,
+		Enabled: true,
+		Codec:   constraints.Codec,
 	}
-	return newAudioTrack(m.pc, bestDriver, bestProp, constraints.Codec)
+	return bestDriver, bestConstraint, nil
+}
+
+func (m *mediaDevices) selectAudio(constraints MediaTrackConstraints) (Tracker, error) {
+	d, c, err := selectBestDriver(driver.FilterAudioRecorder(), constraints)
+	if err != nil {
+		return nil, err
+	}
+
+	return newAudioTrack(m.pc, d, c)
+}
+func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, error) {
+	d, c, err := selectBestDriver(driver.FilterVideoRecorder(), constraints)
+	if err != nil {
+		return nil, err
+	}
+
+	return newVideoTrack(m.pc, d, c)
 }

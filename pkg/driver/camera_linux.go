@@ -10,6 +10,7 @@ import (
 	"github.com/blackjack/webcam"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
+	"github.com/pion/mediadevices/pkg/prop"
 )
 
 // Camera implementation using v4l2
@@ -19,10 +20,7 @@ type camera struct {
 	cam             *webcam.Webcam
 	formats         map[webcam.PixelFormat]frame.Format
 	reversedFormats map[frame.Format]webcam.PixelFormat
-	properties      []video.AdvancedProperty
 }
-
-var _ VideoAdapter = &camera{}
 
 func init() {
 	// TODO: Probably try to get more cameras
@@ -57,41 +55,27 @@ func (c *camera) Open() error {
 		return err
 	}
 
-	properties := make([]video.AdvancedProperty, 0)
-	for format := range cam.GetSupportedFormats() {
-		for _, frameSize := range cam.GetSupportedFrameSizes(format) {
-			properties = append(properties, video.AdvancedProperty{
-				Property: video.Property{
-					Width:  int(frameSize.MaxWidth),
-					Height: int(frameSize.MaxHeight),
-				},
-				FrameFormat: c.formats[format],
-			})
-		}
-	}
-
 	c.cam = cam
-	c.properties = properties
 	return nil
 }
 
 func (c *camera) Close() error {
-	c.properties = nil
 	if c.cam == nil {
 		return nil
 	}
 
-	return c.cam.StopStreaming()
+	c.cam.StopStreaming()
+	return nil
 }
 
-func (c *camera) Start(prop video.AdvancedProperty) (video.Reader, error) {
-	decoder, err := frame.NewDecoder(prop.FrameFormat)
+func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
+	decoder, err := frame.NewDecoder(p.FrameFormat)
 	if err != nil {
 		return nil, err
 	}
 
-	pf := c.reversedFormats[prop.FrameFormat]
-	_, _, _, err = c.cam.SetImageFormat(pf, uint32(prop.Width), uint32(prop.Height))
+	pf := c.reversedFormats[p.FrameFormat]
+	_, _, _, err = c.cam.SetImageFormat(pf, uint32(p.Width), uint32(p.Height))
 	if err != nil {
 		return nil, err
 	}
@@ -124,23 +108,25 @@ func (c *camera) Start(prop video.AdvancedProperty) (video.Reader, error) {
 				continue
 			}
 
-			return decoder.Decode(b, prop.Width, prop.Height)
+			return decoder.Decode(b, p.Width, p.Height)
 		}
 	})
 
 	return r, nil
 }
 
-func (c *camera) Stop() error {
-	return c.cam.StopStreaming()
-}
-
-func (c *camera) Info() Info {
-	return Info{
-		DeviceType: Camera,
+func (c *camera) Properties() []prop.Media {
+	properties := make([]prop.Media, 0)
+	for format := range c.cam.GetSupportedFormats() {
+		for _, frameSize := range c.cam.GetSupportedFrameSizes(format) {
+			properties = append(properties, prop.Media{
+				Video: prop.Video{
+					Width:       int(frameSize.MaxWidth),
+					Height:      int(frameSize.MaxHeight),
+					FrameFormat: c.formats[format],
+				},
+			})
+		}
 	}
-}
-
-func (c *camera) Properties() []video.AdvancedProperty {
-	return c.properties
+	return properties
 }

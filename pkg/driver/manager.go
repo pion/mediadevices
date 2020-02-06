@@ -1,10 +1,24 @@
 package driver
 
-import "fmt"
-
 // FilterFn is being used to decide if a driver should be included in the
 // query result.
 type FilterFn func(Driver) bool
+
+// FilterVideoRecorder return a filter function to get a list of registered VideoRecorders
+func FilterVideoRecorder() FilterFn {
+	return func(d Driver) bool {
+		_, ok := d.(VideoRecorder)
+		return ok
+	}
+}
+
+// FilterAudioRecorder return a filter function to get a list of registered AudioRecorders
+func FilterAudioRecorder() FilterFn {
+	return func(d Driver) bool {
+		_, ok := d.(AudioRecorder)
+		return ok
+	}
+}
 
 // Manager is a singleton to manage multiple drivers and their states
 type Manager struct {
@@ -23,10 +37,6 @@ func GetManager() *Manager {
 // Register registers adapter to be discoverable by Query
 func (m *Manager) Register(a Adapter) error {
 	d := wrapAdapter(a)
-	if d == nil {
-		return fmt.Errorf("adapter has to be either VideoAdapter/AudioAdapter")
-	}
-
 	m.drivers[d.ID()] = d
 	return nil
 }
@@ -41,20 +51,4 @@ func (m *Manager) Query(f FilterFn) []Driver {
 	}
 
 	return results
-}
-
-// VideoDrivers gets a list of registered VideoDriver
-func (m *Manager) VideoDrivers() []Driver {
-	return m.Query(func(d Driver) bool {
-		_, ok := d.(VideoDriver)
-		return ok
-	})
-}
-
-// AudioDrivers gets a list of registered AudioDriver
-func (m *Manager) AudioDrivers() []Driver {
-	return m.Query(func(d Driver) bool {
-		_, ok := d.(AudioDriver)
-		return ok
-	})
 }

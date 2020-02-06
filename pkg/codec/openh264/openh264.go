@@ -18,6 +18,7 @@ import (
 	"github.com/pion/mediadevices/pkg/codec"
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
+	"github.com/pion/mediadevices/pkg/prop"
 
 	"github.com/pion/webrtc/v2"
 )
@@ -34,12 +35,12 @@ func init() {
 	codec.Register(webrtc.H264, codec.VideoEncoderBuilder(NewEncoder))
 }
 
-func NewEncoder(r video.Reader, prop video.AdvancedProperty) (io.ReadCloser, error) {
+func NewEncoder(r video.Reader, p prop.Video) (io.ReadCloser, error) {
 	cEncoder, err := C.enc_new(C.EncoderOptions{
-		width:          C.int(prop.Width),
-		height:         C.int(prop.Height),
-		target_bitrate: C.int(prop.BitRate),
-		max_fps:        C.float(prop.FrameRate),
+		width:          C.int(p.Width),
+		height:         C.int(p.Height),
+		target_bitrate: C.int(p.BitRate),
+		max_fps:        C.float(p.FrameRate),
 	})
 	if err != nil {
 		// TODO: better error message

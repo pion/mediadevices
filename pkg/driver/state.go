@@ -3,22 +3,19 @@ package driver
 import "fmt"
 
 // State represents driver's state
-type State uint
+type State string
 
 const (
 	// StateClosed means that the driver has not been opened. In this state,
 	// all information related to the hardware are still unknown. For example,
 	// if it's a video driver, the pixel format information is still unknown.
-	StateClosed State = iota
+	StateClosed State = "closed"
 	// StateOpened means that the driver is already opened and information about
 	// the hardware are already known and may be extracted from the driver.
-	StateOpened
-	// StateStarted means that the driver has been sending data. The caller
+	StateOpened = "opened"
+	// StateRunning means that the driver has been sending data. The caller
 	// who started the driver may start reading data from the hardware.
-	StateStarted
-	// StateStopped means that the driver is no longer sending data. In this state,
-	// information about the hardware is still available.
-	StateStopped
+	StateRunning = "running"
 )
 
 // Update updates current state, s, to next. If f fails to execute,
@@ -28,8 +25,7 @@ func (s *State) Update(next State, f func() error) error {
 	m := map[State]checkFunc{
 		StateOpened:  s.toOpened,
 		StateClosed:  s.toClosed,
-		StateStarted: s.toStarted,
-		StateStopped: s.toStopped,
+		StateRunning: s.toRunning,
 	}
 
 	err := m[next]()
@@ -55,21 +51,13 @@ func (s *State) toClosed() error {
 	return nil
 }
 
-func (s *State) toStarted() error {
+func (s *State) toRunning() error {
 	if *s == StateClosed {
-		return fmt.Errorf("invalid state: driver hasn't been opened")
+		return fmt.Errorf("invalid state: driver is closed")
 	}
 
-	if *s == StateStarted {
-		return fmt.Errorf("invalid state: driver has been started")
-	}
-
-	return nil
-}
-
-func (s *State) toStopped() error {
-	if *s != StateStarted {
-		return fmt.Errorf("invalid state: driver hasn't been started")
+	if *s == StateRunning {
+		return fmt.Errorf("invalid state: driver is already running")
 	}
 
 	return nil
