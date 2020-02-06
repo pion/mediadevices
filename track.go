@@ -8,8 +8,6 @@ import (
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/driver"
 	mio "github.com/pion/mediadevices/pkg/io"
-	"github.com/pion/mediadevices/pkg/io/audio"
-	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
 )
@@ -30,9 +28,9 @@ type track struct {
 func newTrack(pc *webrtc.PeerConnection, d driver.Driver, codecName string) (*track, error) {
 	var kind webrtc.RTPCodecType
 	switch d.(type) {
-	case driver.VideoDriver:
+	case driver.VideoRecorder:
 		kind = webrtc.RTPCodecTypeVideo
-	case driver.AudioDriver:
+	case driver.AudioRecorder:
 		kind = webrtc.RTPCodecTypeAudio
 	}
 
@@ -66,36 +64,43 @@ func (t *track) Track() *webrtc.Track {
 
 type videoTrack struct {
 	*track
-	d        driver.VideoDriver
-	property video.AdvancedProperty
-	encoder  io.ReadCloser
+	d           driver.Driver
+	constraints MediaTrackConstraints
+	encoder     io.ReadCloser
 }
 
 var _ Tracker = &videoTrack{}
 
-func newVideoTrack(pc *webrtc.PeerConnection, d driver.VideoDriver, prop video.AdvancedProperty, codecName string) (*videoTrack, error) {
+func newVideoTrack(pc *webrtc.PeerConnection, d driver.Driver, constraints MediaTrackConstraints) (*videoTrack, error) {
+	codecName := constraints.Codec
 	t, err := newTrack(pc, d, codecName)
 	if err != nil {
 		return nil, err
 	}
 
-	r, err := d.Start(prop)
+	err = d.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	vr := d.(driver.VideoRecorder)
+	r, err := vr.VideoRecord(constraints.Media)
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO: Remove hardcoded bitrate
-	prop.BitRate = 100000
-	encoder, err := codec.BuildVideoEncoder(codecName, r, prop)
+	constraints.BitRate = 100000
+	encoder, err := codec.BuildVideoEncoder(codecName, r, constraints.Video)
 	if err != nil {
 		return nil, err
 	}
 
 	vt := videoTrack{
-		track:    t,
-		d:        d,
-		property: prop,
-		encoder:  encoder,
+		track:       t,
+		d:           d,
+		constraints: constraints,
+		encoder:     encoder,
 	}
 
 	go vt.start()
@@ -123,44 +128,47 @@ func (vt *videoTrack) start() {
 }
 
 func (vt *videoTrack) Stop() {
-	vt.d.Stop()
+	vt.d.Close()
 	vt.encoder.Close()
 }
 
 type audioTrack struct {
 	*track
-	d        driver.AudioDriver
-	property audio.AdvancedProperty
-	encoder  io.ReadCloser
+	d           driver.Driver
+	constraints MediaTrackConstraints
+	encoder     io.ReadCloser
 }
 
 var _ Tracker = &audioTrack{}
 
-func newAudioTrack(pc *webrtc.PeerConnection, d driver.AudioDriver, prop audio.AdvancedProperty, codecName string) (*audioTrack, error) {
+func newAudioTrack(pc *webrtc.PeerConnection, d driver.Driver, constraints MediaTrackConstraints) (*audioTrack, error) {
+	codecName := constraints.Codec
 	t, err := newTrack(pc, d, codecName)
 	if err != nil {
 		return nil, err
 	}
 
-	reader, err := d.Start(prop)
+	err = d.Open()
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: Not sure how to decide inProp and outProp
-	inProp := prop
-	outProp := prop
+	ar := d.(driver.AudioRecorder)
+	reader, err := ar.AudioRecord(constraints.Media)
+	if err != nil {
+		return nil, err
+	}
 
-	encoder, err := codec.BuildAudioEncoder(codecName, reader, inProp, outProp)
+	encoder, err := codec.BuildAudioEncoder(codecName, reader, constraints.Audio)
 	if err != nil {
 		return nil, err
 	}
 
 	at := audioTrack{
-		track:    t,
-		d:        d,
-		property: prop,
-		encoder:  encoder,
+		track:       t,
+		d:           d,
+		constraints: constraints,
+		encoder:     encoder,
 	}
 	go at.start()
 	return &at, nil
@@ -168,7 +176,7 @@ func newAudioTrack(pc *webrtc.PeerConnection, d driver.AudioDriver, prop audio.A
 
 func (t *audioTrack) start() {
 	buff := make([]byte, 1024)
-	sampleSize := uint32(float64(t.property.SampleRate) * t.property.Latency.Seconds())
+	sampleSize := uint32(float64(t.constraints.SampleRate) * t.constraints.Latency.Seconds())
 	for {
 		n, err := t.encoder.Read(buff)
 		if err != nil {
@@ -184,6 +192,6 @@ func (t *audioTrack) start() {
 }
 
 func (t *audioTrack) Stop() {
-	t.d.Stop()
+	t.d.Close()
 	t.encoder.Close()
 }
