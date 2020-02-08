@@ -10,5 +10,3 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	gopkg.in/hraban/opus.v2 v2.0.0-20191117073431-57179dff69a6
 )
-
-replace github.com/faiface/beep => ../../faiface/beep
