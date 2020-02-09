@@ -7,7 +7,13 @@ import (
 	"github.com/pion/mediadevices/examples/internal/signal"
 	_ "github.com/pion/mediadevices/pkg/codec/openh264" // This is required to register h264 video encoder
 	_ "github.com/pion/mediadevices/pkg/codec/opus"     // This is required to register opus audio encoder
+	_ "github.com/pion/mediadevices/pkg/codec/vpx"
+	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/webrtc/v2"
+)
+
+const (
+	videoCodecName = webrtc.VP8
 )
 
 func main() {
@@ -19,8 +25,17 @@ func main() {
 		},
 	}
 
+	// Wait for the offer to be pasted
+	offer := webrtc.SessionDescription{}
+	signal.Decode(signal.MustReadStdin(), &offer)
+
 	// Create a new RTCPeerConnection
-	peerConnection, err := webrtc.NewPeerConnection(config)
+	mediaEngine := webrtc.MediaEngine{}
+	if err := mediaEngine.PopulateFromSDP(offer); err != nil {
+		panic(err)
+	}
+	api := webrtc.NewAPI(webrtc.WithMediaEngine(mediaEngine))
+	peerConnection, err := api.NewPeerConnection(config)
 	if err != nil {
 		panic(err)
 	}
@@ -39,9 +54,10 @@ func main() {
 			c.Enabled = true
 		},
 		Video: func(c *mediadevices.MediaTrackConstraints) {
-			c.Codec = webrtc.H264
+			c.Codec = videoCodecName
+			c.FrameFormat = frame.FormatI420 // most of the encoder accepts I420
 			c.Enabled = true
-			c.Width = 800
+			c.Width = 640
 			c.Height = 480
 		},
 	})
@@ -56,9 +72,10 @@ func main() {
 		}
 	}
 
-	// Wait for the offer to be pasted
-	offer := webrtc.SessionDescription{}
-	signal.Decode(signal.MustReadStdin(), &offer)
+	// Tweak transceiver direction to work with Firefox
+	for _, t := range peerConnection.GetTransceivers() {
+		t.Direction = webrtc.RTPTransceiverDirectionSendonly
+	}
 
 	// Set the remote SessionDescription
 	err = peerConnection.SetRemoteDescription(offer)
