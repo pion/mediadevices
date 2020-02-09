@@ -1,4 +1,4 @@
-package driver
+package camera
 
 // #include <linux/videodev2.h>
 import "C"
@@ -8,6 +8,7 @@ import (
 	"io"
 
 	"github.com/blackjack/webcam"
+	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -28,7 +29,7 @@ func init() {
 	// Get default camera
 	defaultCam := newCamera("/dev/video0")
 
-	GetManager().Register(defaultCam)
+	driver.GetManager().Register(defaultCam)
 }
 
 func newCamera(path string) *camera {
