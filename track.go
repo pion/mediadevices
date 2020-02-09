@@ -20,21 +20,11 @@ type Tracker interface {
 }
 
 type track struct {
-	pc *webrtc.PeerConnection
-	t  *webrtc.Track
-	s  *sampler
+	t *webrtc.Track
+	s *sampler
 }
 
-func newTrack(pc *webrtc.PeerConnection, d driver.Driver, codecName string) (*track, error) {
-	var kind webrtc.RTPCodecType
-	switch d.(type) {
-	case driver.VideoRecorder:
-		kind = webrtc.RTPCodecTypeVideo
-	case driver.AudioRecorder:
-		kind = webrtc.RTPCodecTypeAudio
-	}
-
-	codecs := pc.GetRegisteredRTPCodecs(kind)
+func newTrack(codecs []*webrtc.RTPCodec, d driver.Driver, codecName string) (*track, error) {
 	var selectedCodec *webrtc.RTPCodec
 	for _, c := range codecs {
 		if c.Name == codecName {
@@ -46,15 +36,20 @@ func newTrack(pc *webrtc.PeerConnection, d driver.Driver, codecName string) (*tr
 		return nil, fmt.Errorf("track: %s is not registered in media engine", codecName)
 	}
 
-	t, err := pc.NewTrack(selectedCodec.PayloadType, rand.Uint32(), kind.String(), d.ID())
+	t, err := webrtc.NewTrack(
+		selectedCodec.PayloadType,
+		rand.Uint32(),
+		selectedCodec.Type.String(),
+		d.ID(),
+		selectedCodec,
+	)
 	if err != nil {
 		return nil, err
 	}
 
 	return &track{
-		pc: pc,
-		t:  t,
-		s:  newSampler(t),
+		t: t,
+		s: newSampler(t),
 	}, nil
 }
 
@@ -71,9 +66,9 @@ type videoTrack struct {
 
 var _ Tracker = &videoTrack{}
 
-func newVideoTrack(pc *webrtc.PeerConnection, d driver.Driver, constraints MediaTrackConstraints) (*videoTrack, error) {
+func newVideoTrack(codecs []*webrtc.RTPCodec, d driver.Driver, constraints MediaTrackConstraints) (*videoTrack, error) {
 	codecName := constraints.Codec
-	t, err := newTrack(pc, d, codecName)
+	t, err := newTrack(codecs, d, codecName)
 	if err != nil {
 		return nil, err
 	}
@@ -141,9 +136,9 @@ type audioTrack struct {
 
 var _ Tracker = &audioTrack{}
 
-func newAudioTrack(pc *webrtc.PeerConnection, d driver.Driver, constraints MediaTrackConstraints) (*audioTrack, error) {
+func newAudioTrack(codecs []*webrtc.RTPCodec, d driver.Driver, constraints MediaTrackConstraints) (*audioTrack, error) {
 	codecName := constraints.Codec
-	t, err := newTrack(pc, d, codecName)
+	t, err := newTrack(codecs, d, codecName)
 	if err != nil {
 		return nil, err
 	}
