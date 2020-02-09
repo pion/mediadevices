@@ -49,7 +49,7 @@ func NewEncoder(r video.Reader, p prop.Video) (io.ReadCloser, error) {
 
 	return &encoder{
 		engine: cEncoder,
-		r:      r,
+		r:      video.ToI420(r),
 	}, nil
 }
 
@@ -68,8 +68,6 @@ func (e *encoder) Read(p []byte) (n int, err error) {
 		return 0, err
 	}
 
-	// TODO: Convert img to YCbCr since openh264 only accepts YCbCr
-	// TODO: Convert img to 4:2:0 format which what openh264 accepts
 	yuvImg := img.(*image.YCbCr)
 	bounds := yuvImg.Bounds()
 	s, err := C.enc_encode(e.engine, C.Frame{
