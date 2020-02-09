@@ -123,21 +123,40 @@ func (e *encoder) Read(p []byte) (int, error) {
 	e.raw.stride[0] = C.int(yuvImg.YStride)
 	e.raw.stride[1] = C.int(yuvImg.CStride)
 	e.raw.stride[2] = C.int(yuvImg.CStride)
-	/*
-		// TODO: yuvImg.SubsampleRatio should be set
-		switch yuvImg.SubsampleRatio {
-		case image.YCbCrSubsampleRatio444:
-			e.raw.fmt = C.VPX_IMG_FMT_I444
-		case image.YCbCrSubsampleRatio422:
-			e.raw.fmt = C.VPX_IMG_FMT_I422
-		case image.YCbCrSubsampleRatio420:
-			e.raw.fmt = C.VPX_IMG_FMT_I420
-		case image.YCbCrSubsampleRatio440:
-			e.raw.fmt = C.VPX_IMG_FMT_I440
-		default:
-			return 0, fmt.Errorf("unsupported pixel format: %s", yuvImg.SubsampleRatio)
+	h := yuvImg.Rect.Max.Y - yuvImg.Rect.Min.Y
+
+	// Covert pixel format to I420
+	// TODO: maybe better to move it to a proper module
+	switch yuvImg.SubsampleRatio {
+	case image.YCbCrSubsampleRatio444:
+		for i := 0; i < h/2; i++ {
+			addrSrc := i * 2 * yuvImg.CStride
+			addrDst := i * yuvImg.CStride / 2
+			for j := 0; j < yuvImg.CStride/2; j++ {
+				cb := uint16(yuvImg.Cb[addrSrc+j]) + uint16(yuvImg.Cb[addrSrc+yuvImg.CStride+j]) +
+					uint16(yuvImg.Cb[addrSrc+j+1]) + uint16(yuvImg.Cb[addrSrc+yuvImg.CStride+j+1])
+				cr := uint16(yuvImg.Cr[addrSrc+j]) + uint16(yuvImg.Cr[addrSrc+yuvImg.CStride+j]) +
+					uint16(yuvImg.Cr[addrSrc+j+1]) + uint16(yuvImg.Cr[addrSrc+yuvImg.CStride+j+1])
+				yuvImg.Cb[addrDst+j] = uint8(cb / 4)
+				yuvImg.Cr[addrDst+j] = uint8(cr / 4)
+			}
 		}
-	*/
+		yuvImg.CStride = yuvImg.CStride / 2
+	case image.YCbCrSubsampleRatio422:
+		for i := 0; i < h/2; i++ {
+			addrSrc := i * 2 * yuvImg.CStride
+			addrDst := i * yuvImg.CStride
+			for j := 0; j < yuvImg.CStride; j++ {
+				cb := uint16(yuvImg.Cb[addrSrc+j]) + uint16(yuvImg.Cb[addrSrc+yuvImg.CStride+j])
+				cr := uint16(yuvImg.Cr[addrSrc+j]) + uint16(yuvImg.Cr[addrSrc+yuvImg.CStride+j])
+				yuvImg.Cb[addrDst+j] = uint8(cb / 2)
+				yuvImg.Cr[addrDst+j] = uint8(cr / 2)
+			}
+		}
+	case image.YCbCrSubsampleRatio420:
+	default:
+		return 0, fmt.Errorf("unsupported pixel format: %s", yuvImg.SubsampleRatio)
+	}
 
 	var flags int
 	if e.frameIndex%e.keyframeInterval == 0 {
