@@ -115,6 +115,9 @@ func (e *encoder) Read(p []byte) (int, error) {
 	}
 
 	img, err := e.r.Read()
+	if err != nil {
+		return 0, err
+	}
 	yuvImg := img.(*image.YCbCr)
 
 	e.raw.planes[0] = (*C.uchar)(&yuvImg.Y[0])
@@ -163,11 +166,11 @@ func (e *encoder) Read(p []byte) (int, error) {
 		flags |= C.VPX_EFLAG_FORCE_KF
 	}
 
-	if C.vpx_codec_encode(
+	if ec := C.vpx_codec_encode(
 		e.codec, e.raw,
 		C.long(e.frameIndex), 1, C.long(flags), C.VPX_DL_REALTIME,
-	) != C.VPX_CODEC_OK {
-		return 0, errors.New("vpx_codec_encode failed")
+	); ec != C.VPX_CODEC_OK {
+		return 0, fmt.Errorf("vpx_codec_encode failed (%d)", ec)
 	}
 	e.frameIndex++
 
