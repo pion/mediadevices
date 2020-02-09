@@ -1,10 +1,11 @@
-package driver
+package microphone
 
 import (
 	"io"
 	"time"
 
 	"github.com/jfreymuth/pulse"
+	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
 )
@@ -15,7 +16,7 @@ type microphone struct {
 }
 
 func init() {
-	GetManager().Register(&microphone{})
+	driver.GetManager().Register(&microphone{})
 }
 
 func (m *microphone) Open() error {
