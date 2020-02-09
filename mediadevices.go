@@ -18,11 +18,27 @@ type MediaDevices interface {
 // like cameras and microphones, as well as screen sharing.
 // In essence, it lets you obtain access to any hardware source of media data.
 func NewMediaDevices(pc *webrtc.PeerConnection) MediaDevices {
-	return &mediaDevices{pc}
+	codecs := make(map[webrtc.RTPCodecType][]*webrtc.RTPCodec)
+	for _, kind := range []webrtc.RTPCodecType{
+		webrtc.RTPCodecTypeAudio,
+		webrtc.RTPCodecTypeVideo,
+	} {
+		codecs[kind] = pc.GetRegisteredRTPCodecs(kind)
+	}
+
+	return &mediaDevices{codecs}
+}
+
+// NewMediaDevicesFromCodecs creates MediaDevices interface from lists of the available codecs
+// that provides access to connected media input devices like cameras and microphones,
+// as well as screen sharing.
+// In essence, it lets you obtain access to any hardware source of media data.
+func NewMediaDevicesFromCodecs(codecs map[webrtc.RTPCodecType][]*webrtc.RTPCodec) MediaDevices {
+	return &mediaDevices{codecs}
 }
 
 type mediaDevices struct {
-	pc *webrtc.PeerConnection
+	codecs map[webrtc.RTPCodecType][]*webrtc.RTPCodec
 }
 
 // GetUserMedia prompts the user for permission to use a media input which produces a MediaStream
@@ -130,7 +146,7 @@ func (m *mediaDevices) selectAudio(constraints MediaTrackConstraints) (Tracker, 
 		return nil, err
 	}
 
-	return newAudioTrack(m.pc, d, c)
+	return newAudioTrack(m.codecs[webrtc.RTPCodecTypeAudio], d, c)
 }
 func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, error) {
 	d, c, err := selectBestDriver(driver.FilterVideoRecorder(), constraints)
@@ -138,5 +154,5 @@ func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, 
 		return nil, err
 	}
 
-	return newVideoTrack(m.pc, d, c)
+	return newVideoTrack(m.codecs[webrtc.RTPCodecTypeVideo], d, c)
 }
