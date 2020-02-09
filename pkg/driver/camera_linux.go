@@ -20,6 +20,7 @@ type camera struct {
 	cam             *webcam.Webcam
 	formats         map[webcam.PixelFormat]frame.Format
 	reversedFormats map[frame.Format]webcam.PixelFormat
+	started         bool
 }
 
 func init() {
@@ -64,7 +65,10 @@ func (c *camera) Close() error {
 		return nil
 	}
 
-	c.cam.StopStreaming()
+	if c.started {
+		c.cam.StopStreaming()
+	}
+	c.cam.Close()
 	return nil
 }
 
@@ -83,6 +87,7 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	if err := c.cam.StartStreaming(); err != nil {
 		return nil, err
 	}
+	c.started = true
 
 	r := video.ReaderFunc(func() (img image.Image, err error) {
 		// Wait until a frame is ready
