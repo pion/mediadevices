@@ -52,6 +52,7 @@ func main() {
 		Audio: func(c *mediadevices.MediaTrackConstraints) {
 			c.Codec = webrtc.Opus
 			c.Enabled = true
+			c.BitRate = 32000 // 32kbps
 		},
 		Video: func(c *mediadevices.MediaTrackConstraints) {
 			c.Codec = videoCodecName
@@ -59,6 +60,7 @@ func main() {
 			c.Enabled = true
 			c.Width = 640
 			c.Height = 480
+			c.BitRate = 100000 // 100kbps
 		},
 	})
 	if err != nil {

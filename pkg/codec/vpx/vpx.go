@@ -63,16 +63,24 @@ func init() {
 }
 
 // NewVP8Encoder creates new VP8 encoder
-func NewVP8Encoder(r video.Reader, p prop.Video) (io.ReadCloser, error) {
+func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	return newEncoder(r, p, C.ifaceVP8())
 }
 
 // NewVP9Encoder creates new VP9 encoder
-func NewVP9Encoder(r video.Reader, p prop.Video) (io.ReadCloser, error) {
+func NewVP9Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	return newEncoder(r, p, C.ifaceVP9())
 }
 
-func newEncoder(r video.Reader, p prop.Video, codecIface *C.vpx_codec_iface_t) (io.ReadCloser, error) {
+func newEncoder(r video.Reader, p prop.Media, codecIface *C.vpx_codec_iface_t) (io.ReadCloser, error) {
+	if p.BitRate == 0 {
+		p.BitRate = 100000
+	}
+
+	if p.KeyFrameInterval == 0 {
+		p.KeyFrameInterval = 60
+	}
+
 	cfg := &C.vpx_codec_enc_cfg_t{}
 	if ec := C.vpx_codec_enc_config_default(codecIface, cfg, 0); ec != 0 {
 		return nil, fmt.Errorf("vpx_codec_enc_config_default failed (%d)", ec)
@@ -101,7 +109,7 @@ func newEncoder(r video.Reader, p prop.Video, codecIface *C.vpx_codec_iface_t) (
 		r:                video.ToI420(r),
 		codec:            codec,
 		raw:              rawNoBuffer,
-		keyframeInterval: 30, // TODO: Set via prop.Video
+		keyframeInterval: p.KeyFrameInterval,
 	}, nil
 }
 

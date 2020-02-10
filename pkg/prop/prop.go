@@ -12,6 +12,7 @@ import (
 type Media struct {
 	Video
 	Audio
+	Codec
 }
 
 func (p *Media) FitnessDistance(o Media) float64 {
@@ -62,7 +63,6 @@ type Video struct {
 	Width, Height int
 	FrameRate     float32
 	FrameFormat   frame.Format
-	BitRate       int
 }
 
 // Audio represents an audio's properties
@@ -71,4 +71,18 @@ type Audio struct {
 	Latency      time.Duration
 	SampleRate   int
 	SampleSize   int
+}
+
+// Codec represents an codec's encoding properties
+type Codec struct {
+	// Target bitrate in bps.
+	BitRate int
+
+	// Quolity of the encoding [0-9].
+	// Larger value results higher quality and higher CPU usage.
+	// It depends on the selected codec.
+	Quality int
+
+	// Expected interval of the keyframes in frames.
+	KeyFrameInterval int
 }

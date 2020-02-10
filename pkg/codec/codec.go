@@ -8,5 +8,5 @@ import (
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
-type VideoEncoderBuilder func(r video.Reader, p prop.Video) (io.ReadCloser, error)
-type AudioEncoderBuilder func(r audio.Reader, p prop.Audio) (io.ReadCloser, error)
+type VideoEncoderBuilder func(r video.Reader, p prop.Media) (io.ReadCloser, error)
+type AudioEncoderBuilder func(r audio.Reader, p prop.Media) (io.ReadCloser, error)

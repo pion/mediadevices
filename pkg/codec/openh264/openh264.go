@@ -35,7 +35,11 @@ func init() {
 	codec.Register(webrtc.H264, codec.VideoEncoderBuilder(NewEncoder))
 }
 
-func NewEncoder(r video.Reader, p prop.Video) (io.ReadCloser, error) {
+func NewEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
+	if p.BitRate == 0 {
+		p.BitRate = 100000
+	}
+
 	cEncoder, err := C.enc_new(C.EncoderOptions{
 		width:          C.int(p.Width),
 		height:         C.int(p.Height),

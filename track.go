@@ -84,9 +84,7 @@ func newVideoTrack(codecs []*webrtc.RTPCodec, d driver.Driver, constraints Media
 		return nil, err
 	}
 
-	// TODO: Remove hardcoded bitrate
-	constraints.BitRate = 100000
-	encoder, err := codec.BuildVideoEncoder(codecName, r, constraints.Video)
+	encoder, err := codec.BuildVideoEncoder(codecName, r, constraints.Media)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +152,7 @@ func newAudioTrack(codecs []*webrtc.RTPCodec, d driver.Driver, constraints Media
 		return nil, err
 	}
 
-	encoder, err := codec.BuildAudioEncoder(codecName, reader, constraints.Audio)
+	encoder, err := codec.BuildAudioEncoder(codecName, reader, constraints.Media)
 	if err != nil {
 		return nil, err
 	}
