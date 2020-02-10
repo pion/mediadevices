@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"sync/atomic"
 
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/driver"
@@ -17,11 +18,14 @@ import (
 type Tracker interface {
 	Track() *webrtc.Track
 	Stop()
+	OnEnded(func(error))
 }
 
 type track struct {
 	t *webrtc.Track
 	s *sampler
+
+	onErrorHandler atomic.Value // func(error)
 }
 
 func newTrack(codecs []*webrtc.RTPCodec, d driver.Driver, codecName string) (*track, error) {
@@ -51,6 +55,17 @@ func newTrack(codecs []*webrtc.RTPCodec, d driver.Driver, codecName string) (*tr
 		t: t,
 		s: newSampler(t),
 	}, nil
+}
+
+func (t *track) OnEnded(handler func(error)) {
+	t.onErrorHandler.Store(handler)
+}
+
+func (t *track) onError(err error) {
+	handler := t.onErrorHandler.Load()
+	if handler != nil {
+		handler.(func(error))(err)
+	}
 }
 
 func (t *track) Track() *webrtc.Track {
@@ -114,11 +129,14 @@ func (vt *videoTrack) start() {
 				continue
 			}
 
-			// TODO: better error handling
-			panic(err)
+			vt.track.onError(err)
+			return
 		}
 
-		vt.s.sample(buff[:n])
+		if err := vt.s.sample(buff[:n]); err != nil {
+			vt.track.onError(err)
+			return
+		}
 	}
 }
 
@@ -175,14 +193,17 @@ func (t *audioTrack) start() {
 	for {
 		n, err := t.encoder.Read(buff)
 		if err != nil {
-			// TODO: better error handling
-			panic(err)
+			t.track.onError(err)
+			return
 		}
 
-		t.t.WriteSample(media.Sample{
+		if err := t.t.WriteSample(media.Sample{
 			Data:    buff[:n],
 			Samples: sampleSize,
-		})
+		}); err != nil {
+			t.track.onError(err)
+			return
+		}
 	}
 }
 

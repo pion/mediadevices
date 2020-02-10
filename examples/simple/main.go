@@ -66,7 +66,12 @@ func main() {
 	}
 
 	for _, tracker := range s.GetTracks() {
-		_, err = peerConnection.AddTrack(tracker.Track())
+		t := tracker.Track()
+		tracker.OnEnded(func(err error) {
+			fmt.Printf("Track (ID: %s, Label: %s) ended with error: %v\n",
+				t.ID(), t.Label(), err)
+		})
+		_, err = peerConnection.AddTrack(t)
 		if err != nil {
 			panic(err)
 		}
