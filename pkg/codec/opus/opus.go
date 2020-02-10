@@ -29,13 +29,17 @@ func init() {
 	codec.Register(webrtc.Opus, codec.AudioEncoderBuilder(NewEncoder))
 }
 
-func NewEncoder(r audio.Reader, p prop.Audio) (io.ReadCloser, error) {
+func NewEncoder(r audio.Reader, p prop.Media) (io.ReadCloser, error) {
 	if p.SampleRate == 0 {
 		return nil, fmt.Errorf("opus: inProp.SampleRate is required")
 	}
 
 	if p.Latency == 0 {
 		p.Latency = 20
+	}
+
+	if p.BitRate == 0 {
+		p.BitRate = 32000
 	}
 
 	// Select the nearest supported latency
@@ -57,6 +61,9 @@ func NewEncoder(r audio.Reader, p prop.Audio) (io.ReadCloser, error) {
 
 	engine, err := opus.NewEncoder(p.SampleRate, channels, opus.AppVoIP)
 	if err != nil {
+		return nil, err
+	}
+	if err := engine.SetBitrate(p.BitRate); err != nil {
 		return nil, err
 	}
 
