@@ -99,6 +99,10 @@ func newVideoTrack(codecs []*webrtc.RTPCodec, d driver.Driver, constraints Media
 		return nil, err
 	}
 
+	if constraints.VideoTransform != nil {
+		r = constraints.VideoTransform(r)
+	}
+
 	encoder, err := codec.BuildVideoEncoder(r, constraints.Media)
 	if err != nil {
 		return nil, err
@@ -168,6 +172,10 @@ func newAudioTrack(codecs []*webrtc.RTPCodec, d driver.Driver, constraints Media
 	reader, err := ar.AudioRecord(constraints.Media)
 	if err != nil {
 		return nil, err
+	}
+
+	if constraints.AudioTransform != nil {
+		reader = constraints.AudioTransform(reader)
 	}
 
 	encoder, err := codec.BuildAudioEncoder(reader, constraints.Media)

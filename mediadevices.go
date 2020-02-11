@@ -135,8 +135,10 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 	// Reset Codec because bestProp only contains either audio.Prop or video.Prop
 	bestProp.Codec = constraints.Codec
 	bestConstraint := MediaTrackConstraints{
-		Media:   bestProp,
-		Enabled: true,
+		Media:          bestProp,
+		Enabled:        true,
+		AudioTransform: constraints.AudioTransform,
+		VideoTransform: constraints.VideoTransform,
 	}
 	return bestDriver, bestConstraint, nil
 }
