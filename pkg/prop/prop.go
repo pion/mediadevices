@@ -75,6 +75,8 @@ type Audio struct {
 
 // Codec represents an codec's encoding properties
 type Codec struct {
+	CodecName string
+
 	// Target bitrate in bps.
 	BitRate int
 
