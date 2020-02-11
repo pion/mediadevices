@@ -1,0 +1,38 @@
+name: CI
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: [ '1.13', '1.12' ]
+    name: Go ${{ matrix.go }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq \
+          && sudo apt-get install --no-install-recommends -y \
+            libopus-dev \
+            libopusfile-dev \
+            libvpx-dev
+      - name: go vet
+        run: go vet ./...
+      - name: go build
+        run: go build ./...
+      - name: go test
+        run: go test ./... -v -race
+      #- name: golint
+      #  run: go lint ./...
