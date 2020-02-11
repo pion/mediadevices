@@ -4,15 +4,26 @@ package camera
 import "C"
 
 import (
+	"errors"
 	"image"
 	"io"
 	"io/ioutil"
+	"sync/atomic"
 
 	"github.com/blackjack/webcam"
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
+)
+
+const (
+	maxEmptyFrameCount = 5
+)
+
+var (
+	errReadTimeout = errors.New("read timeout")
+	errEmptyFrame  = errors.New("empty frame")
 )
 
 // Camera implementation using v4l2
@@ -23,6 +34,7 @@ type camera struct {
 	formats         map[webcam.PixelFormat]frame.Format
 	reversedFormats map[frame.Format]webcam.PixelFormat
 	started         bool
+	closed          atomic.Value // bool
 }
 
 func init() {
@@ -50,11 +62,13 @@ func newCamera(path string) *camera {
 		reversedFormats[v] = k
 	}
 
-	return &camera{
+	c := &camera{
 		path:            path,
 		formats:         formats,
 		reversedFormats: reversedFormats,
 	}
+	c.closed.Store(false)
+	return c
 }
 
 func (c *camera) Open() error {
@@ -64,6 +78,7 @@ func (c *camera) Open() error {
 	}
 
 	c.cam = cam
+	c.closed.Store(false)
 	return nil
 }
 
@@ -73,9 +88,13 @@ func (c *camera) Close() error {
 	}
 
 	if c.started {
+		// Note: StopStreaming frees frame buffers even if they are still used in Go code.
+		//       There is currently no convenient way to do this safely.
+		//       So, consumer of this stream must close camera after unusing all images.
 		c.cam.StopStreaming()
 	}
 	c.cam.Close()
+	c.closed.Store(true)
 	return nil
 }
 
@@ -98,30 +117,37 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 
 	r := video.ReaderFunc(func() (img image.Image, err error) {
 		// Wait until a frame is ready
-		for {
-			err := c.cam.WaitForFrame(5)
+		for i := 0; i < maxEmptyFrameCount; i++ {
+			if c.closed.Load().(bool) {
+				// Return EOF if the camera is already closed.
+				return nil, io.EOF
+			}
+
+			err := c.cam.WaitForFrame(5) // 5 seconds
 			switch err.(type) {
 			case nil:
 			case *webcam.Timeout:
-				continue
+				return nil, errReadTimeout
 			default:
 				// Camera has been stopped.
-				return nil, io.EOF
+				return nil, err
 			}
 
 			b, err := c.cam.ReadFrame()
 			if err != nil {
 				// Camera has been stopped.
-				return nil, io.EOF
+				return nil, err
 			}
 
-			// Frame is not ready.
+			// Frame is empty.
+			// Retry reading and return errEmptyFrame if it exceeds maxEmptyFrameCount.
 			if len(b) == 0 {
 				continue
 			}
 
 			return decoder.Decode(b, p.Width, p.Height)
 		}
+		return nil, errEmptyFrame
 	})
 
 	return r, nil
