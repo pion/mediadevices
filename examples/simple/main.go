@@ -50,12 +50,12 @@ func main() {
 
 	s, err := md.GetUserMedia(mediadevices.MediaStreamConstraints{
 		Audio: func(c *mediadevices.MediaTrackConstraints) {
-			c.Codec = webrtc.Opus
+			c.CodecName = webrtc.Opus
 			c.Enabled = true
 			c.BitRate = 32000 // 32kbps
 		},
 		Video: func(c *mediadevices.MediaTrackConstraints) {
-			c.Codec = videoCodecName
+			c.CodecName = videoCodecName
 			c.FrameFormat = frame.FormatI420 // most of the encoder accepts I420
 			c.Enabled = true
 			c.Width = 640

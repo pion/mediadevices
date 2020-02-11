@@ -23,19 +23,19 @@ func Register(name string, builder interface{}) {
 	}
 }
 
-func BuildVideoEncoder(name string, r video.Reader, p prop.Media) (io.ReadCloser, error) {
-	b, ok := videoEncoders[name]
+func BuildVideoEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
+	b, ok := videoEncoders[p.CodecName]
 	if !ok {
-		return nil, fmt.Errorf("codec: can't find %s video encoder", name)
+		return nil, fmt.Errorf("codec: can't find %s video encoder", p.CodecName)
 	}
 
 	return b(r, p)
 }
 
-func BuildAudioEncoder(name string, r audio.Reader, p prop.Media) (io.ReadCloser, error) {
-	b, ok := audioEncoders[name]
+func BuildAudioEncoder(r audio.Reader, p prop.Media) (io.ReadCloser, error) {
+	b, ok := audioEncoders[p.CodecName]
 	if !ok {
-		return nil, fmt.Errorf("codec: can't find %s audio encoder", name)
+		return nil, fmt.Errorf("codec: can't find %s audio encoder", p.CodecName)
 	}
 
 	return b(r, p)

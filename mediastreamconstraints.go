@@ -13,7 +13,6 @@ type MediaStreamConstraints struct {
 type MediaTrackConstraints struct {
 	prop.Media
 	Enabled bool
-	Codec   string
 }
 
 type MediaOption func(*MediaTrackConstraints)

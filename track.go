@@ -82,7 +82,7 @@ type videoTrack struct {
 var _ Tracker = &videoTrack{}
 
 func newVideoTrack(codecs []*webrtc.RTPCodec, d driver.Driver, constraints MediaTrackConstraints) (*videoTrack, error) {
-	codecName := constraints.Codec
+	codecName := constraints.CodecName
 	t, err := newTrack(codecs, d, codecName)
 	if err != nil {
 		return nil, err
@@ -99,7 +99,7 @@ func newVideoTrack(codecs []*webrtc.RTPCodec, d driver.Driver, constraints Media
 		return nil, err
 	}
 
-	encoder, err := codec.BuildVideoEncoder(codecName, r, constraints.Media)
+	encoder, err := codec.BuildVideoEncoder(r, constraints.Media)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ type audioTrack struct {
 var _ Tracker = &audioTrack{}
 
 func newAudioTrack(codecs []*webrtc.RTPCodec, d driver.Driver, constraints MediaTrackConstraints) (*audioTrack, error) {
-	codecName := constraints.Codec
+	codecName := constraints.CodecName
 	t, err := newTrack(codecs, d, codecName)
 	if err != nil {
 		return nil, err
@@ -170,7 +170,7 @@ func newAudioTrack(codecs []*webrtc.RTPCodec, d driver.Driver, constraints Media
 		return nil, err
 	}
 
-	encoder, err := codec.BuildAudioEncoder(codecName, reader, constraints.Media)
+	encoder, err := codec.BuildAudioEncoder(reader, constraints.Media)
 	if err != nil {
 		return nil, err
 	}
