@@ -44,7 +44,8 @@ func NewEncoder(r audio.Reader, p prop.Media) (io.ReadCloser, error) {
 
 	// Select the nearest supported latency
 	var targetLatency float64
-	latencyInMS := float64(p.Latency.Milliseconds())
+	// TODO: use p.Latency.Milliseconds() after Go 1.12 EOL
+	latencyInMS := float64(p.Latency.Nanoseconds() / 1000000)
 	nearestDist := math.Inf(+1)
 	for _, latency := range latencies {
 		dist := math.Abs(latency - latencyInMS)
