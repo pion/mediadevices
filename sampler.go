@@ -3,17 +3,16 @@ package mediadevices
 import (
 	"time"
 
-	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
 )
 
 type sampler struct {
-	track         *webrtc.Track
+	track         LocalTrack
 	clockRate     float64
 	lastTimestamp time.Time
 }
 
-func newSampler(track *webrtc.Track) *sampler {
+func newSampler(track LocalTrack) *sampler {
 	return &sampler{
 		track:         track,
 		clockRate:     float64(track.Codec().ClockRate),
