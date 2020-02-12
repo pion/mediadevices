@@ -17,7 +17,7 @@ type MediaDevices interface {
 // NewMediaDevices creates MediaDevices interface that provides access to connected media input devices
 // like cameras and microphones, as well as screen sharing.
 // In essence, it lets you obtain access to any hardware source of media data.
-func NewMediaDevices(pc *webrtc.PeerConnection) MediaDevices {
+func NewMediaDevices(pc *webrtc.PeerConnection, opts ...MediaDevicesOption) MediaDevices {
 	codecs := make(map[webrtc.RTPCodecType][]*webrtc.RTPCodec)
 	for _, kind := range []webrtc.RTPCodecType{
 		webrtc.RTPCodecTypeAudio,
@@ -25,20 +25,51 @@ func NewMediaDevices(pc *webrtc.PeerConnection) MediaDevices {
 	} {
 		codecs[kind] = pc.GetRegisteredRTPCodecs(kind)
 	}
-
-	return &mediaDevices{codecs}
+	return NewMediaDevicesFromCodecs(codecs, opts...)
 }
 
 // NewMediaDevicesFromCodecs creates MediaDevices interface from lists of the available codecs
 // that provides access to connected media input devices like cameras and microphones,
 // as well as screen sharing.
 // In essence, it lets you obtain access to any hardware source of media data.
-func NewMediaDevicesFromCodecs(codecs map[webrtc.RTPCodecType][]*webrtc.RTPCodec) MediaDevices {
-	return &mediaDevices{codecs}
+func NewMediaDevicesFromCodecs(codecs map[webrtc.RTPCodecType][]*webrtc.RTPCodec, opts ...MediaDevicesOption) MediaDevices {
+	mdo := MediaDevicesOptions{
+		codecs:         codecs,
+		trackGenerator: defaultTrackGenerator,
+	}
+	for _, o := range opts {
+		o(&mdo)
+	}
+	return &mediaDevices{
+		MediaDevicesOptions: mdo,
+	}
 }
 
+// TrackGenerator is a function to create new track.
+type TrackGenerator func(payloadType uint8, ssrc uint32, id, label string, codec *webrtc.RTPCodec) (LocalTrack, error)
+
+var defaultTrackGenerator = TrackGenerator(func(pt uint8, ssrc uint32, id, label string, codec *webrtc.RTPCodec) (LocalTrack, error) {
+	return webrtc.NewTrack(pt, ssrc, id, label, codec)
+})
+
 type mediaDevices struct {
-	codecs map[webrtc.RTPCodecType][]*webrtc.RTPCodec
+	MediaDevicesOptions
+}
+
+// MediaDevicesOptions stores parameters used by MediaDevices.
+type MediaDevicesOptions struct {
+	codecs         map[webrtc.RTPCodecType][]*webrtc.RTPCodec
+	trackGenerator TrackGenerator
+}
+
+// MediaDevicesOption is a type of MediaDevices functional option.
+type MediaDevicesOption func(*MediaDevicesOptions)
+
+// WithTrackGenerator specifies a TrackGenerator to use customized track.
+func WithTrackGenerator(gen TrackGenerator) MediaDevicesOption {
+	return func(o *MediaDevicesOptions) {
+		o.trackGenerator = gen
+	}
 }
 
 // GetUserMedia prompts the user for permission to use a media input which produces a MediaStream
@@ -147,7 +178,7 @@ func (m *mediaDevices) selectAudio(constraints MediaTrackConstraints) (Tracker, 
 		return nil, err
 	}
 
-	return newAudioTrack(m.codecs[webrtc.RTPCodecTypeAudio], d, c)
+	return newAudioTrack(&m.MediaDevicesOptions, d, c)
 }
 func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, error) {
 	d, c, err := selectBestDriver(driver.FilterVideoRecorder(), constraints)
@@ -155,5 +186,5 @@ func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, 
 		return nil, err
 	}
 
-	return newVideoTrack(m.codecs[webrtc.RTPCodecTypeVideo], d, c)
+	return newVideoTrack(&m.MediaDevicesOptions, d, c)
 }

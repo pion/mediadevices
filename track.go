@@ -21,14 +21,19 @@ type Tracker interface {
 	OnEnded(func(error))
 }
 
+type LocalTrack interface {
+	WriteSample(s media.Sample) error
+	Codec() *webrtc.RTPCodec
+}
+
 type track struct {
-	t *webrtc.Track
+	t LocalTrack
 	s *sampler
 
 	onErrorHandler atomic.Value // func(error)
 }
 
-func newTrack(codecs []*webrtc.RTPCodec, d driver.Driver, codecName string) (*track, error) {
+func newTrack(codecs []*webrtc.RTPCodec, trackGenerator TrackGenerator, d driver.Driver, codecName string) (*track, error) {
 	var selectedCodec *webrtc.RTPCodec
 	for _, c := range codecs {
 		if c.Name == codecName {
@@ -40,7 +45,7 @@ func newTrack(codecs []*webrtc.RTPCodec, d driver.Driver, codecName string) (*tr
 		return nil, fmt.Errorf("track: %s is not registered in media engine", codecName)
 	}
 
-	t, err := webrtc.NewTrack(
+	t, err := trackGenerator(
 		selectedCodec.PayloadType,
 		rand.Uint32(),
 		selectedCodec.Type.String(),
@@ -69,7 +74,7 @@ func (t *track) onError(err error) {
 }
 
 func (t *track) Track() *webrtc.Track {
-	return t.t
+	return t.t.(*webrtc.Track)
 }
 
 type videoTrack struct {
@@ -81,9 +86,9 @@ type videoTrack struct {
 
 var _ Tracker = &videoTrack{}
 
-func newVideoTrack(codecs []*webrtc.RTPCodec, d driver.Driver, constraints MediaTrackConstraints) (*videoTrack, error) {
+func newVideoTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrackConstraints) (*videoTrack, error) {
 	codecName := constraints.CodecName
-	t, err := newTrack(codecs, d, codecName)
+	t, err := newTrack(opts.codecs[webrtc.RTPCodecTypeVideo], opts.trackGenerator, d, codecName)
 	if err != nil {
 		return nil, err
 	}
@@ -152,9 +157,9 @@ type audioTrack struct {
 
 var _ Tracker = &audioTrack{}
 
-func newAudioTrack(codecs []*webrtc.RTPCodec, d driver.Driver, constraints MediaTrackConstraints) (*audioTrack, error) {
+func newAudioTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrackConstraints) (*audioTrack, error) {
 	codecName := constraints.CodecName
-	t, err := newTrack(codecs, d, codecName)
+	t, err := newTrack(opts.codecs[webrtc.RTPCodecTypeAudio], opts.trackGenerator, d, codecName)
 	if err != nil {
 		return nil, err
 	}
