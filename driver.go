@@ -7,6 +7,6 @@ import (
 )
 
 // RegisterDriverAdapter allows user space level of driver registration
-func RegisterDriverAdapter(a driver.Adapter) error {
-	return driver.GetManager().Register(a)
+func RegisterDriverAdapter(a driver.Adapter, label string) error {
+	return driver.GetManager().Register(a, label)
 }

@@ -35,8 +35,8 @@ func GetManager() *Manager {
 }
 
 // Register registers adapter to be discoverable by Query
-func (m *Manager) Register(a Adapter) error {
-	d := wrapAdapter(a)
+func (m *Manager) Register(a Adapter, label string) error {
+	d := wrapAdapter(a, label)
 	m.drivers[d.ID()] = d
 	return nil
 }

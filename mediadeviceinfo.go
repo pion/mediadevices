@@ -1,0 +1,18 @@
+package mediadevices
+
+// MediaDeviceType enumerates type of media device.
+type MediaDeviceType int
+
+// MediaDeviceType definitions.
+const (
+	VideoInput MediaDeviceType = iota
+	AudioInput
+	AudioOutput
+)
+
+// MediaDeviceInfo represents https://w3c.github.io/mediacapture-main/#dom-mediadeviceinfo
+type MediaDeviceInfo struct {
+	DeviceID string
+	Kind     MediaDeviceType
+	Label    string
+}
