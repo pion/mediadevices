@@ -12,6 +12,7 @@ import (
 // MediaDevices is an interface that's defined on https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices
 type MediaDevices interface {
 	GetUserMedia(constraints MediaStreamConstraints) (MediaStream, error)
+	EnumerateDevices() []MediaDeviceInfo
 }
 
 // NewMediaDevices creates MediaDevices interface that provides access to connected media input devices
@@ -158,4 +159,27 @@ func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, 
 	}
 
 	return newVideoTrack(m.codecs[webrtc.RTPCodecTypeVideo], d, c)
+}
+
+func (m *mediaDevices) EnumerateDevices() []MediaDeviceInfo {
+	drivers := driver.GetManager().Query(
+		driver.FilterFn(func(driver.Driver) bool { return true }))
+	info := make([]MediaDeviceInfo, 0, len(drivers))
+	for _, d := range drivers {
+		var kind MediaDeviceType
+		switch {
+		case driver.FilterVideoRecorder()(d):
+			kind = VideoInput
+		case driver.FilterAudioRecorder()(d):
+			kind = AudioInput
+		default:
+			continue
+		}
+		info = append(info, MediaDeviceInfo{
+			DeviceID: d.ID(),
+			Kind:     kind,
+			Label:    d.Label(),
+		})
+	}
+	return info
 }

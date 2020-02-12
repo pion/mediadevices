@@ -7,9 +7,9 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-func wrapAdapter(a Adapter) Driver {
+func wrapAdapter(a Adapter, label string) Driver {
 	id := uuid.NewV4().String()
-	d := &adapterWrapper{Adapter: a, id: id, state: StateClosed}
+	d := &adapterWrapper{Adapter: a, id: id, label: label, state: StateClosed}
 
 	switch v := a.(type) {
 	case VideoRecorder:
@@ -37,11 +37,16 @@ type adapterWrapper struct {
 	VideoRecorder
 	AudioRecorder
 	id    string
+	label string
 	state State
 }
 
 func (w *adapterWrapper) ID() string {
 	return w.id
+}
+
+func (w *adapterWrapper) Label() string {
+	return w.label
 }
 
 func (w *adapterWrapper) Status() State {

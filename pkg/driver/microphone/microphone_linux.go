@@ -12,11 +12,24 @@ import (
 
 type microphone struct {
 	c           *pulse.Client
+	id          string
 	samplesChan chan<- []float32
 }
 
 func init() {
-	driver.GetManager().Register(&microphone{})
+	pa, err := pulse.NewClient()
+	if err != nil {
+		// No pulseaudio
+		return
+	}
+	defer pa.Close()
+	sources, err := pa.ListSources()
+	if err != nil {
+		panic(err)
+	}
+	for _, source := range sources {
+		driver.GetManager().Register(&microphone{id: source.ID()}, source.ID())
+	}
 }
 
 func (m *microphone) Open() error {
@@ -47,7 +60,17 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 		options = append(options, pulse.RecordStereo)
 	}
 	latency := p.Latency.Seconds()
-	options = append(options, pulse.RecordSampleRate(p.SampleRate), pulse.RecordLatency(latency))
+
+	src, err := m.c.SourceByID(m.id)
+	if err != nil {
+		return nil, err
+	}
+
+	options = append(options,
+		pulse.RecordSampleRate(p.SampleRate),
+		pulse.RecordLatency(latency),
+		pulse.RecordSource(src),
+	)
 
 	samplesChan := make(chan []float32, 1)
 	var buff []float32

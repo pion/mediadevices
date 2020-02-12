@@ -23,5 +23,6 @@ type Adapter interface {
 type Driver interface {
 	Adapter
 	ID() string
+	Label() string
 	Status() State
 }

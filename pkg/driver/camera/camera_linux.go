@@ -6,6 +6,7 @@ import "C"
 import (
 	"image"
 	"io"
+	"io/ioutil"
 
 	"github.com/blackjack/webcam"
 	"github.com/pion/mediadevices/pkg/driver"
@@ -25,11 +26,16 @@ type camera struct {
 }
 
 func init() {
-	// TODO: Probably try to get more cameras
-	// Get default camera
-	defaultCam := newCamera("/dev/video0")
-
-	driver.GetManager().Register(defaultCam)
+	searchPath := "/dev/v4l/by-path/"
+	devices, err := ioutil.ReadDir(searchPath)
+	if err != nil {
+		// No v4l device.
+		return
+	}
+	for _, device := range devices {
+		cam := newCamera(searchPath + device.Name())
+		driver.GetManager().Register(cam, device.Name())
+	}
 }
 
 func newCamera(path string) *camera {
