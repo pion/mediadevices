@@ -10,6 +10,7 @@ import (
 )
 
 type Media struct {
+	DeviceID string
 	Video
 	Audio
 	Codec

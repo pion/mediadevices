@@ -20,6 +20,13 @@ func FilterAudioRecorder() FilterFn {
 	}
 }
 
+// FilterID return a filter function to get registered drivers which have given ID
+func FilterID(id string) FilterFn {
+	return func(d Driver) bool {
+		return d.ID() == id
+	}
+}
+
 // Manager is a singleton to manage multiple drivers and their states
 type Manager struct {
 	drivers map[string]Driver

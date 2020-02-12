@@ -9,6 +9,8 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
+var errNotFound = fmt.Errorf("failed to find the best driver that fits the constraints")
+
 // MediaDevices is an interface that's defined on https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices
 type MediaDevices interface {
 	GetUserMedia(constraints MediaStreamConstraints) (MediaStream, error)
@@ -130,7 +132,7 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 	}
 
 	if bestDriver == nil {
-		return nil, MediaTrackConstraints{}, fmt.Errorf("failed to find the best driver that fits the constraints")
+		return nil, MediaTrackConstraints{}, errNotFound
 	}
 
 	// Reset Codec because bestProp only contains either audio.Prop or video.Prop
@@ -143,7 +145,16 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 }
 
 func (m *mediaDevices) selectAudio(constraints MediaTrackConstraints) (Tracker, error) {
-	d, c, err := selectBestDriver(driver.FilterAudioRecorder(), constraints)
+	filter := driver.FilterAudioRecorder()
+	if constraints.DeviceID != "" {
+		typeFilter := driver.FilterAudioRecorder()
+		idFilter := driver.FilterID(constraints.DeviceID)
+		filter = func(d driver.Driver) bool {
+			return typeFilter(d) && idFilter(d)
+		}
+	}
+
+	d, c, err := selectBestDriver(filter, constraints)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +162,16 @@ func (m *mediaDevices) selectAudio(constraints MediaTrackConstraints) (Tracker, 
 	return newAudioTrack(m.codecs[webrtc.RTPCodecTypeAudio], d, c)
 }
 func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, error) {
-	d, c, err := selectBestDriver(driver.FilterVideoRecorder(), constraints)
+	filter := driver.FilterVideoRecorder()
+	if constraints.DeviceID != "" {
+		typeFilter := driver.FilterVideoRecorder()
+		idFilter := driver.FilterID(constraints.DeviceID)
+		filter = func(d driver.Driver) bool {
+			return typeFilter(d) && idFilter(d)
+		}
+	}
+
+	d, c, err := selectBestDriver(filter, constraints)
 	if err != nil {
 		return nil, err
 	}
