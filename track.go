@@ -43,8 +43,8 @@ func newTrack(codecs []*webrtc.RTPCodec, d driver.Driver, codecName string) (*tr
 	t, err := webrtc.NewTrack(
 		selectedCodec.PayloadType,
 		rand.Uint32(),
-		selectedCodec.Type.String(),
 		d.ID(),
+		selectedCodec.Type.String(),
 		selectedCodec,
 	)
 	if err != nil {
