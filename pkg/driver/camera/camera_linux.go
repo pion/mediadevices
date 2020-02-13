@@ -4,11 +4,12 @@ package camera
 import "C"
 
 import (
+	"context"
 	"errors"
 	"image"
 	"io"
 	"io/ioutil"
-	"sync/atomic"
+	"sync"
 
 	"github.com/blackjack/webcam"
 	"github.com/pion/mediadevices/pkg/driver"
@@ -34,7 +35,8 @@ type camera struct {
 	formats         map[webcam.PixelFormat]frame.Format
 	reversedFormats map[frame.Format]webcam.PixelFormat
 	started         bool
-	closed          atomic.Value // bool
+	wg              *sync.WaitGroup
+	cancel          func()
 }
 
 func init() {
@@ -67,7 +69,6 @@ func newCamera(path string) *camera {
 		formats:         formats,
 		reversedFormats: reversedFormats,
 	}
-	c.closed.Store(false)
 	return c
 }
 
@@ -78,7 +79,6 @@ func (c *camera) Open() error {
 	}
 
 	c.cam = cam
-	c.closed.Store(false)
 	return nil
 }
 
@@ -87,14 +87,19 @@ func (c *camera) Close() error {
 		return nil
 	}
 
-	if c.started {
+	if c.cancel != nil {
+		// Let the reader knows that the caller has closed the camera
+		c.cancel()
+		// Wait until the reader receives the cancelation
+		c.wg.Wait()
+
 		// Note: StopStreaming frees frame buffers even if they are still used in Go code.
 		//       There is currently no convenient way to do this safely.
 		//       So, consumer of this stream must close camera after unusing all images.
 		c.cam.StopStreaming()
+		c.cancel = nil
 	}
 	c.cam.Close()
-	c.closed.Store(true)
 	return nil
 }
 
@@ -113,12 +118,17 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	if err := c.cam.StartStreaming(); err != nil {
 		return nil, err
 	}
-	c.started = true
 
+	ctx, cancel := context.WithCancel(context.Background())
+	c.cancel = cancel
+	c.wg = &sync.WaitGroup{}
+	c.wg.Add(1)
+	var buf []byte
 	r := video.ReaderFunc(func() (img image.Image, err error) {
 		// Wait until a frame is ready
 		for i := 0; i < maxEmptyFrameCount; i++ {
-			if c.closed.Load().(bool) {
+			if ctx.Err() != nil {
+				c.wg.Done()
 				// Return EOF if the camera is already closed.
 				return nil, io.EOF
 			}
@@ -145,7 +155,16 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 				continue
 			}
 
-			return decoder.Decode(b, p.Width, p.Height)
+			if len(b) > len(buf) {
+				// Grow the intermediate buffer
+				buf = make([]byte, len(b))
+			}
+
+			// move the memory from mmap to Go. This will guarantee that any data that's going out
+			// from this reader will be Go safe. Otherwise, it's possible that outside of this reader
+			// that this memory is still being used even after we close it.
+			n := copy(buf, b)
+			return decoder.Decode(buf[:n], p.Width, p.Height)
 		}
 		return nil, errEmptyFrame
 	})
