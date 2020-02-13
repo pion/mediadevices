@@ -53,13 +53,6 @@ func BenchmarkRead(b *testing.B) {
 			if err != nil {
 				b.Skipf("Failed to capture image: %v", err)
 			}
-			defer func() {
-				if r != nil {
-					go func() {
-						_, _ = r.Read() // Workaround for deadlock
-					}()
-				}
-			}()
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

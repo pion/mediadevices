@@ -35,7 +35,7 @@ type camera struct {
 	formats         map[webcam.PixelFormat]frame.Format
 	reversedFormats map[frame.Format]webcam.PixelFormat
 	started         bool
-	wg              *sync.WaitGroup
+	mutex           sync.Mutex
 	cancel          func()
 }
 
@@ -90,8 +90,9 @@ func (c *camera) Close() error {
 	if c.cancel != nil {
 		// Let the reader knows that the caller has closed the camera
 		c.cancel()
-		// Wait until the reader receives the cancelation
-		c.wg.Wait()
+		// Wait until the reader unref the buffer
+		c.mutex.Lock()
+		defer c.mutex.Unlock()
 
 		// Note: StopStreaming frees frame buffers even if they are still used in Go code.
 		//       There is currently no convenient way to do this safely.
@@ -121,14 +122,15 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
-	c.wg = &sync.WaitGroup{}
-	c.wg.Add(1)
 	var buf []byte
 	r := video.ReaderFunc(func() (img image.Image, err error) {
+		// Lock to avoid accessing the buffer after StopStreaming()
+		c.mutex.Lock()
+		defer c.mutex.Unlock()
+
 		// Wait until a frame is ready
 		for i := 0; i < maxEmptyFrameCount; i++ {
 			if ctx.Err() != nil {
-				c.wg.Done()
 				// Return EOF if the camera is already closed.
 				return nil, io.EOF
 			}
