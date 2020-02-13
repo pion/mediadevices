@@ -1,11 +1,9 @@
 package mediadevices
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"math/rand"
-	"sync"
 	"sync/atomic"
 
 	"github.com/pion/mediadevices/pkg/codec"
@@ -84,8 +82,6 @@ type videoTrack struct {
 	d           driver.Driver
 	constraints MediaTrackConstraints
 	encoder     io.ReadCloser
-	wg          *sync.WaitGroup
-	cancel      func()
 }
 
 var _ Tracker = &videoTrack{}
@@ -117,34 +113,22 @@ func newVideoTrack(opts *MediaDevicesOptions, d driver.Driver, constraints Media
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
 	vt := videoTrack{
 		track:       t,
 		d:           d,
 		constraints: constraints,
 		encoder:     encoder,
-		wg:          &sync.WaitGroup{},
-		cancel:      cancel,
 	}
 
-	vt.wg.Add(1)
-	go func() {
-		vt.start(ctx)
-		vt.wg.Done()
-		cancel()
-	}()
+	go vt.start()
 	return &vt, nil
 }
 
-func (vt *videoTrack) start(ctx context.Context) {
+func (vt *videoTrack) start() {
 	var n int
 	var err error
 	buff := make([]byte, 1024)
 	for {
-		if ctx.Err() != nil {
-			return
-		}
-
 		n, err = vt.encoder.Read(buff)
 		if err != nil {
 			if e, ok := err.(*mio.InsufficientBufferError); ok {
@@ -164,11 +148,6 @@ func (vt *videoTrack) start(ctx context.Context) {
 }
 
 func (vt *videoTrack) Stop() {
-	// Wait finishing video read loop to avoid memory violation
-	// as the video frames might be alloced by C or on shared memory.
-	vt.cancel()
-	vt.wg.Wait()
-
 	vt.d.Close()
 	vt.encoder.Close()
 }
