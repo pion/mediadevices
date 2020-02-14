@@ -1,5 +1,7 @@
 package mediadevices
 
+import "github.com/pion/mediadevices/pkg/driver"
+
 // MediaDeviceType enumerates type of media device.
 type MediaDeviceType int
 
@@ -12,7 +14,8 @@ const (
 
 // MediaDeviceInfo represents https://w3c.github.io/mediacapture-main/#dom-mediadeviceinfo
 type MediaDeviceInfo struct {
-	DeviceID string
-	Kind     MediaDeviceType
-	Label    string
+	DeviceID   string
+	Kind       MediaDeviceType
+	Label      string
+	DeviceType driver.DeviceType
 }
