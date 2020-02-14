@@ -10,6 +10,7 @@ Go implementation of the [MediaDevices](https://developer.mozilla.org/en-US/docs
 | :--------: | :---: | :-: | :-----: |
 |   Camera   |  ✔️   | ✖️  |   ✖️    |
 | Microphone |  ✔️   | ✖️  |   ✖️    |
+|   Screen   |  ✔️   | ✖️  |   ✖️    |
 
 ### Camera
 
@@ -28,11 +29,36 @@ Go implementation of the [MediaDevices](https://developer.mozilla.org/en-US/docs
 
 ### Microphone
 
-N/A
+|   OS    |                    Library/Interface                     |
+| :-----: | :------------------------------------------------------: |
+|  Linux  | [PulseAudio](https://en.wikipedia.org/wiki/PulseAudio)   |
+|   Mac   |                           N/A                            |
+| Windows |                           N/A                            |
+
+### Screen casting
+
+|   OS    |                    Library/Interface                     |
+| :-----: | :------------------------------------------------------: |
+|  Linux  | [X11](https://en.wikipedia.org/wiki/X_Window_System)     |
+|   Mac   |                           N/A                            |
+| Windows |                           N/A                            |
+
+## Codecs
+
+| Audio Codec |                    Library/Interface                     |
+| :---------: | :------------------------------------------------------: |
+|    OPUS     | [libopus](http://opus-codec.org/)                        |
+
+| Video Codec |                    Library/Interface                     |
+| :---------: | :------------------------------------------------------: |
+|    H.264    | [OpenH264](https://www.openh264.org/)                    |
+|     VP8     | [libvpx](https://www.webmproject.org/code/)              |
+|     VP9     | [libvpx](https://www.webmproject.org/code/)              |
 
 ## Contributing
 
 - [Lukas Herman](https://github.com/lherman-cs) - _Original Author_
+* [Atsushi Watanabe](https://github.com/at-wat) - _VP8, Screencast, etc._
 
 ## Project Status
 
