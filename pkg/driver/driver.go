@@ -14,6 +14,10 @@ type AudioRecorder interface {
 	AudioRecord(p prop.Media) (r audio.Reader, err error)
 }
 
+type Info struct {
+	Label string
+}
+
 type Adapter interface {
 	Open() error
 	Close() error
@@ -23,6 +27,6 @@ type Adapter interface {
 type Driver interface {
 	Adapter
 	ID() string
-	Label() string
+	Info() Info
 	Status() State
 }

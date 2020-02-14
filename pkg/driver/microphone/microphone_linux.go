@@ -28,7 +28,9 @@ func init() {
 		panic(err)
 	}
 	for _, source := range sources {
-		driver.GetManager().Register(&microphone{id: source.ID()}, source.ID())
+		driver.GetManager().Register(&microphone{id: source.ID()}, driver.Info{
+			Label: source.ID(),
+		})
 	}
 }
 
