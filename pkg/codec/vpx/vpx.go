@@ -38,6 +38,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"time"
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/codec"
@@ -49,12 +50,13 @@ import (
 )
 
 type encoder struct {
-	codec            *C.vpx_codec_ctx_t
-	raw              *C.vpx_image_t
-	r                video.Reader
-	frameIndex       int
-	keyframeInterval int
-	buff             []byte
+	codec      *C.vpx_codec_ctx_t
+	raw        *C.vpx_image_t
+	r          video.Reader
+	frameIndex int
+	buff       []byte
+	tStart     int
+	tLastFrame int
 }
 
 func init() {
@@ -88,8 +90,9 @@ func newEncoder(r video.Reader, p prop.Media, codecIface *C.vpx_codec_iface_t) (
 	cfg.g_w = C.uint(p.Width)
 	cfg.g_h = C.uint(p.Height)
 	cfg.g_timebase.num = 1
-	cfg.g_timebase.den = 30 // TODO: p.FrameRate should be set
+	cfg.g_timebase.den = 1000
 	cfg.rc_target_bitrate = C.uint(p.BitRate) / 1000
+	cfg.kf_max_dist = C.uint(p.KeyFrameInterval)
 
 	raw := &C.vpx_image_t{}
 	if C.vpx_img_alloc(raw, C.VPX_IMG_FMT_I420, cfg.g_w, cfg.g_h, 1) == nil {
@@ -105,11 +108,13 @@ func newEncoder(r video.Reader, p prop.Media, codecIface *C.vpx_codec_iface_t) (
 	); ec != 0 {
 		return nil, fmt.Errorf("vpx_codec_enc_init failed (%d)", ec)
 	}
+	t0 := time.Now().Nanosecond() / 1000000
 	return &encoder{
-		r:                video.ToI420(r),
-		codec:            codec,
-		raw:              rawNoBuffer,
-		keyframeInterval: p.KeyFrameInterval,
+		r:          video.ToI420(r),
+		codec:      codec,
+		raw:        rawNoBuffer,
+		tStart:     t0,
+		tLastFrame: t0,
 	}, nil
 }
 
@@ -135,18 +140,17 @@ func (e *encoder) Read(p []byte) (int, error) {
 	e.raw.stride[1] = C.int(yuvImg.CStride)
 	e.raw.stride[2] = C.int(yuvImg.CStride)
 
-	var flags int
-	if e.frameIndex%e.keyframeInterval == 0 {
-		flags |= C.VPX_EFLAG_FORCE_KF
-	}
+	t := time.Now().Nanosecond() / 1000000
 
+	var flags int
 	if ec := C.vpx_codec_encode(
 		e.codec, e.raw,
-		C.long(e.frameIndex), 1, C.long(flags), C.VPX_DL_REALTIME,
+		C.long(t-e.tStart), C.ulong(t-e.tLastFrame), C.long(flags), C.VPX_DL_REALTIME,
 	); ec != C.VPX_CODEC_OK {
 		return 0, fmt.Errorf("vpx_codec_encode failed (%d)", ec)
 	}
 	e.frameIndex++
+	e.tLastFrame = t
 
 	var frame []byte
 	var iter C.vpx_codec_iter_t
