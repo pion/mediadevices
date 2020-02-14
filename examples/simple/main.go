@@ -56,7 +56,7 @@ func main() {
 		},
 		Video: func(c *mediadevices.MediaTrackConstraints) {
 			c.CodecName = videoCodecName
-			c.FrameFormat = frame.FormatI420 // most of the encoder accepts I420
+			c.FrameFormat = frame.FormatYUY2
 			c.Enabled = true
 			c.Width = 640
 			c.Height = 480

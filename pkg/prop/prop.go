@@ -20,6 +20,7 @@ func (p *Media) FitnessDistance(o Media) float64 {
 	cmps := comparisons{}
 	cmps.add(p.Width, o.Width)
 	cmps.add(p.Height, o.Height)
+	cmps.add(p.FrameFormat, o.FrameFormat)
 	cmps.add(p.SampleRate, o.SampleRate)
 	cmps.add(p.Latency, o.Latency)
 	return cmps.fitnessDistance()
@@ -40,16 +41,18 @@ func (c comparisons) fitnessDistance() float64 {
 			continue
 		}
 
-		actual, err1 := strconv.ParseFloat(actual, 64)
-		ideal, err2 := strconv.ParseFloat(ideal, 64)
+		actualF, err1 := strconv.ParseFloat(actual, 64)
+		idealF, err2 := strconv.ParseFloat(ideal, 64)
 
 		switch {
 		// If both of the values are numeric, we need to normalize the values to get the distance
 		case err1 == nil && err2 == nil:
-			dist += math.Abs(actual-ideal) / math.Max(math.Abs(actual), math.Abs(ideal))
-		// If both of the values are not numeric, the only comparison value is either 1 (matched) or 0 (not matched)
+			dist += math.Abs(actualF-idealF) / math.Max(math.Abs(actualF), math.Abs(idealF))
+		// If both of the values are not numeric, the only comparison value is either 0 (matched) or 1 (not matched)
 		case err1 != nil && err2 != nil:
-			dist++
+			if actual != ideal {
+				dist++
+			}
 		// Comparing a numeric value with a non-numeric value is a an internal error, so panic.
 		default:
 			panic("fitnessDistance can't mix comparisons.")
