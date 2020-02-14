@@ -224,12 +224,15 @@ func (m *mediaDevices) selectAudio(constraints MediaTrackConstraints) (Tracker, 
 	return newAudioTrack(&m.MediaDevicesOptions, d, c)
 }
 func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, error) {
-	filter := driver.FilterVideoRecorder()
+	typeFilter := driver.FilterVideoRecorder()
+	screenFilter := driver.FilterDeviceType(driver.Screen)
+	filter := func(d driver.Driver) bool {
+		return typeFilter(d) && !screenFilter(d)
+	}
 	if constraints.DeviceID != "" {
-		typeFilter := driver.FilterVideoRecorder()
 		idFilter := driver.FilterID(constraints.DeviceID)
 		filter = func(d driver.Driver) bool {
-			return typeFilter(d) && idFilter(d)
+			return typeFilter(d) && !screenFilter(d) && idFilter(d)
 		}
 	}
 
