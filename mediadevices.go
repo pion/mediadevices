@@ -229,7 +229,7 @@ func (m *mediaDevices) EnumerateDevices() []MediaDeviceInfo {
 		info = append(info, MediaDeviceInfo{
 			DeviceID: d.ID(),
 			Kind:     kind,
-			Label:    d.Label(),
+			Label:    d.Info().Label,
 		})
 	}
 	return info

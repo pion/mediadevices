@@ -48,7 +48,9 @@ func init() {
 	}
 	for _, device := range devices {
 		cam := newCamera(searchPath + device.Name())
-		driver.GetManager().Register(cam, device.Name())
+		driver.GetManager().Register(cam, driver.Info{
+			Label: device.Name(),
+		})
 	}
 }
 
