@@ -17,6 +17,7 @@ import (
 // Reference: https://w3c.github.io/mediacapture-main/#mediastreamtrack
 type Tracker interface {
 	Track() *webrtc.Track
+	LocalTrack() LocalTrack
 	Stop()
 	OnEnded(func(error))
 }
@@ -24,6 +25,8 @@ type Tracker interface {
 type LocalTrack interface {
 	WriteSample(s media.Sample) error
 	Codec() *webrtc.RTPCodec
+	ID() string
+	Kind() webrtc.RTPCodecType
 }
 
 type track struct {
@@ -75,6 +78,10 @@ func (t *track) onError(err error) {
 
 func (t *track) Track() *webrtc.Track {
 	return t.t.(*webrtc.Track)
+}
+
+func (t *track) LocalTrack() LocalTrack {
+	return t.t
 }
 
 type videoTrack struct {

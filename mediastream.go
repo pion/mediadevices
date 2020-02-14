@@ -33,7 +33,7 @@ func NewMediaStream(trackers ...Tracker) (MediaStream, error) {
 	m := mediaStream{trackers: make(map[string]Tracker)}
 
 	for _, tracker := range trackers {
-		id := tracker.Track().ID()
+		id := tracker.LocalTrack().ID()
 		if _, ok := m.trackers[id]; !ok {
 			m.trackers[id] = tracker
 		}
@@ -62,7 +62,7 @@ func (m *mediaStream) queryTracks(t webrtc.RTPCodecType) []Tracker {
 
 	result := make([]Tracker, 0)
 	for _, tracker := range m.trackers {
-		if tracker.Track().Kind() == t || t == rtpCodecTypeDefault {
+		if tracker.LocalTrack().Kind() == t || t == rtpCodecTypeDefault {
 			result = append(result, tracker)
 		}
 	}
@@ -74,7 +74,7 @@ func (m *mediaStream) AddTrack(t Tracker) {
 	m.l.Lock()
 	defer m.l.Unlock()
 
-	id := t.Track().ID()
+	id := t.LocalTrack().ID()
 	if _, ok := m.trackers[id]; ok {
 		return
 	}
@@ -86,5 +86,5 @@ func (m *mediaStream) RemoveTrack(t Tracker) {
 	m.l.Lock()
 	defer m.l.Unlock()
 
-	delete(m.trackers, t.Track().ID())
+	delete(m.trackers, t.LocalTrack().ID())
 }
