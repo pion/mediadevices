@@ -36,7 +36,8 @@ func init() {
 				num: i,
 			},
 			driver.Info{
-				Label: deviceID(i),
+				Label:      deviceID(i),
+				DeviceType: driver.Screen,
 			},
 		)
 	}
