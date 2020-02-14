@@ -15,7 +15,8 @@ type AudioRecorder interface {
 }
 
 type Info struct {
-	Label string
+	Label      string
+	DeviceType DeviceType
 }
 
 type Adapter interface {

@@ -27,6 +27,13 @@ func FilterID(id string) FilterFn {
 	}
 }
 
+// FilterDeviceType returns a filter function to get registered drivers which matches t type
+func FilterDeviceType(t DeviceType) FilterFn {
+	return func(d Driver) bool {
+		return d.Info().DeviceType == t
+	}
+}
+
 // Manager is a singleton to manage multiple drivers and their states
 type Manager struct {
 	drivers map[string]Driver
