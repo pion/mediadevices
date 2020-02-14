@@ -13,6 +13,7 @@ var errNotFound = fmt.Errorf("failed to find the best driver that fits the const
 
 // MediaDevices is an interface that's defined on https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices
 type MediaDevices interface {
+	GetDisplayMedia(constraints MediaStreamConstraints) (MediaStream, error)
 	GetUserMedia(constraints MediaStreamConstraints) (MediaStream, error)
 	EnumerateDevices() []MediaDeviceInfo
 }
@@ -73,6 +74,34 @@ func WithTrackGenerator(gen TrackGenerator) MediaDevicesOption {
 	return func(o *MediaDevicesOptions) {
 		o.trackGenerator = gen
 	}
+}
+
+// GetDisplayMedia prompts the user to select and grant permission to capture the contents
+// of a display or portion thereof (such as a window) as a MediaStream.
+// Reference: https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia
+func (m *mediaDevices) GetDisplayMedia(constraints MediaStreamConstraints) (MediaStream, error) {
+	trackers := make([]Tracker, 0)
+
+	var videoConstraints MediaTrackConstraints
+	if constraints.Video != nil {
+		constraints.Video(&videoConstraints)
+	}
+
+	if videoConstraints.Enabled {
+		tracker, err := m.selectScreen(videoConstraints)
+		if err != nil {
+			return nil, err
+		}
+
+		trackers = append(trackers, tracker)
+	}
+
+	s, err := NewMediaStream(trackers...)
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }
 
 // GetUserMedia prompts the user for permission to use a media input which produces a MediaStream
@@ -201,6 +230,27 @@ func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, 
 		idFilter := driver.FilterID(constraints.DeviceID)
 		filter = func(d driver.Driver) bool {
 			return typeFilter(d) && idFilter(d)
+		}
+	}
+
+	d, c, err := selectBestDriver(filter, constraints)
+	if err != nil {
+		return nil, err
+	}
+
+	return newVideoTrack(&m.MediaDevicesOptions, d, c)
+}
+
+func (m *mediaDevices) selectScreen(constraints MediaTrackConstraints) (Tracker, error) {
+	typeFilter := driver.FilterVideoRecorder()
+	screenFilter := driver.FilterDeviceType(driver.Screen)
+	filter := func(d driver.Driver) bool {
+		return typeFilter(d) && screenFilter(d)
+	}
+	if constraints.DeviceID != "" {
+		idFilter := driver.FilterID(constraints.DeviceID)
+		filter = func(d driver.Driver) bool {
+			return typeFilter(d) && screenFilter(d) && idFilter(d)
 		}
 	}
 
