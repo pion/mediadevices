@@ -207,13 +207,11 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 }
 
 func (m *mediaDevices) selectAudio(constraints MediaTrackConstraints) (Tracker, error) {
-	filter := driver.FilterAudioRecorder()
+	typeFilter := driver.FilterAudioRecorder()
+	filter := typeFilter
 	if constraints.DeviceID != "" {
-		typeFilter := driver.FilterAudioRecorder()
 		idFilter := driver.FilterID(constraints.DeviceID)
-		filter = func(d driver.Driver) bool {
-			return typeFilter(d) && idFilter(d)
-		}
+		filter = driver.FilterAnd(typeFilter, idFilter)
 	}
 
 	d, c, err := selectBestDriver(filter, constraints)
@@ -225,15 +223,11 @@ func (m *mediaDevices) selectAudio(constraints MediaTrackConstraints) (Tracker, 
 }
 func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, error) {
 	typeFilter := driver.FilterVideoRecorder()
-	screenFilter := driver.FilterDeviceType(driver.Screen)
-	filter := func(d driver.Driver) bool {
-		return typeFilter(d) && !screenFilter(d)
-	}
+	notScreenFilter := driver.FilterNot(driver.FilterDeviceType(driver.Screen))
+	filter := driver.FilterAnd(typeFilter, notScreenFilter)
 	if constraints.DeviceID != "" {
 		idFilter := driver.FilterID(constraints.DeviceID)
-		filter = func(d driver.Driver) bool {
-			return typeFilter(d) && !screenFilter(d) && idFilter(d)
-		}
+		filter = driver.FilterAnd(typeFilter, notScreenFilter, idFilter)
 	}
 
 	d, c, err := selectBestDriver(filter, constraints)
@@ -247,14 +241,10 @@ func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, 
 func (m *mediaDevices) selectScreen(constraints MediaTrackConstraints) (Tracker, error) {
 	typeFilter := driver.FilterVideoRecorder()
 	screenFilter := driver.FilterDeviceType(driver.Screen)
-	filter := func(d driver.Driver) bool {
-		return typeFilter(d) && screenFilter(d)
-	}
+	filter := driver.FilterAnd(typeFilter, screenFilter)
 	if constraints.DeviceID != "" {
 		idFilter := driver.FilterID(constraints.DeviceID)
-		filter = func(d driver.Driver) bool {
-			return typeFilter(d) && screenFilter(d) && idFilter(d)
-		}
+		filter = driver.FilterAnd(typeFilter, screenFilter, idFilter)
 	}
 
 	d, c, err := selectBestDriver(filter, constraints)

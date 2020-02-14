@@ -34,6 +34,25 @@ func FilterDeviceType(t DeviceType) FilterFn {
 	}
 }
 
+// FilterAnd returns a filter function to take logical conjunction of given filters.
+func FilterAnd(filters ...FilterFn) FilterFn {
+	return func(d Driver) bool {
+		for _, f := range filters {
+			if !f(d) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
+// FilterNot returns a filter function to take logical inverse of the given filter.
+func FilterNot(filter FilterFn) FilterFn {
+	return func(d Driver) bool {
+		return !filter(d)
+	}
+}
+
 // Manager is a singleton to manage multiple drivers and their states
 type Manager struct {
 	drivers map[string]Driver
