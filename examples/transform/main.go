@@ -6,9 +6,7 @@ import (
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
-	_ "github.com/pion/mediadevices/pkg/codec/openh264" // This is required to register h264 video encoder
-	_ "github.com/pion/mediadevices/pkg/codec/opus"     // This is required to register opus audio encoder
-	_ "github.com/pion/mediadevices/pkg/codec/vpx"
+	_ "github.com/pion/mediadevices/pkg/codec/vpx" // This is required to register VP8/VP9 video encoder
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/webrtc/v2"
@@ -68,11 +66,6 @@ func main() {
 	md := mediadevices.NewMediaDevices(peerConnection)
 
 	s, err := md.GetUserMedia(mediadevices.MediaStreamConstraints{
-		Audio: func(c *mediadevices.MediaTrackConstraints) {
-			c.CodecName = webrtc.Opus
-			c.Enabled = true
-			c.BitRate = 32000 // 32kbps
-		},
 		Video: func(c *mediadevices.MediaTrackConstraints) {
 			c.CodecName = videoCodecName
 			c.FrameFormat = frame.FormatI420 // most of the encoder accepts I420
