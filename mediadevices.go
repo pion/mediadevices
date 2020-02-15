@@ -181,8 +181,9 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 
 	driverProperties := queryDriverProperties(filter)
 	for d, props := range driverProperties {
+		priority := float64(d.Info().Priority)
 		for _, p := range props {
-			fitnessDist := constraints.Media.FitnessDistance(p)
+			fitnessDist := constraints.Media.FitnessDistance(p) - priority
 			if fitnessDist < minFitnessDist {
 				minFitnessDist = fitnessDist
 				bestDriver = d

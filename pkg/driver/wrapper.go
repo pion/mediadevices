@@ -9,7 +9,12 @@ import (
 
 func wrapAdapter(a Adapter, info Info) Driver {
 	id := uuid.NewV4().String()
-	d := &adapterWrapper{Adapter: a, id: id, info: info, state: StateClosed}
+	d := &adapterWrapper{
+		Adapter: a,
+		id:      id,
+		info:    info,
+		state:   StateClosed,
+	}
 
 	switch v := a.(type) {
 	case VideoRecorder:
