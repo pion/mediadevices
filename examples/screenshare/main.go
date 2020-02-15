@@ -8,6 +8,7 @@ import (
 	_ "github.com/pion/mediadevices/pkg/codec/openh264" // This is required to register h264 video encoder
 	_ "github.com/pion/mediadevices/pkg/codec/opus"     // This is required to register opus audio encoder
 	_ "github.com/pion/mediadevices/pkg/codec/vpx"
+	_ "github.com/pion/mediadevices/pkg/driver/screen" // This is required to register screen capture adapter
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/webrtc/v2"
 )
