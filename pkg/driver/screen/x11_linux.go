@@ -3,7 +3,6 @@ package screen
 import (
 	"fmt"
 	"image"
-	"image/color"
 	"time"
 
 	"github.com/pion/mediadevices/pkg/driver"
@@ -61,11 +60,6 @@ func (s *screen) Close() error {
 }
 
 func (s *screen) VideoRecord(p prop.Media) (video.Reader, error) {
-	rect := s.reader.img.Bounds()
-	w := rect.Dx()
-	h := rect.Dy()
-	imgI444 := image.NewYCbCr(rect, image.YCbCrSubsampleRatio444)
-
 	if p.FrameRate == 0 {
 		p.FrameRate = 10
 	}
@@ -73,26 +67,7 @@ func (s *screen) VideoRecord(p prop.Media) (video.Reader, error) {
 
 	r := video.ReaderFunc(func() (image.Image, error) {
 		<-s.tick.C
-		img := s.reader.Read()
-		// Convert it to I444
-		imgI444.SubsampleRatio = image.YCbCrSubsampleRatio444
-		imgI444.Rect = rect
-		imgI444.YStride = w
-		imgI444.CStride = w
-		for y := 0; y < h; y++ {
-			iyBase := y * imgI444.YStride
-			icBase := y * imgI444.CStride
-			for x := 0; x < w; x++ {
-				iy := iyBase + x
-				ic := icBase + x
-				r, g, b, _ := img.At(x, y).RGBA()
-				yy, cb, cr := color.RGBToYCbCr(uint8(r/0x100), uint8(g/0x100), uint8(b/0x100))
-				imgI444.Y[iy] = yy
-				imgI444.Cb[ic] = cb
-				imgI444.Cr[ic] = cr
-			}
-		}
-		return imgI444, nil
+		return s.reader.Read(), nil
 	})
 	return r, nil
 }
@@ -107,7 +82,7 @@ func (s *screen) Properties() []prop.Media {
 			Video: prop.Video{
 				Width:       w,
 				Height:      h,
-				FrameFormat: frame.FormatI444,
+				FrameFormat: frame.FormatRGBA,
 			},
 		},
 	}
