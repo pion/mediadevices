@@ -21,14 +21,20 @@ var errUnsupportedImageType = errors.New("scaling: unsupported image type")
 
 // Scale returns video scaling transform.
 // Setting scaler=nil to use default scaler. (ScalerNearestNeighbor)
+// Negative width or height value will keep the aspect ratio of incoming image.
 func Scale(width, height int, scaler Scaler) TransformFunc {
 	return func(r Reader) Reader {
 		if scaler == nil {
 			scaler = ScalerNearestNeighbor
 		}
 
-		rect := image.Rect(0, 0, width, height)
+		var rect image.Rectangle
 		var imgScaled image.Image
+		if width > 0 && height > 0 {
+			rect = image.Rect(0, 0, width, height)
+		} else if width <= 0 && height <= 0 {
+			panic("Both width and height are negative!")
+		}
 
 		ycbcrNeedRealloc := func(i1 *image.YCbCr, i2 image.Image) bool {
 			if i2 == nil {
@@ -54,6 +60,16 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 			img, err := r.Read()
 			if err != nil {
 				return nil, err
+			}
+
+			if imgScaled == nil {
+				if height <= 0 {
+					h := img.Bounds().Dy() * width / img.Bounds().Dx()
+					rect = image.Rect(0, 0, width, h)
+				} else if width <= 0 {
+					w := img.Bounds().Dx() * height / img.Bounds().Dy()
+					rect = image.Rect(0, 0, w, height)
+				}
 			}
 
 			switch v := img.(type) {

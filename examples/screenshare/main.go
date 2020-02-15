@@ -53,8 +53,8 @@ func main() {
 		Video: func(c *mediadevices.MediaTrackConstraints) {
 			c.CodecName = videoCodecName
 			c.Enabled = true
-			c.BitRate = 100000 // 100kbps
-			c.VideoTransform = video.Scale(640, 480, nil)
+			c.BitRate = 100000                           // 100kbps
+			c.VideoTransform = video.Scale(-1, 360, nil) // Resize to 360p
 		},
 	})
 	if err != nil {
