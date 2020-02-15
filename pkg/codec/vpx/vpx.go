@@ -65,6 +65,7 @@ import (
 type encoder struct {
 	codec      *C.vpx_codec_ctx_t
 	raw        *C.vpx_image_t
+	cfg        *C.vpx_codec_enc_cfg_t
 	r          video.Reader
 	frameIndex int
 	buff       []byte
@@ -126,6 +127,7 @@ func newEncoder(r video.Reader, p prop.Media, codecIface *C.vpx_codec_iface_t) (
 		r:          video.ToI420(r),
 		codec:      codec,
 		raw:        rawNoBuffer,
+		cfg:        cfg,
 		tStart:     t0,
 		tLastFrame: t0,
 	}, nil
@@ -145,12 +147,25 @@ func (e *encoder) Read(p []byte) (int, error) {
 		return 0, err
 	}
 	yuvImg := img.(*image.YCbCr)
+	bounds := yuvImg.Bounds()
+	height := C.int(bounds.Dy())
+	width := C.int(bounds.Dx())
 
 	e.raw.stride[0] = C.int(yuvImg.YStride)
 	e.raw.stride[1] = C.int(yuvImg.CStride)
 	e.raw.stride[2] = C.int(yuvImg.CStride)
 
 	t := time.Now().Nanosecond() / 1000000
+
+	if e.cfg.g_w != C.uint(width) || e.cfg.g_h != C.uint(height) {
+		e.cfg.g_w, e.cfg.g_h = C.uint(width), C.uint(height)
+		if ec := C.vpx_codec_enc_config_set(e.codec, e.cfg); ec != C.VPX_CODEC_OK {
+			return 0, fmt.Errorf("vpx_codec_enc_config_set failed (%d)", ec)
+		}
+		e.raw.w, e.raw.h = C.uint(width), C.uint(height)
+		e.raw.r_w, e.raw.r_h = C.uint(width), C.uint(height)
+		e.raw.d_w, e.raw.d_h = C.uint(width), C.uint(height)
+	}
 
 	var flags int
 	if ec := C.encode_wrapper(
