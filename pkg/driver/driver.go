@@ -14,9 +14,22 @@ type AudioRecorder interface {
 	AudioRecord(p prop.Media) (r audio.Reader, err error)
 }
 
+// Priority represents device selection priority level
+type Priority float32
+
+const (
+	// PriorityHigh is a value for system default devices
+	PriorityHigh Priority = 0.1
+	// PriorityNormal is a value for normal devices
+	PriorityNormal Priority = 0.0
+	// PriorityLow is a value for unrecommended devices
+	PriorityLow Priority = -0.1
+)
+
 type Info struct {
 	Label      string
 	DeviceType DeviceType
+	Priority   Priority
 }
 
 type Adapter interface {

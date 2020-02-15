@@ -27,10 +27,19 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	defaultSource, err := pa.DefaultSource()
+	if err != nil {
+		panic(err)
+	}
 	for _, source := range sources {
+		priority := driver.PriorityNormal
+		if defaultSource.ID() == source.ID() {
+			priority = driver.PriorityHigh
+		}
 		driver.GetManager().Register(&microphone{id: source.ID()}, driver.Info{
 			Label:      source.ID(),
 			DeviceType: driver.Microphone,
+			Priority:   priority,
 		})
 	}
 }
