@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/blackjack/webcam v0.0.0-20191123110216-08fa32efcb67
+	github.com/disintegration/imaging v1.6.2
 	github.com/faiface/beep v1.0.2
 	github.com/jfreymuth/pulse v0.0.0-20200118113426-7cf5f487291e
 	github.com/pion/rtp v1.2.0

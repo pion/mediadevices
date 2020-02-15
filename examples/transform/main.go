@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 
+	"github.com/disintegration/imaging"
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
 	_ "github.com/pion/mediadevices/pkg/codec/vpx"     // This is required to register VP8/VP9 video encoder
@@ -17,19 +18,14 @@ const (
 	videoCodecName = webrtc.VP8
 )
 
-func removeBlue(r video.Reader) video.Reader {
+func rotate180(r video.Reader) video.Reader {
 	return video.ReaderFunc(func() (img image.Image, err error) {
 		img, err = r.Read()
 		if err != nil {
 			return
 		}
 
-		yuvImg, ok := img.(*image.YCbCr)
-		if !ok {
-			return img, nil
-		}
-
-		yuvImg.Cb = make([]uint8, len(yuvImg.Cb))
+		img = imaging.Rotate180(img)
 		return
 	})
 }
@@ -74,7 +70,7 @@ func main() {
 			c.Width = 640
 			c.Height = 480
 			c.BitRate = 100000 // 100kbps
-			c.VideoTransform = removeBlue
+			c.VideoTransform = rotate180
 		},
 	})
 	if err != nil {
