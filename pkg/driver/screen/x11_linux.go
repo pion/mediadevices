@@ -62,8 +62,8 @@ func (s *screen) Close() error {
 
 func (s *screen) VideoRecord(p prop.Media) (video.Reader, error) {
 	rect := s.reader.img.Bounds()
-	w := rect.Max.X - rect.Min.X
-	h := rect.Max.Y - rect.Min.Y
+	w := rect.Dx()
+	h := rect.Dy()
 	imgI444 := image.NewYCbCr(rect, image.YCbCrSubsampleRatio444)
 
 	if p.FrameRate == 0 {
@@ -75,6 +75,10 @@ func (s *screen) VideoRecord(p prop.Media) (video.Reader, error) {
 		<-s.tick.C
 		img := s.reader.Read()
 		// Convert it to I444
+		imgI444.SubsampleRatio = image.YCbCrSubsampleRatio444
+		imgI444.Rect = rect
+		imgI444.YStride = w
+		imgI444.CStride = w
 		for y := 0; y < h; y++ {
 			iyBase := y * imgI444.YStride
 			icBase := y * imgI444.CStride
@@ -95,8 +99,8 @@ func (s *screen) VideoRecord(p prop.Media) (video.Reader, error) {
 
 func (s *screen) Properties() []prop.Media {
 	rect := s.reader.img.Bounds()
-	w := rect.Max.X - rect.Min.X
-	h := rect.Max.Y - rect.Min.Y
+	w := rect.Dx()
+	h := rect.Dy()
 	return []prop.Media{
 		{
 			DeviceID: deviceID(s.num),
