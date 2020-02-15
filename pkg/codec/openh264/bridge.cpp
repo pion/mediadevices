@@ -83,11 +83,9 @@ Slice enc_encode(Encoder *e, Frame f) {
   pic.iPicWidth = f.width;
   pic.iPicHeight = f.height;
   pic.iColorFormat = videoFormatI420;
-  // Since we're using 4:2:0 format, we can set the stride for the chromas
-  // to be the the width of the frame. That way we can skip even rows.
-  // For example, if we have a picture of 400x400, our chroma will be 400x200
-  // from Go.
-  pic.iStride[0] = pic.iStride[1] = pic.iStride[2] = pic.iPicWidth;
+  // We always received I420 format
+  pic.iStride[0] = pic.iPicWidth;
+  pic.iStride[1] = pic.iStride[2] = pic.iPicWidth / 2;
   pic.pData[0] = (unsigned char *)f.y;
   pic.pData[1] = (unsigned char *)f.u;
   pic.pData[2] = (unsigned char *)f.v;
