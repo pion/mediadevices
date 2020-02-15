@@ -9,7 +9,6 @@ import (
 	_ "github.com/pion/mediadevices/pkg/codec/opus"     // This is required to register opus audio encoder
 	_ "github.com/pion/mediadevices/pkg/codec/vpx"      // This is required to register VP8/VP9 video encoder
 	_ "github.com/pion/mediadevices/pkg/driver/screen"  // This is required to register screen capture adapter
-	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -52,7 +51,6 @@ func main() {
 	s, err := md.GetDisplayMedia(mediadevices.MediaStreamConstraints{
 		Video: func(c *mediadevices.MediaTrackConstraints) {
 			c.CodecName = videoCodecName
-			c.FrameFormat = frame.FormatI444
 			c.Enabled = true
 			c.Width = 640
 			c.Height = 480
