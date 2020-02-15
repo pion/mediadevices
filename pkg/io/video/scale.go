@@ -7,8 +7,10 @@ import (
 	"golang.org/x/image/draw"
 )
 
+// Scaler represents scaling algorithm
 type Scaler draw.Scaler
 
+// List of scaling algorithms
 var (
 	ScalerNearestNeighbor = Scaler(draw.NearestNeighbor)
 	ScalerApproxBiLinear  = Scaler(draw.ApproxBiLinear)
@@ -21,6 +23,9 @@ var errUnsupportedImageType = errors.New("scaling: unsupported image type")
 // Scale returns video scaling transform.
 // Setting scaler=nil to use default scaler. (ScalerNearestNeighbor)
 // Negative width or height value will keep the aspect ratio of incoming image.
+//
+// Note: computation cost to scale YCbCr format is 10 times higher than RGB
+// due to the implementation in x/image/draw package.
 func Scale(width, height int, scaler Scaler) TransformFunc {
 	return func(r Reader) Reader {
 		if scaler == nil {
