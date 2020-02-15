@@ -67,7 +67,7 @@ func (w *adapterWrapper) Close() error {
 }
 
 func (w *adapterWrapper) VideoRecord(p prop.Media) (r video.Reader, err error) {
-	w.state.Update(StateRunning, func() error {
+	err = w.state.Update(StateRunning, func() error {
 		r, err = w.VideoRecorder.VideoRecord(p)
 		return err
 	})
@@ -75,7 +75,7 @@ func (w *adapterWrapper) VideoRecord(p prop.Media) (r video.Reader, err error) {
 }
 
 func (w *adapterWrapper) AudioRecord(p prop.Media) (r audio.Reader, err error) {
-	w.state.Update(StateRunning, func() error {
+	err = w.state.Update(StateRunning, func() error {
 		r, err = w.AudioRecorder.AudioRecord(p)
 		return err
 	})
