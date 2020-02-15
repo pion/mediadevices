@@ -1,0 +1,122 @@
+package video
+
+import (
+	"image"
+	"reflect"
+	"testing"
+)
+
+func TestToI420(t *testing.T) {
+	cases := map[string]struct {
+		src      image.Image
+		expected image.Image
+	}{
+		"I444": {
+			src: &image.YCbCr{
+				SubsampleRatio: image.YCbCrSubsampleRatio444,
+				Y: []uint8{
+					0xF0, 0x10, 0x00, 0x00,
+					0x00, 0x00, 0x40, 0x00,
+					0x00, 0x00, 0x00, 0x00,
+					0x00, 0x80, 0x30, 0x00,
+				},
+				Cb: []uint8{
+					0xF0, 0xF0, 0x80, 0x80,
+					0xF0, 0xF0, 0x80, 0x80,
+					0x80, 0x80, 0x30, 0x30,
+					0x80, 0x80, 0x30, 0x30,
+				},
+				Cr: []uint8{
+					0x10, 0x10, 0x40, 0x40,
+					0x10, 0x10, 0x40, 0x40,
+					0x80, 0x80, 0x80, 0x80,
+					0x80, 0x80, 0x80, 0x80,
+				},
+				YStride: 4,
+				CStride: 4,
+				Rect:    image.Rect(0, 0, 4, 4),
+			},
+			expected: &image.YCbCr{
+				SubsampleRatio: image.YCbCrSubsampleRatio420,
+				Y: []uint8{
+					0xF0, 0x10, 0x00, 0x00,
+					0x00, 0x00, 0x40, 0x00,
+					0x00, 0x00, 0x00, 0x00,
+					0x00, 0x80, 0x30, 0x00,
+				},
+				Cb: []uint8{
+					0xF0, 0x80,
+					0x80, 0x30,
+				},
+				Cr: []uint8{
+					0x10, 0x40,
+					0x80, 0x80,
+				},
+				YStride: 4,
+				CStride: 2,
+				Rect:    image.Rect(0, 0, 4, 4),
+			},
+		},
+		"I422": {
+			src: &image.YCbCr{
+				SubsampleRatio: image.YCbCrSubsampleRatio422,
+				Y: []uint8{
+					0xF0, 0x10, 0x00, 0x00,
+					0x00, 0x00, 0x40, 0x00,
+					0x00, 0x00, 0x00, 0x00,
+					0x00, 0x80, 0x30, 0x00,
+				},
+				Cb: []uint8{
+					0xF0, 0x80,
+					0xF0, 0x80,
+					0x80, 0x30,
+					0x80, 0x30,
+				},
+				Cr: []uint8{
+					0x10, 0x40,
+					0x10, 0x40,
+					0x80, 0x80,
+					0x80, 0x80,
+				},
+				YStride: 4,
+				CStride: 2,
+				Rect:    image.Rect(0, 0, 4, 4),
+			},
+			expected: &image.YCbCr{
+				SubsampleRatio: image.YCbCrSubsampleRatio420,
+				Y: []uint8{
+					0xF0, 0x10, 0x00, 0x00,
+					0x00, 0x00, 0x40, 0x00,
+					0x00, 0x00, 0x00, 0x00,
+					0x00, 0x80, 0x30, 0x00,
+				},
+				Cb: []uint8{
+					0xF0, 0x80,
+					0x80, 0x30,
+				},
+				Cr: []uint8{
+					0x10, 0x40,
+					0x80, 0x80,
+				},
+				YStride: 4,
+				CStride: 2,
+				Rect:    image.Rect(0, 0, 4, 4),
+			},
+		},
+	}
+	for name, c := range cases {
+		c := c
+		t.Run(name, func(t *testing.T) {
+			r := ToI420(ReaderFunc(func() (image.Image, error) {
+				return c.src, nil
+			}))
+			out, err := r.Read()
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			if !reflect.DeepEqual(c.expected, out) {
+				t.Errorf("Expected output image:\n%v\ngot:\n%v\n", c.expected, out)
+			}
+		})
+	}
+}
