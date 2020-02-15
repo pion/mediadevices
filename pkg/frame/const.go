@@ -14,6 +14,11 @@ const (
 	// FormatYUY2 https://www.fourcc.org/pixel-format/yuv-yuy2/
 	FormatYUY2 = "YUY2"
 
+	// RGB Formats
+
+	// FormatRGBA https://www.fourcc.org/pixel-format/rgb-rgba/
+	FormatRGBA Format = "RGBA"
+
 	// Compressed Formats
 
 	// FormatMJPEG https://www.fourcc.org/mjpg/
