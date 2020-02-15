@@ -5,9 +5,9 @@ import (
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
-	_ "github.com/pion/mediadevices/pkg/codec/openh264" // This is required to register h264 video encoder
-	_ "github.com/pion/mediadevices/pkg/codec/opus"     // This is required to register opus audio encoder
-	_ "github.com/pion/mediadevices/pkg/codec/vpx"
+	_ "github.com/pion/mediadevices/pkg/codec/openh264"    // This is required to register h264 video encoder
+	_ "github.com/pion/mediadevices/pkg/codec/opus"        // This is required to register opus audio encoder
+	_ "github.com/pion/mediadevices/pkg/codec/vpx"         // This is required to register VP8/VP9 video encoder
 	_ "github.com/pion/mediadevices/pkg/driver/camera"     // This is required to register camera adapter
 	_ "github.com/pion/mediadevices/pkg/driver/microphone" // This is required to register microphone adapter
 	"github.com/pion/mediadevices/pkg/frame"
