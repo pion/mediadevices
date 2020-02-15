@@ -75,9 +75,9 @@ func (c colorFunc) RGBA() (r, g, b, a uint32) {
 
 func (s *shmImage) At(x, y int) color.Color {
 	addr := (x + y*int(s.img.width)) * 4
-	r := uint32(s.b[addr]) * 0x100
+	b := uint32(s.b[addr]) * 0x100
 	g := uint32(s.b[addr+1]) * 0x100
-	b := uint32(s.b[addr+2]) * 0x100
+	r := uint32(s.b[addr+2]) * 0x100
 	a := uint32(s.b[addr+3]) * 0x100
 	return colorFunc(func() (_, _, _, _ uint32) {
 		return r, g, b, a
