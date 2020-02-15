@@ -66,6 +66,14 @@ func (w *adapterWrapper) Close() error {
 	return w.state.Update(StateClosed, w.Adapter.Close)
 }
 
+func (w *adapterWrapper) Properties() []prop.Media {
+	if w.state == StateClosed {
+		return nil
+	}
+
+	return w.Adapter.Properties()
+}
+
 func (w *adapterWrapper) VideoRecord(p prop.Media) (r video.Reader, err error) {
 	err = w.state.Update(StateRunning, func() error {
 		r, err = w.VideoRecorder.VideoRecord(p)
