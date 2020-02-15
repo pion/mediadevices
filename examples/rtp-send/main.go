@@ -8,6 +8,7 @@ import (
 	"github.com/pion/mediadevices"
 	_ "github.com/pion/mediadevices/pkg/codec/openh264" // This is required to register h264 video encoder
 	_ "github.com/pion/mediadevices/pkg/codec/vpx"      // This is required to register VP8/VP9 video encoder
+	_ "github.com/pion/mediadevices/pkg/driver/camera"  // This is required to register camera adapter
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v2"
