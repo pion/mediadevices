@@ -27,11 +27,19 @@ var errUnsupportedImageType = errors.New("scaling: unsupported image type")
 // Note: computation cost to scale YCbCr format is 10 times higher than RGB
 // due to the implementation in x/image/draw package.
 func Scale(width, height int, scaler Scaler) TransformFunc {
-	return func(r Reader) Reader {
-		if scaler == nil {
-			scaler = ScalerNearestNeighbor
+	scalerCached := ScalerNearestNeighbor
+	if scaler != nil {
+		scalerCached = scaler
+	}
+	cacheScaler := func(dRect, sRect image.Rectangle) {
+		if kernel, ok := scaler.(interface {
+			NewScaler(int, int, int, int) draw.Scaler
+		}); ok {
+			scalerCached = kernel.NewScaler(dRect.Dx(), dRect.Dy(), sRect.Dx(), sRect.Dy())
 		}
+	}
 
+	return func(r Reader) Reader {
 		var rect image.Rectangle
 		var imgScaled, imgScaledCopy image.Image
 		if width > 0 && height > 0 {
@@ -121,13 +129,14 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 					w := img.Bounds().Dx() * height / img.Bounds().Dy()
 					rect = image.Rect(0, 0, w, height)
 				}
+				cacheScaler(rect, img.Bounds())
 			}
 
 			switch v := img.(type) {
 			case *image.RGBA:
 				rgbaRealloc(v)
 				dst := imgScaled.(*image.RGBA)
-				scaler.Scale(dst, rect, v, v.Rect, draw.Src, nil)
+				scalerCached.Scale(dst, rect, v, v.Rect, draw.Src, nil)
 
 				*(imgScaledCopy.(*image.RGBA)) = *dst // Clone metadata
 
@@ -141,7 +150,7 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 				*src.cr = image.Gray{
 					Pix: v.Cr, Stride: v.CStride, Rect: fixedRect(v.Rect, v.SubsampleRatio),
 				}
-				scaler.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Src, nil)
+				scalerCached.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Src, nil)
 
 				*(imgScaledCopy.(*image.YCbCr)) = *(imgScaled.(*image.YCbCr)) // Clone metadata
 
