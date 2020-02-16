@@ -6,6 +6,11 @@ import (
 	"testing"
 )
 
+var imageSizes = map[string][2]int{
+	"480p":  [2]int{720, 480},
+	"1080p": [2]int{1920, 1080},
+}
+
 func TestToI420(t *testing.T) {
 	cases := map[string]struct {
 		src      image.Image
@@ -115,7 +120,34 @@ func TestToI420(t *testing.T) {
 				t.Fatalf("Unexpected error: %v", err)
 			}
 			if !reflect.DeepEqual(c.expected, out) {
-				t.Errorf("Expected output image:\n%v\ngot:\n%v\n", c.expected, out)
+				t.Errorf("Expected output image:\n%v\ngot:\n%v", c.expected, out)
+			}
+		})
+	}
+}
+
+func BenchmarkToI420(b *testing.B) {
+	for name, sz := range imageSizes {
+		cases := map[string]image.Image{
+			"I444": image.NewYCbCr(image.Rect(0, 0, sz[0], sz[1]), image.YCbCrSubsampleRatio444),
+			"I422": image.NewYCbCr(image.Rect(0, 0, sz[0], sz[1]), image.YCbCrSubsampleRatio422),
+			"I420": image.NewYCbCr(image.Rect(0, 0, sz[0], sz[1]), image.YCbCrSubsampleRatio420),
+		}
+		b.Run(name, func(b *testing.B) {
+			for name, img := range cases {
+				img := img
+				b.Run(name, func(b *testing.B) {
+					r := ToI420(ReaderFunc(func() (image.Image, error) {
+						return img, nil
+					}))
+
+					for i := 0; i < b.N; i++ {
+						_, err := r.Read()
+						if err != nil {
+							b.Fatalf("Unexpected error: %v", err)
+						}
+					}
+				})
 			}
 		})
 	}
