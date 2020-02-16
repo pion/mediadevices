@@ -7,6 +7,17 @@ import (
 	"golang.org/x/image/draw"
 )
 
+var (
+	scalerTestAlgos = map[string]Scaler{
+		"NearestNeighbor": ScalerNearestNeighbor,
+	}
+	scalerBenchAlgos = map[string]Scaler{
+		"NearestNeighbor": ScalerNearestNeighbor,
+		"ApproxBiLinear":  ScalerApproxBiLinear,
+		"BiLinear":        ScalerBiLinear,
+	}
+)
+
 // Scaler represents scaling algorithm
 type Scaler draw.Scaler
 

@@ -208,47 +208,47 @@ func TestScale(t *testing.T) {
 			},
 		},
 	}
-	for name, c := range cases {
-		c := c
+	for name, algo := range scalerTestAlgos {
+		algo := algo
 		t.Run(name, func(t *testing.T) {
-			trans := Scale(c.width, c.height, ScalerNearestNeighbor)
-			r := trans(ReaderFunc(func() (image.Image, error) {
-				return c.src, nil
-			}))
-			for i := 0; i < 4; i++ {
-				out, err := r.Read()
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err)
-				}
-				if !reflect.DeepEqual(c.expected, out) {
-					t.Errorf("Expected output image:\n%v\ngot:\n%v\nrepeat: %d", c.expected, out, i)
-				}
-				// Destroy output contents
-				switch v := out.(type) {
-				case *image.RGBA:
-					v.Stride = 10
-					v.Pix = v.Pix[:1]
-					v.Rect.Max.X = 1
-				case *image.YCbCr:
-					v.YStride = 10
-					v.CStride = 100
-					v.Y = v.Y[:1]
-					v.Cb = v.Cb[:2]
-					v.Cr = v.Cr[:1]
-					v.Rect.Max.X = 1
-				}
+			for name, c := range cases {
+				c := c
+				t.Run(name, func(t *testing.T) {
+					trans := Scale(c.width, c.height, algo)
+					r := trans(ReaderFunc(func() (image.Image, error) {
+						return c.src, nil
+					}))
+					for i := 0; i < 4; i++ {
+						out, err := r.Read()
+						if err != nil {
+							t.Fatalf("Unexpected error: %v", err)
+						}
+						if !reflect.DeepEqual(c.expected, out) {
+							t.Errorf("Expected output image:\n%v\ngot:\n%v\nrepeat: %d", c.expected, out, i)
+						}
+						// Destroy output contents
+						switch v := out.(type) {
+						case *image.RGBA:
+							v.Stride = 10
+							v.Pix = v.Pix[:1]
+							v.Rect.Max.X = 1
+						case *image.YCbCr:
+							v.YStride = 10
+							v.CStride = 100
+							v.Y = v.Y[:1]
+							v.Cb = v.Cb[:2]
+							v.Cr = v.Cr[:1]
+							v.Rect.Max.X = 1
+						}
+					}
+				})
 			}
 		})
 	}
 }
 
 func BenchmarkScale(b *testing.B) {
-	algos := map[string]Scaler{
-		"NearestNeighbor": ScalerNearestNeighbor,
-		"ApproxBiLinear":  ScalerApproxBiLinear,
-		"BiLinear":        ScalerBiLinear,
-	}
-	for name, algo := range algos {
+	for name, algo := range scalerBenchAlgos {
 		algo := algo
 		b.Run(name, func(b *testing.B) {
 			for name, sz := range imageSizes {
