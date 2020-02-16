@@ -31,6 +31,19 @@ package vpx
 // vpx_image_t *newImage() {
 //   return malloc(sizeof(vpx_image_t));
 // }
+//
+// // Wrap encode function to keep Go memory safe
+// vpx_codec_err_t encode_wrapper(
+//     vpx_codec_ctx_t* codec, vpx_image_t* raw,
+//     long t, ulong dt, long flags, ulong deadline,
+//     u_char *y_ptr, u_char *cb_ptr, u_char *cr_ptr) {
+//   raw->planes[0] = y_ptr;
+//   raw->planes[1] = cb_ptr;
+//   raw->planes[2] = cr_ptr;
+//   vpx_codec_err_t ret = vpx_codec_encode(codec, raw, t, dt, flags, deadline);
+//   raw->planes[0] = raw->planes[1] = raw->planes[2] = 0;
+//   return ret;
+// }
 import "C"
 
 import (
@@ -133,9 +146,6 @@ func (e *encoder) Read(p []byte) (int, error) {
 	}
 	yuvImg := img.(*image.YCbCr)
 
-	e.raw.planes[0] = (*C.uchar)(&yuvImg.Y[0])
-	e.raw.planes[1] = (*C.uchar)(&yuvImg.Cb[0])
-	e.raw.planes[2] = (*C.uchar)(&yuvImg.Cr[0])
 	e.raw.stride[0] = C.int(yuvImg.YStride)
 	e.raw.stride[1] = C.int(yuvImg.CStride)
 	e.raw.stride[2] = C.int(yuvImg.CStride)
@@ -143,12 +153,14 @@ func (e *encoder) Read(p []byte) (int, error) {
 	t := time.Now().Nanosecond() / 1000000
 
 	var flags int
-	if ec := C.vpx_codec_encode(
+	if ec := C.encode_wrapper(
 		e.codec, e.raw,
 		C.long(t-e.tStart), C.ulong(t-e.tLastFrame), C.long(flags), C.VPX_DL_REALTIME,
+		(*C.uchar)(&yuvImg.Y[0]), (*C.uchar)(&yuvImg.Cb[0]), (*C.uchar)(&yuvImg.Cr[0]),
 	); ec != C.VPX_CODEC_OK {
 		return 0, fmt.Errorf("vpx_codec_encode failed (%d)", ec)
 	}
+
 	e.frameIndex++
 	e.tLastFrame = t
 
