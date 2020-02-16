@@ -33,23 +33,17 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 		}
 
 		var rect image.Rectangle
-		var imgScaled image.Image
+		var imgScaled, imgScaledCopy image.Image
 		if width > 0 && height > 0 {
 			rect = image.Rect(0, 0, width, height)
 		} else if width <= 0 && height <= 0 {
 			panic("Both width and height are negative!")
 		}
 
-		ycbcrNeedRealloc := func(i1 *image.YCbCr, i2 image.Image) bool {
-			if i2 == nil {
-				return true
-			}
-			dst, ok := i2.(*image.YCbCr)
-			if !ok || i1.SubsampleRatio != dst.SubsampleRatio {
-				return true
-			}
-			return false
-		}
+		src := &rgbLikeYCbCr{y: &image.Gray{}, cb: &image.Gray{}, cr: &image.Gray{}}
+		dst := &rgbLikeYCbCr{y: &image.Gray{}, cb: &image.Gray{}, cr: &image.Gray{}}
+
+		// fixedRect returns Rectangle of chroma plane
 		fixedRect := func(rect image.Rectangle, sr image.YCbCrSubsampleRatio) image.Rectangle {
 			switch sr {
 			case image.YCbCrSubsampleRatio444:
@@ -61,16 +55,57 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 			}
 			return rect
 		}
-
-		planes := [3]struct {
-			src *image.Gray
-			dst *image.Gray
-		}{}
-		for i := range planes {
-			planes[i].src, planes[i].dst = &image.Gray{}, &image.Gray{}
+		// ycbcrRealloc reallocs image.YCbCr if needed
+		ycbcrRealloc := func(i1 *image.YCbCr) {
+			if imgScaled == nil {
+				imgScaled = image.NewYCbCr(rect, i1.SubsampleRatio)
+				imgScaledCopy = image.NewYCbCr(rect, i1.SubsampleRatio)
+			}
+			imgDst := imgScaled.(*image.YCbCr)
+			yDx := rect.Dx()
+			yDy := rect.Dy()
+			cRect := fixedRect(rect, i1.SubsampleRatio)
+			cDx := cRect.Dx()
+			cDy := cRect.Dx()
+			yLen := yDx * yDy
+			cLen := cDx * cDy
+			if len(imgDst.Y) < yLen {
+				if cap(imgDst.Y) < yLen {
+					imgDst.Y = make([]uint8, yLen)
+				}
+				imgDst.Y = imgDst.Y[:yLen]
+			}
+			if len(imgDst.Cr) < cLen {
+				if cap(imgDst.Cr) < cLen {
+					imgDst.Cr = make([]uint8, cLen)
+				}
+				imgDst.Cr = imgDst.Cr[:cLen]
+			}
+			if len(imgDst.Cb) < cLen {
+				if cap(imgDst.Cb) < cLen {
+					imgDst.Cb = make([]uint8, cLen)
+				}
+				imgDst.Cb = imgDst.Cb[:cLen]
+			}
+			*dst.y = image.Gray{Pix: imgDst.Y, Stride: imgDst.YStride, Rect: rect}
+			*dst.cb = image.Gray{Pix: imgDst.Cb, Stride: imgDst.CStride, Rect: cRect}
+			*dst.cr = image.Gray{Pix: imgDst.Cr, Stride: imgDst.CStride, Rect: cRect}
 		}
-		src := &rgbLikeYCbCr{y: planes[0].src, cb: planes[1].src, cr: planes[2].src}
-		dst := &rgbLikeYCbCr{y: planes[0].dst, cb: planes[1].dst, cr: planes[2].dst}
+		// ycbcrRealloc reallocs image.RGBA if needed
+		rgbaRealloc := func(i1 *image.RGBA) {
+			if imgScaled == nil {
+				imgScaled = image.NewRGBA(rect)
+				imgScaledCopy = image.NewRGBA(rect)
+			}
+			imgDst := imgScaled.(*image.RGBA)
+			l := 4 * rect.Dx() * rect.Dy()
+			if len(imgDst.Pix) < l {
+				if cap(imgDst.Pix) < l {
+					imgDst.Pix = make([]uint8, l)
+				}
+				imgDst.Pix = imgDst.Pix[:l]
+			}
+		}
 
 		return ReaderFunc(func() (image.Image, error) {
 			img, err := r.Read()
@@ -90,24 +125,14 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 
 			switch v := img.(type) {
 			case *image.RGBA:
-				if imgScaled == nil || imgScaled.ColorModel() != img.ColorModel() {
-					imgScaled = image.NewRGBA(rect)
-				}
+				rgbaRealloc(v)
 				dst := imgScaled.(*image.RGBA)
-				scaler.Scale(dst, rect, img, img.Bounds(), draw.Over, nil)
+				scaler.Scale(dst, rect, v, v.Rect, draw.Src, nil)
+
+				*(imgScaledCopy.(*image.RGBA)) = *dst // Clone metadata
 
 			case *image.YCbCr:
-				if ycbcrNeedRealloc(v, imgScaled) {
-					imgNew := image.NewYCbCr(rect, v.SubsampleRatio)
-					imgScaled = imgNew
-					*dst.y = image.Gray{Pix: imgNew.Y, Stride: imgNew.YStride, Rect: rect}
-					*dst.cb = image.Gray{
-						Pix: imgNew.Cb, Stride: imgNew.CStride, Rect: fixedRect(rect, v.SubsampleRatio),
-					}
-					*dst.cr = image.Gray{
-						Pix: imgNew.Cr, Stride: imgNew.CStride, Rect: fixedRect(rect, v.SubsampleRatio),
-					}
-				}
+				ycbcrRealloc(v)
 				// Scale each plane
 				*src.y = image.Gray{Pix: v.Y, Stride: v.YStride, Rect: v.Rect}
 				*src.cb = image.Gray{
@@ -116,13 +141,15 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 				*src.cr = image.Gray{
 					Pix: v.Cr, Stride: v.CStride, Rect: fixedRect(v.Rect, v.SubsampleRatio),
 				}
-				scaler.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
+				scaler.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Src, nil)
+
+				*(imgScaledCopy.(*image.YCbCr)) = *(imgScaled.(*image.YCbCr)) // Clone metadata
 
 			default:
 				return nil, errUnsupportedImageType
 			}
 
-			return imgScaled, nil
+			return imgScaledCopy, nil
 		})
 	}
 }
