@@ -71,6 +71,7 @@ type encoder struct {
 	buff       []byte
 	tStart     int
 	tLastFrame int
+	frame      []byte
 }
 
 func init() {
@@ -108,6 +109,9 @@ func newEncoder(r video.Reader, p prop.Media, codecIface *C.vpx_codec_iface_t) (
 	cfg.rc_target_bitrate = C.uint(p.BitRate) / 1000
 	cfg.kf_max_dist = C.uint(p.KeyFrameInterval)
 
+	cfg.rc_resize_allowed = 0
+	cfg.g_pass = C.VPX_RC_ONE_PASS
+
 	raw := &C.vpx_image_t{}
 	if C.vpx_img_alloc(raw, C.VPX_IMG_FMT_I420, cfg.g_w, cfg.g_h, 1) == nil {
 		return nil, errors.New("vpx_img_alloc failed")
@@ -130,6 +134,7 @@ func newEncoder(r video.Reader, p prop.Media, codecIface *C.vpx_codec_iface_t) (
 		cfg:        cfg,
 		tStart:     t0,
 		tLastFrame: t0,
+		frame:      make([]byte, 1024),
 	}, nil
 }
 
@@ -179,7 +184,7 @@ func (e *encoder) Read(p []byte) (int, error) {
 	e.frameIndex++
 	e.tLastFrame = t
 
-	var frame []byte
+	e.frame = e.frame[:0]
 	var iter C.vpx_codec_iter_t
 	for {
 		pkt := C.vpx_codec_get_cx_data(e.codec, &iter)
@@ -188,12 +193,12 @@ func (e *encoder) Read(p []byte) (int, error) {
 		}
 		if pkt.kind == C.VPX_CODEC_CX_FRAME_PKT {
 			encoded := C.GoBytes(unsafe.Pointer(C.pktBuf(pkt)), C.pktSz(pkt))
-			frame = append(frame, encoded...)
+			e.frame = append(e.frame, encoded...)
 		}
 	}
-	n, err := mio.Copy(p, frame)
+	n, err := mio.Copy(p, e.frame)
 	if err != nil {
-		e.buff = frame
+		e.buff = e.frame
 	}
 	return n, err
 }
