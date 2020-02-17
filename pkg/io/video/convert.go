@@ -6,6 +6,10 @@ import (
 	"image/color"
 )
 
+var (
+	hasCGOConvert = false
+)
+
 // imageToYCbCr converts src to *image.YCbCr and store it to dst
 // Note: conversion can be lossy
 func imageToYCbCr(dst *image.YCbCr, src image.Image) {
@@ -70,8 +74,61 @@ func imageToYCbCr(dst *image.YCbCr, src image.Image) {
 	}
 }
 
+func i444ToI420(img *image.YCbCr) {
+	h := img.Rect.Dy()
+	addrSrc0 := 0
+	addrSrc1 := img.CStride
+	addrDst := 0
+	for i := 0; i < h/2; i++ {
+		for j := 0; j < img.CStride/2; j++ {
+			cb := uint16(img.Cb[addrSrc0]) + uint16(img.Cb[addrSrc1]) +
+				uint16(img.Cb[addrSrc0+1]) + uint16(img.Cb[addrSrc1+1])
+			cr := uint16(img.Cr[addrSrc0]) + uint16(img.Cr[addrSrc1]) +
+				uint16(img.Cr[addrSrc0+1]) + uint16(img.Cr[addrSrc1+1])
+			img.Cb[addrDst] = uint8(cb / 4)
+			img.Cr[addrDst] = uint8(cr / 4)
+			addrSrc0 += 2
+			addrSrc1 += 2
+			addrDst++
+		}
+		addrSrc0 += img.CStride
+		addrSrc1 += img.CStride
+	}
+	img.CStride = img.CStride / 2
+	cLen := img.CStride * (h / 2)
+	img.Cb = img.Cb[:cLen]
+	img.Cr = img.Cr[:cLen]
+}
+
+func i422ToI420(img *image.YCbCr) {
+	h := img.Rect.Dy()
+	addrSrc := 0
+	addrDst := 0
+	for i := 0; i < h/2; i++ {
+		for j := 0; j < img.CStride; j++ {
+			cb := uint16(img.Cb[addrSrc]) + uint16(img.Cb[addrSrc+img.CStride])
+			cr := uint16(img.Cr[addrSrc]) + uint16(img.Cr[addrSrc+img.CStride])
+			img.Cb[addrDst] = uint8(cb / 2)
+			img.Cr[addrDst] = uint8(cr / 2)
+			addrDst++
+			addrSrc++
+		}
+		addrSrc += img.CStride
+	}
+	cLen := img.CStride * (h / 2)
+	img.Cb = img.Cb[:cLen]
+	img.Cr = img.Cr[:cLen]
+}
+
 // ToI420 converts r to a new reader that will output images in I420 format
 func ToI420(r Reader) Reader {
+	f444to420 := i444ToI420
+	f422to420 := i422ToI420
+	if hasCGOConvert {
+		f444to420 = i444ToI420CGO
+		f422to420 = i422ToI420CGO
+	}
+
 	var yuvImg image.YCbCr
 	return ReaderFunc(func() (image.Image, error) {
 		img, err := r.Read()
@@ -80,50 +137,13 @@ func ToI420(r Reader) Reader {
 		}
 
 		imageToYCbCr(&yuvImg, img)
-		h := yuvImg.Rect.Dy()
 
 		// Covert pixel format to I420
 		switch yuvImg.SubsampleRatio {
 		case image.YCbCrSubsampleRatio444:
-			addrSrc0 := 0
-			addrSrc1 := yuvImg.CStride
-			addrDst := 0
-			for i := 0; i < h/2; i++ {
-				for j := 0; j < yuvImg.CStride/2; j++ {
-					cb := uint16(yuvImg.Cb[addrSrc0]) + uint16(yuvImg.Cb[addrSrc1]) +
-						uint16(yuvImg.Cb[addrSrc0+1]) + uint16(yuvImg.Cb[addrSrc1+1])
-					cr := uint16(yuvImg.Cr[addrSrc0]) + uint16(yuvImg.Cr[addrSrc1]) +
-						uint16(yuvImg.Cr[addrSrc0+1]) + uint16(yuvImg.Cr[addrSrc1+1])
-					yuvImg.Cb[addrDst] = uint8(cb / 4)
-					yuvImg.Cr[addrDst] = uint8(cr / 4)
-					addrSrc0 += 2
-					addrSrc1 += 2
-					addrDst++
-				}
-				addrSrc0 += yuvImg.CStride
-				addrSrc1 += yuvImg.CStride
-			}
-			yuvImg.CStride = yuvImg.CStride / 2
-			cLen := yuvImg.CStride * (h / 2)
-			yuvImg.Cb = yuvImg.Cb[:cLen]
-			yuvImg.Cr = yuvImg.Cr[:cLen]
+			f444to420(&yuvImg)
 		case image.YCbCrSubsampleRatio422:
-			addrSrc := 0
-			addrDst := 0
-			for i := 0; i < h/2; i++ {
-				for j := 0; j < yuvImg.CStride; j++ {
-					cb := uint16(yuvImg.Cb[addrSrc]) + uint16(yuvImg.Cb[addrSrc+yuvImg.CStride])
-					cr := uint16(yuvImg.Cr[addrSrc]) + uint16(yuvImg.Cr[addrSrc+yuvImg.CStride])
-					yuvImg.Cb[addrDst] = uint8(cb / 2)
-					yuvImg.Cr[addrDst] = uint8(cr / 2)
-					addrDst++
-					addrSrc++
-				}
-				addrSrc += yuvImg.CStride
-			}
-			cLen := yuvImg.CStride * (h / 2)
-			yuvImg.Cb = yuvImg.Cb[:cLen]
-			yuvImg.Cr = yuvImg.Cr[:cLen]
+			f422to420(&yuvImg)
 		case image.YCbCrSubsampleRatio420:
 		default:
 			return nil, fmt.Errorf("unsupported pixel format: %s", yuvImg.SubsampleRatio)
