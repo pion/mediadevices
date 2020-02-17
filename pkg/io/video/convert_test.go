@@ -108,6 +108,38 @@ func TestToI420(t *testing.T) {
 				Rect:    image.Rect(0, 0, 4, 4),
 			},
 		},
+		"RGBA": {
+			src: &image.RGBA{
+				Pix: []uint8{
+					0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF,
+					0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF,
+					0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF,
+					0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF,
+				},
+				Stride: 16,
+				Rect:   image.Rect(0, 0, 4, 4),
+			},
+			expected: &image.YCbCr{
+				SubsampleRatio: image.YCbCrSubsampleRatio420,
+				Y: []uint8{
+					0x00, 0x00, 0x00, 0x00,
+					0x00, 0x00, 0x00, 0x00,
+					0xFF, 0xFF, 0x00, 0x00,
+					0xFF, 0xFF, 0x00, 0x00,
+				},
+				Cb: []uint8{
+					0x80, 0x80,
+					0x80, 0x80,
+				},
+				Cr: []uint8{
+					0x80, 0x80,
+					0x80, 0x80,
+				},
+				YStride: 4,
+				CStride: 2,
+				Rect:    image.Rect(0, 0, 4, 4),
+			},
+		},
 	}
 	for name, c := range cases {
 		c := c
@@ -126,12 +158,78 @@ func TestToI420(t *testing.T) {
 	}
 }
 
+func TestToRGBA(t *testing.T) {
+	cases := map[string]struct {
+		src      image.Image
+		expected image.Image
+	}{
+		"I444": {
+			src: &image.YCbCr{
+				SubsampleRatio: image.YCbCrSubsampleRatio420,
+				Y: []uint8{
+					0x00, 0x00, 0x00, 0x00,
+					0x00, 0x00, 0x00, 0x00,
+					0xFF, 0xFF, 0x00, 0x00,
+					0xFF, 0xFF, 0x00, 0x00,
+				},
+				Cb: []uint8{
+					0x80, 0x80,
+					0x80, 0x80,
+				},
+				Cr: []uint8{
+					0x80, 0x80,
+					0x80, 0x80,
+				},
+				YStride: 4,
+				CStride: 2,
+				Rect:    image.Rect(0, 0, 4, 4),
+			},
+			expected: &image.RGBA{
+				Pix: []uint8{
+					0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF,
+					0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF,
+					0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF,
+					0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF,
+				},
+				Stride: 16,
+				Rect:   image.Rect(0, 0, 4, 4),
+			},
+		},
+	}
+	for name, c := range cases {
+		c := c
+		t.Run(name, func(t *testing.T) {
+			r := ToRGBA(ReaderFunc(func() (image.Image, error) {
+				return c.src, nil
+			}))
+			out, err := r.Read()
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			if !reflect.DeepEqual(c.expected, out) {
+				t.Errorf("Expected output image:\n%v\ngot:\n%v", c.expected, out)
+			}
+		})
+	}
+}
+
+func TestNoCGO(t *testing.T) {
+	if !hasCGOConvert {
+		t.SkipNow()
+	}
+	hasCGOConvert = false
+	t.Run("ToI420", TestToI420)
+	t.Run("ToRGBA", TestToRGBA)
+	hasCGOConvert = true
+}
+
 func BenchmarkToI420(b *testing.B) {
 	for name, sz := range imageSizes {
 		cases := map[string]image.Image{
 			"I444": image.NewYCbCr(image.Rect(0, 0, sz[0], sz[1]), image.YCbCrSubsampleRatio444),
 			"I422": image.NewYCbCr(image.Rect(0, 0, sz[0], sz[1]), image.YCbCrSubsampleRatio422),
 			"I420": image.NewYCbCr(image.Rect(0, 0, sz[0], sz[1]), image.YCbCrSubsampleRatio420),
+			"RGBA": image.NewRGBA(image.Rect(0, 0, sz[0], sz[1])),
 		}
 		b.Run(name, func(b *testing.B) {
 			for name, img := range cases {
@@ -153,11 +251,40 @@ func BenchmarkToI420(b *testing.B) {
 	}
 }
 
-func BenchmarkToI420CGO(b *testing.B) {
+func BenchmarkToRGBA(b *testing.B) {
+	for name, sz := range imageSizes {
+		cases := map[string]image.Image{
+			"I444": image.NewYCbCr(image.Rect(0, 0, sz[0], sz[1]), image.YCbCrSubsampleRatio444),
+			"I422": image.NewYCbCr(image.Rect(0, 0, sz[0], sz[1]), image.YCbCrSubsampleRatio422),
+			"I420": image.NewYCbCr(image.Rect(0, 0, sz[0], sz[1]), image.YCbCrSubsampleRatio420),
+			"RGBA": image.NewRGBA(image.Rect(0, 0, sz[0], sz[1])),
+		}
+		b.Run(name, func(b *testing.B) {
+			for name, img := range cases {
+				img := img
+				b.Run(name, func(b *testing.B) {
+					r := ToRGBA(ReaderFunc(func() (image.Image, error) {
+						return img, nil
+					}))
+
+					for i := 0; i < b.N; i++ {
+						_, err := r.Read()
+						if err != nil {
+							b.Fatalf("Unexpected error: %v", err)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
+func BenchmarkNoCGO(b *testing.B) {
 	if !hasCGOConvert {
 		b.SkipNow()
 	}
 	hasCGOConvert = false
-	b.Run("NoCGO", BenchmarkToI420)
+	b.Run("ToI420", BenchmarkToI420)
+	b.Run("ToRGBA", BenchmarkToRGBA)
 	hasCGOConvert = true
 }

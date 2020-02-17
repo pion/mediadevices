@@ -46,6 +46,10 @@ func imageToYCbCr(dst *image.YCbCr, src image.Image) {
 
 	switch s := src.(type) {
 	case *image.RGBA:
+		if hasCGOConvert {
+			rgbaToI444(dst, s)
+			return
+		}
 		i := 0
 		addr := 0
 		for yi := 0; yi < dy; yi++ {
@@ -160,8 +164,7 @@ func imageToRGBA(dst *image.RGBA, src image.Image) {
 		panic("dst can't be nil")
 	}
 
-	srcRGBA, ok := src.(*image.RGBA)
-	if ok {
+	if srcRGBA, ok := src.(*image.RGBA); ok {
 		*dst = *srcRGBA
 		return
 	}
@@ -175,6 +178,15 @@ func imageToRGBA(dst *image.RGBA, src image.Image) {
 	}
 	dst.Stride = 4 * dx
 	dst.Rect = bounds
+
+	if hasCGOConvert {
+		if srcYCbCr, ok := src.(*image.YCbCr); ok &&
+			srcYCbCr.SubsampleRatio == image.YCbCrSubsampleRatio444 {
+			// Use CGO version
+			i444ToRGBACGO(dst, srcYCbCr)
+			return
+		}
+	}
 
 	i := 0
 	for yi := 0; yi < dy; yi++ {
