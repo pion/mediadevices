@@ -35,8 +35,8 @@ package vpx
 // // Wrap encode function to keep Go memory safe
 // vpx_codec_err_t encode_wrapper(
 //     vpx_codec_ctx_t* codec, vpx_image_t* raw,
-//     long t, ulong dt, long flags, ulong deadline,
-//     u_char *y_ptr, u_char *cb_ptr, u_char *cr_ptr) {
+//     long t, unsigned long dt, long flags, unsigned long deadline,
+//     unsigned char *y_ptr, unsigned char *cb_ptr, unsigned char *cr_ptr) {
 //   raw->planes[0] = y_ptr;
 //   raw->planes[1] = cb_ptr;
 //   raw->planes[2] = cr_ptr;
