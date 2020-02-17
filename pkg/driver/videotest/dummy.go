@@ -47,12 +47,10 @@ func (d *dummy) Close() error {
 }
 
 func (d *dummy) VideoRecord(p prop.Media) (video.Reader, error) {
-	yi := p.Width * p.Height
-	ci := yi / 2
+	if p.FrameRate == 0 {
+		p.FrameRate = 30
+	}
 
-	yy := make([]byte, yi)
-	cb := make([]byte, ci)
-	cr := make([]byte, ci)
 	colors := [][3]byte{
 		{235, 128, 128},
 		{210, 16, 146},
@@ -63,9 +61,44 @@ func (d *dummy) VideoRecord(p prop.Media) (video.Reader, error) {
 		{41, 240, 110},
 	}
 
-	if p.FrameRate == 0 {
-		p.FrameRate = 30
+	yi := p.Width * p.Height
+	ci := yi / 2
+	yy := make([]byte, yi)
+	cb := make([]byte, ci)
+	cr := make([]byte, ci)
+	yyBase := make([]byte, yi)
+	cbBase := make([]byte, ci)
+	crBase := make([]byte, ci)
+	hColorBarEnd := p.Height * 3 / 4
+	wGradationEnd := p.Width * 5 / 7
+	for y := 0; y < hColorBarEnd; y++ {
+		yi := p.Width * y
+		ci := p.Width * y / 2
+		// Color bar
+		for x := 0; x < p.Width; x++ {
+			c := x * 7 / p.Width
+			yyBase[yi+x] = uint8(uint16(colors[c][0]) * 75 / 100)
+			cbBase[ci+x/2] = colors[c][1]
+			crBase[ci+x/2] = colors[c][2]
+		}
 	}
+	for y := hColorBarEnd; y < p.Height; y++ {
+		yi := p.Width * y
+		ci := p.Width * y / 2
+		for x := 0; x < wGradationEnd; x++ {
+			// Gray gradation
+			yyBase[yi+x] = uint8(x * 255 / wGradationEnd)
+			cbBase[ci+x/2] = 128
+			crBase[ci+x/2] = 128
+		}
+		for x := wGradationEnd; x < p.Width; x++ {
+			// Noise area
+			cbBase[ci+x/2] = 128
+			crBase[ci+x/2] = 128
+		}
+	}
+	random := rand.New(rand.NewSource(0))
+
 	d.tick = time.NewTicker(time.Duration(float32(time.Second) / p.FrameRate))
 
 	r := video.ReaderFunc(func() (image.Image, error) {
@@ -77,32 +110,14 @@ func (d *dummy) VideoRecord(p prop.Media) (video.Reader, error) {
 
 		<-d.tick.C
 
-		for y := 0; y < p.Height; y++ {
+		copy(yy, yyBase)
+		copy(cb, cbBase)
+		copy(cr, crBase)
+		for y := hColorBarEnd; y < p.Height; y++ {
 			yi := p.Width * y
-			ci := p.Width * y / 2
-			if y > p.Height*3/4 {
-				for x := 0; x < p.Width; x++ {
-					c := x * 7 / p.Width
-					if c > 4 {
-						// Noise
-						yy[yi+x] = uint8(rand.Int31n(2) * 255)
-						cb[ci+x/2] = 128
-						cr[ci+x/2] = 128
-					} else {
-						// Gray
-						yy[yi+x] = uint8(x * 255 * 7 / (5 * p.Width))
-						cb[ci+x/2] = 128
-						cr[ci+x/2] = 128
-					}
-				}
-			} else {
-				// Color bar
-				for x := 0; x < p.Width; x++ {
-					c := x * 7 / p.Width
-					yy[yi+x] = uint8(uint16(colors[c][0]) * 75 / 100)
-					cb[ci+x/2] = colors[c][1]
-					cr[ci+x/2] = colors[c][2]
-				}
+			for x := wGradationEnd; x < p.Width; x++ {
+				// Noise
+				yy[yi+x] = uint8(random.Int31n(2) * 255)
 			}
 		}
 		return &image.YCbCr{
