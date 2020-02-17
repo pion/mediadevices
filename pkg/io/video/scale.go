@@ -38,19 +38,22 @@ var errUnsupportedImageType = errors.New("scaling: unsupported image type")
 // Note: computation cost to scale YCbCr format is 10 times higher than RGB
 // due to the implementation in x/image/draw package.
 func Scale(width, height int, scaler Scaler) TransformFunc {
-	scalerCached := ScalerNearestNeighbor
-	if scaler != nil {
-		scalerCached = scaler
-	}
-	cacheScaler := func(dRect, sRect image.Rectangle) {
+	return func(r Reader) Reader {
+		scalerCached := ScalerNearestNeighbor
+		if scaler != nil {
+			scalerCached = scaler
+		}
+
+		// cacheScaler makes cached version of Scaler if available.
+		cacheScaler := func(dRect, sRect image.Rectangle) {}
 		if kernel, ok := scaler.(interface {
 			NewScaler(int, int, int, int) draw.Scaler
 		}); ok {
-			scalerCached = kernel.NewScaler(dRect.Dx(), dRect.Dy(), sRect.Dx(), sRect.Dy())
+			cacheScaler = func(dRect, sRect image.Rectangle) {
+				scalerCached = kernel.NewScaler(dRect.Dx(), dRect.Dy(), sRect.Dx(), sRect.Dy())
+			}
 		}
-	}
 
-	return func(r Reader) Reader {
 		var rect image.Rectangle
 		var imgScaled, imgScaledCopy image.Image
 		if width > 0 && height > 0 {
@@ -59,8 +62,19 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 			panic("Both width and height are negative!")
 		}
 
-		src := &rgbLikeYCbCr{y: &image.Gray{}, cb: &image.Gray{}, cr: &image.Gray{}}
-		dst := &rgbLikeYCbCr{y: &image.Gray{}, cb: &image.Gray{}, cr: &image.Gray{}}
+		// updateRect updates output image size
+		updateRect := func(r image.Rectangle) {}
+		if height <= 0 {
+			updateRect = func(r image.Rectangle) {
+				h := r.Dy() * width / r.Dx()
+				rect = image.Rect(0, 0, width, h)
+			}
+		} else if width <= 0 {
+			updateRect = func(r image.Rectangle) {
+				w := r.Dx() * height / r.Dy()
+				rect = image.Rect(0, 0, w, height)
+			}
+		}
 
 		// fixedRect returns Rectangle of chroma plane
 		fixedRect := func(rect image.Rectangle, sr image.YCbCrSubsampleRatio) image.Rectangle {
@@ -74,13 +88,22 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 			}
 			return rect
 		}
+
+		src := &rgbLikeYCbCr{y: &image.Gray{}, cb: &image.Gray{}, cr: &image.Gray{}}
+		dst := &rgbLikeYCbCr{y: &image.Gray{}, cb: &image.Gray{}, cr: &image.Gray{}}
+
 		// ycbcrRealloc reallocs image.YCbCr if needed
 		ycbcrRealloc := func(i1 *image.YCbCr) {
-			if imgScaled == nil {
+			if imgScaled == nil || imgScaled.ColorModel() != i1.ColorModel() {
 				imgScaled = image.NewYCbCr(rect, i1.SubsampleRatio)
 				imgScaledCopy = image.NewYCbCr(rect, i1.SubsampleRatio)
 			}
 			imgDst := imgScaled.(*image.YCbCr)
+			if imgDst.Rect.Dx() != i1.Rect.Dx() || imgDst.Rect.Dy() != i1.Rect.Dy() {
+				updateRect(i1.Rect)
+				cacheScaler(rect, i1.Rect)
+			}
+
 			yDx := rect.Dx()
 			yDy := rect.Dy()
 			cRect := fixedRect(rect, i1.SubsampleRatio)
@@ -112,11 +135,16 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 		}
 		// ycbcrRealloc reallocs image.RGBA if needed
 		rgbaRealloc := func(i1 *image.RGBA) {
-			if imgScaled == nil {
+			if imgScaled == nil || imgScaled.ColorModel() != i1.ColorModel() {
 				imgScaled = image.NewRGBA(rect)
 				imgScaledCopy = image.NewRGBA(rect)
 			}
 			imgDst := imgScaled.(*image.RGBA)
+			if imgDst.Rect.Dx() != i1.Rect.Dx() || imgDst.Rect.Dy() != i1.Rect.Dy() {
+				updateRect(i1.Rect)
+				cacheScaler(rect, i1.Rect)
+			}
+
 			l := 4 * rect.Dx() * rect.Dy()
 			if len(imgDst.Pix) < l {
 				if cap(imgDst.Pix) < l {
@@ -130,17 +158,6 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 			img, err := r.Read()
 			if err != nil {
 				return nil, err
-			}
-
-			if imgScaled == nil {
-				if height <= 0 {
-					h := img.Bounds().Dy() * width / img.Bounds().Dx()
-					rect = image.Rect(0, 0, width, h)
-				} else if width <= 0 {
-					w := img.Bounds().Dx() * height / img.Bounds().Dy()
-					rect = image.Rect(0, 0, w, height)
-				}
-				cacheScaler(rect, img.Bounds())
 			}
 
 			switch v := img.(type) {
