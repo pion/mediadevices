@@ -95,6 +95,8 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 		// ycbcrRealloc reallocs image.YCbCr if needed
 		ycbcrRealloc := func(i1 *image.YCbCr) {
 			if imgScaled == nil || imgScaled.ColorModel() != i1.ColorModel() {
+				updateRect(i1.Rect)
+				cacheScaler(rect, i1.Rect)
 				imgScaled = image.NewYCbCr(rect, i1.SubsampleRatio)
 			}
 			imgDst := imgScaled.(*image.YCbCr)
@@ -135,6 +137,8 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 		// ycbcrRealloc reallocs image.RGBA if needed
 		rgbaRealloc := func(i1 *image.RGBA) {
 			if imgScaled == nil || imgScaled.ColorModel() != i1.ColorModel() {
+				updateRect(i1.Rect)
+				cacheScaler(rect, i1.Rect)
 				imgScaled = image.NewRGBA(rect)
 			}
 			imgDst := imgScaled.(*image.RGBA)
