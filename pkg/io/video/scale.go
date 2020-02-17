@@ -55,7 +55,7 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 		}
 
 		var rect image.Rectangle
-		var imgScaled, imgScaledCopy image.Image
+		var imgScaled image.Image
 		if width > 0 && height > 0 {
 			rect = image.Rect(0, 0, width, height)
 		} else if width <= 0 && height <= 0 {
@@ -96,7 +96,6 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 		ycbcrRealloc := func(i1 *image.YCbCr) {
 			if imgScaled == nil || imgScaled.ColorModel() != i1.ColorModel() {
 				imgScaled = image.NewYCbCr(rect, i1.SubsampleRatio)
-				imgScaledCopy = image.NewYCbCr(rect, i1.SubsampleRatio)
 			}
 			imgDst := imgScaled.(*image.YCbCr)
 			if imgDst.Rect.Dx() != i1.Rect.Dx() || imgDst.Rect.Dy() != i1.Rect.Dy() {
@@ -137,7 +136,6 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 		rgbaRealloc := func(i1 *image.RGBA) {
 			if imgScaled == nil || imgScaled.ColorModel() != i1.ColorModel() {
 				imgScaled = image.NewRGBA(rect)
-				imgScaledCopy = image.NewRGBA(rect)
 			}
 			imgDst := imgScaled.(*image.RGBA)
 			if imgDst.Rect.Dx() != i1.Rect.Dx() || imgDst.Rect.Dy() != i1.Rect.Dy() {
@@ -166,7 +164,8 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 				dst := imgScaled.(*image.RGBA)
 				scalerCached.Scale(dst, rect, v, v.Rect, draw.Src, nil)
 
-				*(imgScaledCopy.(*image.RGBA)) = *dst // Clone metadata
+				cloned := *dst // clone metadata
+				return &cloned, nil
 
 			case *image.YCbCr:
 				ycbcrRealloc(v)
@@ -180,13 +179,12 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 				}
 				scalerCached.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Src, nil)
 
-				*(imgScaledCopy.(*image.YCbCr)) = *(imgScaled.(*image.YCbCr)) // Clone metadata
+				cloned := *(imgScaled.(*image.YCbCr)) // clone metadata
+				return &cloned, nil
 
 			default:
 				return nil, errUnsupportedImageType
 			}
-
-			return imgScaledCopy, nil
 		})
 	}
 }
