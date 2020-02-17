@@ -152,3 +152,12 @@ func BenchmarkToI420(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkToI420CGO(b *testing.B) {
+	if !hasCGOConvert {
+		b.SkipNow()
+	}
+	hasCGOConvert = false
+	b.Run("NoCGO", BenchmarkToI420)
+	hasCGOConvert = true
+}
