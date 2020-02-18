@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	"sync/atomic"
+	"sync"
 
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/driver"
@@ -19,6 +19,9 @@ type Tracker interface {
 	Track() *webrtc.Track
 	LocalTrack() LocalTrack
 	Stop()
+	// OnEnded registers a handler to receive an error from the media stream track.
+	// If the error is already occured before registering, the handler will be
+	// immediately called.
 	OnEnded(func(error))
 }
 
@@ -33,7 +36,10 @@ type track struct {
 	t LocalTrack
 	s *sampler
 
-	onErrorHandler atomic.Value // func(error)
+	onErrorHandler func(error)
+	err            error
+	mu             sync.Mutex
+	endOnce        sync.Once
 }
 
 func newTrack(codecs []*webrtc.RTPCodec, trackGenerator TrackGenerator, d driver.Driver, codecName string) (*track, error) {
@@ -66,13 +72,29 @@ func newTrack(codecs []*webrtc.RTPCodec, trackGenerator TrackGenerator, d driver
 }
 
 func (t *track) OnEnded(handler func(error)) {
-	t.onErrorHandler.Store(handler)
+	t.mu.Lock()
+	t.onErrorHandler = handler
+	err := t.err
+	t.mu.Unlock()
+
+	if err != nil && handler != nil {
+		// Already errored.
+		t.endOnce.Do(func() {
+			handler(err)
+		})
+	}
 }
 
 func (t *track) onError(err error) {
-	handler := t.onErrorHandler.Load()
+	t.mu.Lock()
+	t.err = err
+	handler := t.onErrorHandler
+	t.mu.Unlock()
+
 	if handler != nil {
-		handler.(func(error))(err)
+		t.endOnce.Do(func() {
+			handler(err)
+		})
 	}
 }
 
