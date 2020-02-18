@@ -59,11 +59,11 @@ func (s *screen) Close() error {
 	return nil
 }
 
-func (s *screen) VideoRecord(p prop.Media) (video.Reader, error) {
-	if p.FrameRate == 0 {
-		p.FrameRate = 10
+func (s *screen) VideoRecord(p, req prop.Media) (video.Reader, error) {
+	if req.FrameRate == 0 {
+		req.FrameRate = 10
 	}
-	s.tick = time.NewTicker(time.Duration(float32(time.Second) / p.FrameRate))
+	s.tick = time.NewTicker(time.Duration(float32(time.Second) / req.FrameRate))
 
 	var dst image.RGBA
 

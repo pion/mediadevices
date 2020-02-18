@@ -16,11 +16,11 @@ func (a *adapterMock) Properties() []prop.Media { return []prop.Media{prop.Media
 
 type videoAdapterMock struct{ adapterMock }
 
-func (a *videoAdapterMock) VideoRecord(p prop.Media) (r video.Reader, err error) { return nil, nil }
+func (a *videoAdapterMock) VideoRecord(p, req prop.Media) (r video.Reader, err error) { return nil, nil }
 
 type audioAdapterMock struct{ adapterMock }
 
-func (a *audioAdapterMock) AudioRecord(p prop.Media) (r audio.Reader, err error) { return nil, nil }
+func (a *audioAdapterMock) AudioRecord(p, req prop.Media) (r audio.Reader, err error) { return nil, nil }
 
 func TestVideoWrapperState(t *testing.T) {
 	var a videoAdapterMock
@@ -31,7 +31,7 @@ func TestVideoWrapperState(t *testing.T) {
 	}
 
 	vr := d.(VideoRecorder)
-	_, err := vr.VideoRecord(prop.Media{})
+	_, err := vr.VideoRecord(prop.Media{}, prop.Media{})
 	if err == nil {
 		t.Errorf("expected to get an invalid state")
 	}
@@ -41,7 +41,7 @@ func TestVideoWrapperState(t *testing.T) {
 		t.Errorf("expected to successfully open, but got %v", err)
 	}
 
-	_, err = vr.VideoRecord(prop.Media{})
+	_, err = vr.VideoRecord(prop.Media{}, prop.Media{})
 	if err != nil {
 		t.Errorf("expected to successfully start recording, but got %v", err)
 	}
@@ -56,7 +56,7 @@ func TestAudioWrapperState(t *testing.T) {
 	}
 
 	ar := d.(AudioRecorder)
-	_, err := ar.AudioRecord(prop.Media{})
+	_, err := ar.AudioRecord(prop.Media{}, prop.Media{})
 	if err == nil {
 		t.Errorf("expected to get an invalid state")
 	}
@@ -66,7 +66,7 @@ func TestAudioWrapperState(t *testing.T) {
 		t.Errorf("expected to successfully open, but got %v", err)
 	}
 
-	_, err = ar.AudioRecord(prop.Media{})
+	_, err = ar.AudioRecord(prop.Media{}, prop.Media{})
 	if err != nil {
 		t.Errorf("expected to successfully start recording, but got %v", err)
 	}

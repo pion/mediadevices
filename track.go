@@ -93,7 +93,7 @@ type videoTrack struct {
 
 var _ Tracker = &videoTrack{}
 
-func newVideoTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrackConstraints) (*videoTrack, error) {
+func newVideoTrack(opts *MediaDevicesOptions, d driver.Driver, constraints, requestedConstraints MediaTrackConstraints) (*videoTrack, error) {
 	codecName := constraints.CodecName
 	t, err := newTrack(opts.codecs[webrtc.RTPCodecTypeVideo], opts.trackGenerator, d, codecName)
 	if err != nil {
@@ -106,7 +106,7 @@ func newVideoTrack(opts *MediaDevicesOptions, d driver.Driver, constraints Media
 	}
 
 	vr := d.(driver.VideoRecorder)
-	r, err := vr.VideoRecord(constraints.Media)
+	r, err := vr.VideoRecord(constraints.Media, requestedConstraints.Media)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ type audioTrack struct {
 
 var _ Tracker = &audioTrack{}
 
-func newAudioTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrackConstraints) (*audioTrack, error) {
+func newAudioTrack(opts *MediaDevicesOptions, d driver.Driver, constraints, requestedConstraints MediaTrackConstraints) (*audioTrack, error) {
 	codecName := constraints.CodecName
 	t, err := newTrack(opts.codecs[webrtc.RTPCodecTypeAudio], opts.trackGenerator, d, codecName)
 	if err != nil {
@@ -181,7 +181,7 @@ func newAudioTrack(opts *MediaDevicesOptions, d driver.Driver, constraints Media
 	}
 
 	ar := d.(driver.AudioRecorder)
-	reader, err := ar.AudioRecord(constraints.Media)
+	reader, err := ar.AudioRecord(constraints.Media, requestedConstraints.Media)
 	if err != nil {
 		return nil, err
 	}

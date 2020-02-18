@@ -64,7 +64,7 @@ func (m *microphone) Close() error {
 	return nil
 }
 
-func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
+func (m *microphone) AudioRecord(p, req prop.Media) (audio.Reader, error) {
 	var options []pulse.RecordOption
 	if p.ChannelCount == 1 {
 		options = append(options, pulse.RecordMono)

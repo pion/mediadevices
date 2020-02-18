@@ -35,7 +35,7 @@ func (d *dummy) Close() error {
 	return nil
 }
 
-func (d *dummy) AudioRecord(p prop.Media) (audio.Reader, error) {
+func (d *dummy) AudioRecord(p, req prop.Media) (audio.Reader, error) {
 	var sin [100]float32
 	for i := range sin {
 		sin[i] = float32(math.Sin(2*math.Pi*float64(i)/100) * 0.25) // 480 Hz

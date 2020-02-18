@@ -49,7 +49,7 @@ func BenchmarkRead(b *testing.B) {
 			}
 			defer c.Close()
 
-			r, err := c.VideoRecord(p)
+			r, err := c.VideoRecord(p, p)
 			if err != nil {
 				b.Skipf("Failed to capture image: %v", err)
 			}

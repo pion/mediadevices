@@ -74,17 +74,17 @@ func (w *adapterWrapper) Properties() []prop.Media {
 	return w.Adapter.Properties()
 }
 
-func (w *adapterWrapper) VideoRecord(p prop.Media) (r video.Reader, err error) {
+func (w *adapterWrapper) VideoRecord(p, req prop.Media) (r video.Reader, err error) {
 	err = w.state.Update(StateRunning, func() error {
-		r, err = w.VideoRecorder.VideoRecord(p)
+		r, err = w.VideoRecorder.VideoRecord(p, req)
 		return err
 	})
 	return
 }
 
-func (w *adapterWrapper) AudioRecord(p prop.Media) (r audio.Reader, err error) {
+func (w *adapterWrapper) AudioRecord(p, req prop.Media) (r audio.Reader, err error) {
 	err = w.state.Update(StateRunning, func() error {
-		r, err = w.AudioRecorder.AudioRecord(p)
+		r, err = w.AudioRecorder.AudioRecord(p, req)
 		return err
 	})
 	return

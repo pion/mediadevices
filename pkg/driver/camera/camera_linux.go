@@ -107,7 +107,7 @@ func (c *camera) Close() error {
 	return nil
 }
 
-func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
+func (c *camera) VideoRecord(p, req prop.Media) (video.Reader, error) {
 	decoder, err := frame.NewDecoder(p.FrameFormat)
 	if err != nil {
 		return nil, err
