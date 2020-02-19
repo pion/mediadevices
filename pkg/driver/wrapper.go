@@ -79,6 +79,9 @@ func (w *adapterWrapper) VideoRecord(p prop.Media) (r video.Reader, err error) {
 		r, err = w.VideoRecorder.VideoRecord(p)
 		return err
 	})
+	if err != nil {
+		_ = w.Close()
+	}
 	return
 }
 
