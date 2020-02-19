@@ -66,10 +66,11 @@ func (s *screen) VideoRecord(p prop.Media) (video.Reader, error) {
 	s.tick = time.NewTicker(time.Duration(float32(time.Second) / p.FrameRate))
 
 	var dst image.RGBA
+	reader := s.reader
 
 	r := video.ReaderFunc(func() (image.Image, error) {
 		<-s.tick.C
-		return s.reader.Read().ToRGBA(&dst), nil
+		return reader.Read().ToRGBA(&dst), nil
 	})
 	return r, nil
 }

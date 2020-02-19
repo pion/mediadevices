@@ -44,9 +44,11 @@ func (d *dummy) AudioRecord(p prop.Media) (audio.Reader, error) {
 	nextReadTime := time.Now()
 	var phase int
 
+	closed := d.closed
+
 	reader := audio.ReaderFunc(func(samples [][2]float32) (int, error) {
 		select {
-		case <-d.closed:
+		case <-closed:
 			return 0, io.EOF
 		default:
 		}
