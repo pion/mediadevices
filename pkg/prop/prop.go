@@ -3,6 +3,7 @@ package prop
 import (
 	"fmt"
 	"math"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -14,6 +15,40 @@ type Media struct {
 	Video
 	Audio
 	Codec
+}
+
+// Merge merges all the field values from o to p, except zero values.
+func (p *Media) Merge(o Media) {
+	rp := reflect.ValueOf(p).Elem()
+	ro := reflect.ValueOf(o)
+
+	// merge b fields to a recursively
+	var merge func(a, b reflect.Value)
+	merge = func(a, b reflect.Value) {
+		numFields := a.NumField()
+		for i := 0; i < numFields; i++ {
+			fieldA := a.Field(i)
+			fieldB := b.Field(i)
+
+			// if a is a struct, b is also a struct. Then,
+			// we recursively merge them
+			if fieldA.Kind() == reflect.Struct {
+				merge(fieldA, fieldB)
+				continue
+			}
+
+			// TODO: Replace this with fieldB.IsZero() when we move to go1.13
+			// If non-boolean or non-discrete values are zeroes we skip them
+			if fieldB.Interface() == reflect.Zero(fieldB.Type()).Interface() &&
+				fieldB.Kind() != reflect.Bool {
+				continue
+			}
+
+			fieldA.Set(fieldB)
+		}
+	}
+
+	merge(rp, ro)
 }
 
 func (p *Media) FitnessDistance(o Media) float64 {
