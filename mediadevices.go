@@ -82,6 +82,12 @@ func WithTrackGenerator(gen TrackGenerator) MediaDevicesOption {
 func (m *mediaDevices) GetDisplayMedia(constraints MediaStreamConstraints) (MediaStream, error) {
 	trackers := make([]Tracker, 0)
 
+	cleanTrackers := func() {
+		for _, t := range trackers {
+			t.Stop()
+		}
+	}
+
 	var videoConstraints MediaTrackConstraints
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
@@ -90,6 +96,7 @@ func (m *mediaDevices) GetDisplayMedia(constraints MediaStreamConstraints) (Medi
 	if videoConstraints.Enabled {
 		tracker, err := m.selectScreen(videoConstraints)
 		if err != nil {
+			cleanTrackers()
 			return nil, err
 		}
 
@@ -98,6 +105,7 @@ func (m *mediaDevices) GetDisplayMedia(constraints MediaStreamConstraints) (Medi
 
 	s, err := NewMediaStream(trackers...)
 	if err != nil {
+		cleanTrackers()
 		return nil, err
 	}
 
@@ -111,6 +119,12 @@ func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaSt
 	// TODO: It should return media stream based on constraints
 	trackers := make([]Tracker, 0)
 
+	cleanTrackers := func() {
+		for _, t := range trackers {
+			t.Stop()
+		}
+	}
+
 	var videoConstraints, audioConstraints MediaTrackConstraints
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
@@ -123,6 +137,7 @@ func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaSt
 	if videoConstraints.Enabled {
 		tracker, err := m.selectVideo(videoConstraints)
 		if err != nil {
+			cleanTrackers()
 			return nil, err
 		}
 
@@ -132,6 +147,7 @@ func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaSt
 	if audioConstraints.Enabled {
 		tracker, err := m.selectAudio(audioConstraints)
 		if err != nil {
+			cleanTrackers()
 			return nil, err
 		}
 
@@ -140,6 +156,7 @@ func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaSt
 
 	s, err := NewMediaStream(trackers...)
 	if err != nil {
+		cleanTrackers()
 		return nil, err
 	}
 
