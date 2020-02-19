@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"sync"
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/codec"
@@ -27,6 +28,9 @@ type encoder struct {
 	engine *C.Encoder
 	r      video.Reader
 	buff   []byte
+
+	mu     sync.Mutex
+	closed bool
 }
 
 var _ codec.VideoEncoderBuilder = codec.VideoEncoderBuilder(NewEncoder)
@@ -58,6 +62,13 @@ func NewEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 }
 
 func (e *encoder) Read(p []byte) (n int, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.closed {
+		return 0, io.EOF
+	}
+
 	if e.buff != nil {
 		n, err = mio.Copy(p, e.buff)
 		if err == nil {
@@ -96,6 +107,11 @@ func (e *encoder) Read(p []byte) (n int, err error) {
 }
 
 func (e *encoder) Close() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.closed = true
+
 	C.enc_free(e.engine)
 	return nil
 }
