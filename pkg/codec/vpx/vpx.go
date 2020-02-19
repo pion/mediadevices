@@ -51,6 +51,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -72,6 +73,9 @@ type encoder struct {
 	tStart     int
 	tLastFrame int
 	frame      []byte
+
+	mu     sync.Mutex
+	closed bool
 }
 
 func init() {
@@ -139,6 +143,13 @@ func newEncoder(r video.Reader, p prop.Media, codecIface *C.vpx_codec_iface_t) (
 }
 
 func (e *encoder) Read(p []byte) (int, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.closed {
+		return 0, io.EOF
+	}
+
 	if e.buff != nil {
 		n, err := mio.Copy(p, e.buff)
 		if err == nil {
@@ -204,6 +215,11 @@ func (e *encoder) Read(p []byte) (int, error) {
 }
 
 func (e *encoder) Close() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.closed = true
+
 	C.free(unsafe.Pointer(e.raw))
 	defer C.free(unsafe.Pointer(e.codec))
 
