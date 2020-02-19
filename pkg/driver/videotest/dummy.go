@@ -99,16 +99,18 @@ func (d *dummy) VideoRecord(p prop.Media) (video.Reader, error) {
 	}
 	random := rand.New(rand.NewSource(0))
 
-	d.tick = time.NewTicker(time.Duration(float32(time.Second) / p.FrameRate))
+	tick := time.NewTicker(time.Duration(float32(time.Second) / p.FrameRate))
+	d.tick = tick
+	closed := d.closed
 
 	r := video.ReaderFunc(func() (image.Image, error) {
 		select {
-		case <-d.closed:
+		case <-closed:
 			return nil, io.EOF
 		default:
 		}
 
-		<-d.tick.C
+		<-tick.C
 
 		copy(yy, yyBase)
 		copy(cb, cbBase)
