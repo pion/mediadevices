@@ -90,5 +90,8 @@ func (w *adapterWrapper) AudioRecord(p prop.Media) (r audio.Reader, err error) {
 		r, err = w.AudioRecorder.AudioRecord(p)
 		return err
 	})
+	if err != nil {
+		_ = w.Close()
+	}
 	return
 }
