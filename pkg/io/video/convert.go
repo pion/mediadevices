@@ -47,7 +47,7 @@ func imageToYCbCr(dst *image.YCbCr, src image.Image) {
 	switch s := src.(type) {
 	case *image.RGBA:
 		if hasCGOConvert {
-			rgbaToI444(dst, s)
+			rgbaToI444CGO(dst, s)
 			return
 		}
 		i := 0

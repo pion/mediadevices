@@ -10,6 +10,8 @@ import (
 import "C"
 
 func init() {
+	// CGO version of the functions will be selected at runtime.
+	// All functions switched at runtime must be declared also in convert_nocgo.go.
 	hasCGOConvert = true
 }
 
@@ -77,7 +79,7 @@ func i444ToRGBACGO(dst *image.RGBA, src *image.YCbCr) {
 	)
 }
 
-func rgbaToI444(dst *image.YCbCr, src *image.RGBA) {
+func rgbaToI444CGO(dst *image.YCbCr, src *image.RGBA) {
 	C.rgbaToI444(
 		(*C.uchar)(&dst.Y[0]),
 		(*C.uchar)(&dst.Cb[0]),
