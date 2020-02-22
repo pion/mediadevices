@@ -2,7 +2,6 @@ package openh264
 
 // #cgo CFLAGS: -I${SRCDIR}/../../../cvendor/include
 // #cgo CXXFLAGS: -I${SRCDIR}/../../../cvendor/include
-// #cgo LDFLAGS: ${SRCDIR}/../../../cvendor/lib/openh264/libopenh264.a
 // #include <string.h>
 // #include <openh264/codec_api.h>
 // #include <errno.h>
