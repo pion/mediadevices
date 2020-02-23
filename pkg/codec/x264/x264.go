@@ -38,10 +38,15 @@ func init() {
 }
 
 func newEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
+	if p.KeyFrameInterval == 0 {
+		p.KeyFrameInterval = 60
+	}
+
 	engine, err := C.enc_new(C.x264_param_t{
-		i_csp:    C.X264_CSP_I420,
-		i_width:  C.int(p.Width),
-		i_height: C.int(p.Height),
+		i_csp:        C.X264_CSP_I420,
+		i_width:      C.int(p.Width),
+		i_height:     C.int(p.Height),
+		i_keyint_max: C.int(p.KeyFrameInterval),
 	})
 	if err != nil {
 		return nil, errInitEngine

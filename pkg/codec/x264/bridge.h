@@ -28,8 +28,7 @@ Encoder *enc_new(x264_param_t param) {
   e->param.i_fps_num = param.i_fps_num;
   e->param.i_fps_den = 1;
   // Intra refres:
-  e->param.i_keyint_max = param.i_fps_num;
-  e->param.b_intra_refresh = 1;
+  e->param.i_keyint_max = param.i_keyint_max;
   // Rate control:
   e->param.rc.i_rc_method = X264_RC_CRF;
   e->param.rc.f_rf_constant = 25;
