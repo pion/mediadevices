@@ -44,15 +44,12 @@ Encoder *enc_new(x264_param_t param) {
   if (x264_picture_alloc(&e->pic_in, param.i_csp, param.i_width, param.i_height) < 0)
     goto fail;
 
-#undef fail
-#define fail fail2
   e->h = x264_encoder_open(&e->param);
   if (!e->h)
     goto fail2;
 
   return e;
 
-#undef fail
 fail2:
   x264_picture_clean(&e->pic_in);
 
