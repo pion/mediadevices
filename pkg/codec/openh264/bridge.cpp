@@ -1,24 +1,23 @@
 #include "bridge.hpp"
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 
-Encoder *enc_new(const EncoderOptions opts) {
+Encoder *enc_new(const EncoderOptions opts, int *eresult) {
   int rv;
   ISVCEncoder *engine;
   SEncParamExt params;
 
   rv = WelsCreateSVCEncoder(&engine);
   if (rv != 0) {
-    errno = rv;
+    *eresult = rv;
     return NULL;
   }
 
   rv = engine->GetDefaultParams(&params);
   if (rv != 0) {
-    errno = rv;
+    *eresult = rv;
     return NULL;
   }
 
@@ -48,7 +47,7 @@ Encoder *enc_new(const EncoderOptions opts) {
 
   rv = engine->InitializeExt(&params);
   if (rv != 0) {
-    errno = rv;
+    *eresult = rv;
     return NULL;
   }
 
@@ -60,10 +59,10 @@ Encoder *enc_new(const EncoderOptions opts) {
   return encoder;
 }
 
-void enc_free(Encoder *e) {
+void enc_free(Encoder *e, int *eresult) {
   int rv = e->engine->Uninitialize();
   if (rv != 0) {
-    errno = rv;
+    *eresult = rv;
     return;
   }
 
@@ -75,7 +74,7 @@ void enc_free(Encoder *e) {
 
 // There's a good reference from ffmpeg in using the encode_frame
 // Reference: https://ffmpeg.org/doxygen/2.6/libopenh264enc_8c_source.html
-Slice enc_encode(Encoder *e, Frame f) {
+Slice enc_encode(Encoder *e, Frame f, int *eresult) {
   int rv;
   SSourcePicture pic = {0};
   SFrameBSInfo info = {0};
@@ -93,7 +92,7 @@ Slice enc_encode(Encoder *e, Frame f) {
 
   rv = e->engine->EncodeFrame(&pic, &info);
   if (rv != 0) {
-    errno = rv;
+    *eresult = rv;
     return payload;
   }
 
