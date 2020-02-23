@@ -58,13 +58,11 @@ Encoder *enc_new(x264_param_t param) {
   e->h = x264_encoder_open(&e->param);
   if (!e->h) {
     errno = ERR_OPEN_ENGINE;
-    goto fail2;
+    x264_picture_clean(&e->pic_in);
+    goto fail;
   }
 
   return e;
-
-fail2:
-  x264_picture_clean(&e->pic_in);
 
 fail:
   free(e);
