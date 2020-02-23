@@ -1,5 +1,7 @@
 FROM dockercore/golang-cross
 
+ENV GO111MODULE=on
+
 RUN apt-get update -qq \
   && apt-get install -y \
     g++-mingw-w64 \
