@@ -23,6 +23,8 @@ type encoder struct {
 	engine *C.Encoder
 	buff   []byte
 	r      video.Reader
+	mu     sync.Mutex
+	closed bool
 }
 
 var (
@@ -60,6 +62,13 @@ func newEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 }
 
 func (e *encoder) Read(p []byte) (int, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.closed {
+		return 0, io.EOF
+	}
+
 	if e.buff != nil {
 		n, err := mio.Copy(p, e.buff)
 		if err == nil {
@@ -92,6 +101,10 @@ func (e *encoder) Read(p []byte) (int, error) {
 }
 
 func (e *encoder) Close() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	C.enc_close(e.engine)
+	e.closed = true
 	return nil
 }
