@@ -90,6 +90,7 @@ Slice enc_encode(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr) {
 }
 
 void enc_close(Encoder *e) {
+  x264_encoder_close(e->h);
   x264_picture_clean(&e->pic_in);
   free(e);
 }
