@@ -43,15 +43,15 @@ func NewEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 		p.BitRate = 100000
 	}
 
-	cEncoder, err := C.enc_new(C.EncoderOptions{
+	var rv C.int
+	cEncoder := C.enc_new(C.EncoderOptions{
 		width:          C.int(p.Width),
 		height:         C.int(p.Height),
 		target_bitrate: C.int(p.BitRate),
 		max_fps:        C.float(p.FrameRate),
-	})
-	if err != nil {
-		// TODO: better error message
-		return nil, fmt.Errorf("failed in creating encoder")
+	}, &rv)
+	if err := errResult(rv); err != nil {
+		return nil, fmt.Errorf("failed in creating encoder: %v", err)
 	}
 
 	return &encoder{
@@ -84,16 +84,16 @@ func (e *encoder) Read(p []byte) (n int, err error) {
 
 	yuvImg := img.(*image.YCbCr)
 	bounds := yuvImg.Bounds()
-	s, err := C.enc_encode(e.engine, C.Frame{
+	var rv C.int
+	s := C.enc_encode(e.engine, C.Frame{
 		y:      unsafe.Pointer(&yuvImg.Y[0]),
 		u:      unsafe.Pointer(&yuvImg.Cb[0]),
 		v:      unsafe.Pointer(&yuvImg.Cr[0]),
 		height: C.int(bounds.Max.Y - bounds.Min.Y),
 		width:  C.int(bounds.Max.X - bounds.Min.X),
-	})
-	if err != nil {
-		// TODO: better error message
-		return 0, fmt.Errorf("failed in encoding")
+	}, &rv)
+	if err := errResult(rv); err != nil {
+		return 0, fmt.Errorf("failed in encoding: %v", err)
 	}
 
 	encoded := C.GoBytes(unsafe.Pointer(s.data), s.data_len)
@@ -111,6 +111,7 @@ func (e *encoder) Close() error {
 
 	e.closed = true
 
-	C.enc_free(e.engine)
-	return nil
+	var rv C.int
+	C.enc_free(e.engine, &rv)
+	return errResult(rv)
 }
