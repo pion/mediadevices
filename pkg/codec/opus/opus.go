@@ -7,11 +7,11 @@ import (
 	"reflect"
 	"unsafe"
 
+	"github.com/lherman-cs/opus"
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/webrtc/v2"
-	"gopkg.in/hraban/opus.v2"
 )
 
 type encoder struct {
