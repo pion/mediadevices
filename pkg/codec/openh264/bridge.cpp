@@ -79,6 +79,7 @@ Slice enc_encode(Encoder *e, Frame f) {
   int rv;
   SSourcePicture pic = {0};
   SFrameBSInfo info = {0};
+  Slice payload = {0};
 
   pic.iPicWidth = f.width;
   pic.iPicHeight = f.height;
@@ -93,7 +94,7 @@ Slice enc_encode(Encoder *e, Frame f) {
   rv = e->engine->EncodeFrame(&pic, &info);
   if (rv != 0) {
     errno = rv;
-    return Slice{0};
+    return payload;
   }
 
   int *layer_size = (int *)calloc(sizeof(int), info.iLayerNum);
@@ -116,6 +117,7 @@ Slice enc_encode(Encoder *e, Frame f) {
   }
   free(layer_size);
 
-  Slice s = {.data = e->buff, .data_len = size};
-  return s;
+  payload.data = e->buff;
+  payload.data_len = size;
+  return payload;
 }
