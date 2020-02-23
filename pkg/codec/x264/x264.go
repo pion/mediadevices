@@ -82,13 +82,13 @@ func (e *encoder) Read(p []byte) (int, error) {
 		return 0, err
 	}
 	yuvImg := img.(*image.YCbCr)
-	s := C.enc_encode(
+	s, err := C.enc_encode(
 		e.engine,
 		(*C.uchar)(&yuvImg.Y[0]),
 		(*C.uchar)(&yuvImg.Cb[0]),
 		(*C.uchar)(&yuvImg.Cr[0]),
 	)
-	if s.data_len < 0 {
+	if err != nil {
 		return 0, errEncode
 	}
 

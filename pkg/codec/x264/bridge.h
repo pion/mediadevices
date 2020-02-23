@@ -70,6 +70,8 @@ Slice enc_encode(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr) {
   int frame_size = x264_encoder_encode(e->h, &nal, &i_nal, &e->pic_in, &e->pic_out);
   Slice s = {.data_len = frame_size};
   if (frame_size <= 0) {
+    // TODO: set appropriate errno
+    errno = -1;
     return s;
   }
 
