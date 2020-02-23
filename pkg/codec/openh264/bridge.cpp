@@ -6,6 +6,7 @@
 #include <sys/time.h>
 
 Encoder *enc_new(const EncoderOptions opts) {
+  errno = 0;
   int rv;
   ISVCEncoder *engine;
   SEncParamExt params;
@@ -15,12 +16,14 @@ Encoder *enc_new(const EncoderOptions opts) {
     errno = rv;
     return NULL;
   }
+  printf("1: %d\n", errno);
 
   rv = engine->GetDefaultParams(&params);
   if (rv != 0) {
     errno = rv;
     return NULL;
   }
+  printf("2: %d\n", errno);
 
   // TODO: Remove hardcoded values
   params.iUsageType = CAMERA_VIDEO_REAL_TIME;
@@ -51,8 +54,10 @@ Encoder *enc_new(const EncoderOptions opts) {
     errno = rv;
     return NULL;
   }
+  printf("3: %d\n", errno);
 
   Encoder *encoder = (Encoder *)malloc(sizeof(Encoder));
+  printf("4: %d\n", errno);
   encoder->engine = engine;
   encoder->params = params;
   encoder->buff = (unsigned char *)malloc(opts.width * opts.height);
@@ -61,6 +66,7 @@ Encoder *enc_new(const EncoderOptions opts) {
 }
 
 void enc_free(Encoder *e) {
+  errno = 0;
   int rv = e->engine->Uninitialize();
   if (rv != 0) {
     errno = rv;
@@ -76,6 +82,7 @@ void enc_free(Encoder *e) {
 // There's a good reference from ffmpeg in using the encode_frame
 // Reference: https://ffmpeg.org/doxygen/2.6/libopenh264enc_8c_source.html
 Slice enc_encode(Encoder *e, Frame f) {
+  errno = 0;
   int rv;
   SSourcePicture pic = {0};
   SFrameBSInfo info = {0};
