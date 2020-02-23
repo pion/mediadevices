@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"sync"
+	"syscall"
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/codec"
@@ -27,12 +29,32 @@ type encoder struct {
 	closed bool
 }
 
+type cerror int
+
+func (e cerror) Error() string {
+	switch e {
+	case C.ERR_DEFAULT_PRESET:
+		return errDefaultPreset.Error()
+	case C.ERR_APPLY_PROFILE:
+		return errApplyProfile.Error()
+	case C.ERR_ALLOC_PICTURE:
+		return errAllocPicture.Error()
+	case C.ERR_OPEN_ENGINE:
+		return errOpenEngine.Error()
+	case C.ERR_ENCODE:
+		return errEncode.Error()
+	default:
+		return "unknown error"
+	}
+}
+
 var (
-	errInitEngine   = fmt.Errorf("failed to initialize x264")
-	errApplyProfile = fmt.Errorf("failed to apply profile")
-	errAllocPicture = fmt.Errorf("failed to alloc picture")
-	errOpenEngine   = fmt.Errorf("failed to open x264")
-	errEncode       = fmt.Errorf("failed to encode")
+	errInitEngine    = fmt.Errorf("failed to initialize x264")
+	errDefaultPreset = fmt.Errorf("failed to set default preset")
+	errApplyProfile  = fmt.Errorf("failed to apply profile")
+	errAllocPicture  = fmt.Errorf("failed to alloc picture")
+	errOpenEngine    = fmt.Errorf("failed to open x264")
+	errEncode        = fmt.Errorf("failed to encode")
 )
 
 func init() {
@@ -51,7 +73,7 @@ func newEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 		i_keyint_max: C.int(p.KeyFrameInterval),
 	})
 	if err != nil {
-		return nil, errInitEngine
+		return nil, cerror(err.(syscall.Errno))
 	}
 
 	e := encoder{
