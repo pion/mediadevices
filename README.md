@@ -8,40 +8,40 @@ Go implementation of the [MediaDevices](https://developer.mozilla.org/en-US/docs
 
 | Interface  | Linux | Mac | Windows |
 | :--------: | :---: | :-: | :-----: |
-|   Camera   |  ✔️   | ✖️  |   ✖️    |
-| Microphone |  ✔️   | ✖️  |   ✖️    |
+|   Camera   |  ✔️   | ✖️  |   ✔️    |
+| Microphone |  ✔️   | ✖️  |   ✔️    |
 |   Screen   |  ✔️   | ✖️  |   ✖️    |
 
 ### Camera
 
-|   OS    |                    Library/Interface                     |
-| :-----: | :------------------------------------------------------: |
-|  Linux  | [Video4Linux](https://en.wikipedia.org/wiki/Video4Linux) |
-|   Mac   |                           N/A                            |
-| Windows |                           N/A                            |
+|   OS    |                           Library/Interface                             |
+| :-----: | :---------------------------------------------------------------------: |
+|  Linux  |        [Video4Linux](https://en.wikipedia.org/wiki/Video4Linux)         |
+|   Mac   |                                  N/A                                    |
+| Windows | [DirectShow](https://docs.microsoft.com/en-us/windows/win32/directshow) |
 
 |                     Pixel Format                      | Linux | Mac | Windows |
 | :---------------------------------------------------: | :---: | :-: | :-----: |
-| [YUY2](https://www.fourcc.org/pixel-format/yuv-yuy2/) |  ✔️   | ✖️  |   ✖️    |
+| [YUY2](https://www.fourcc.org/pixel-format/yuv-yuy2/) |  ✔️   | ✖️  |   ✔️    |
 | [I420](https://www.fourcc.org/pixel-format/yuv-i420/) |  ✔️   | ✖️  |   ✖️    |
 | [NV21](https://www.fourcc.org/pixel-format/yuv-nv21/) |  ✔️   | ✖️  |   ✖️    |
 |         [MJPEG](https://www.fourcc.org/mjpg/)         |  ✔️   | ✖️  |   ✖️    |
 
 ### Microphone
 
-|   OS    |                    Library/Interface                     |
-| :-----: | :------------------------------------------------------: |
-|  Linux  | [PulseAudio](https://en.wikipedia.org/wiki/PulseAudio)   |
-|   Mac   |                           N/A                            |
-| Windows |                           N/A                            |
+|   OS    |                            Library/Interface                            |
+| :-----: | :---------------------------------------------------------------------: |
+|  Linux  |         [PulseAudio](https://en.wikipedia.org/wiki/PulseAudio)          |
+|   Mac   |                                   N/A                                   |
+| Windows |  [waveIn](https://docs.microsoft.com/en-us/windows/win32/api/mmeapi/)   |
 
 ### Screen casting
 
-|   OS    |                    Library/Interface                     |
-| :-----: | :------------------------------------------------------: |
-|  Linux  | [X11](https://en.wikipedia.org/wiki/X_Window_System)     |
-|   Mac   |                           N/A                            |
-| Windows |                           N/A                            |
+|   OS    |                            Library/Interface                            |
+| :-----: | :---------------------------------------------------------------------: |
+|  Linux  |          [X11](https://en.wikipedia.org/wiki/X_Window_System)           |
+|   Mac   |                                   N/A                                   |
+| Windows |                                   N/A                                   |
 
 ## Codecs
 
