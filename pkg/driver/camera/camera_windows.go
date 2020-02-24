@@ -24,6 +24,7 @@ var (
 )
 
 type camera struct {
+	name  string
 	cam   *C.camera
 	ch    chan []byte
 	buf   []byte
@@ -33,14 +34,36 @@ type camera struct {
 func init() {
 	C.CoInitializeEx(nil, C.COINIT_MULTITHREADED)
 
-	driver.GetManager().Register(&camera{}, driver.Info{
-		Label:      "windows_camera_default",
-		DeviceType: driver.Camera,
-	})
+	var list C.cameraList
+	var errStr *C.char
+	if C.listCamera(&list, &errStr) != 0 {
+		// Failed to list camera
+		fmt.Printf("Failed to list camera: %s\n", C.GoString(errStr))
+		return
+	}
+
+	for i := 0; i < int(list.num); i++ {
+		name := C.GoString(C.getName(&list, C.int(i)))
+		driver.GetManager().Register(&camera{name: name}, driver.Info{
+			Label:      name,
+			DeviceType: driver.Camera,
+		})
+	}
+
+	C.freeCameraList(&list, &errStr)
 }
 
 func (c *camera) Open() error {
 	c.ch = make(chan []byte)
+	c.cam = &C.camera{
+		name: C.CString(c.name),
+	}
+
+	var errStr *C.char
+	if C.listResolution(c.cam, &errStr) != 0 {
+		return fmt.Errorf("failed to open device: %s", C.GoString(errStr))
+	}
+
 	return nil
 }
 
@@ -52,7 +75,6 @@ func imageCallback(cam uintptr) {
 	if !ok {
 		return
 	}
-	_ = cb
 
 	copy(cb.bufGo, cb.buf)
 	cb.ch <- cb.bufGo
@@ -68,6 +90,7 @@ func (c *camera) Close() error {
 	close(c.ch)
 
 	if c.cam != nil {
+		C.free(unsafe.Pointer(c.cam.name))
 		C.freeCamera(c.cam)
 		c.cam = nil
 	}
@@ -75,47 +98,59 @@ func (c *camera) Close() error {
 }
 
 func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
-	c.buf = make([]byte, p.Width*p.Height*4)
-	c.bufGo = make([]byte, p.Width*p.Height*4)
-	cam := C.camera{
-		width:  C.int(p.Width),
-		height: C.int(p.Height),
-		buf:    C.size_t(uintptr(unsafe.Pointer(&c.buf[0]))),
-	}
+	nPix := p.Width * p.Height
+	c.buf = make([]byte, nPix*2) // for YUY2
+	c.bufGo = make([]byte, nPix*2)
+	c.cam.width = C.int(p.Width)
+	c.cam.height = C.int(p.Height)
+	c.cam.buf = C.size_t(uintptr(unsafe.Pointer(&c.buf[0])))
+
 	var errStr *C.char
-	if C.openCamera(&cam, &errStr) != 0 {
+	if C.openCamera(c.cam, &errStr) != 0 {
 		return nil, fmt.Errorf("failed to open device: %s", C.GoString(errStr))
 	}
-	c.cam = &cam
 
 	callbacksMu.Lock()
 	callbacks[uintptr(unsafe.Pointer(c.cam))] = c
 	callbacksMu.Unlock()
 
-	rgba := &image.RGBA{}
-	r := video.ReaderFunc(func() (img image.Image, err error) {
+	img := &image.YCbCr{}
+
+	r := video.ReaderFunc(func() (image.Image, error) {
 		b, ok := <-c.ch
 		if !ok {
 			return nil, io.EOF
 		}
-		rgba.Pix = b
-		rgba.Stride = p.Width * 4
-		rgba.Rect = image.Rect(0, 0, p.Width, p.Height)
-		return rgba, nil
+		img.Y = b[:nPix]
+		img.Cb = b[nPix : nPix+nPix/2]
+		img.Cr = b[nPix+nPix/2 : nPix*2]
+		img.YStride = p.Width
+		img.CStride = p.Width / 2
+		img.SubsampleRatio = image.YCbCrSubsampleRatio422
+		img.Rect = image.Rect(0, 0, p.Width, p.Height)
+		return img, nil
 	})
 	return r, nil
 }
 
 func (c *camera) Properties() []prop.Media {
 	properties := []prop.Media{}
-	properties = append(properties, prop.Media{
-		Video: prop.Video{
-			// TODO: enum formats at beginning
-			Width:  640,
-			Height: 480,
-			// TODO: DirectShow only supports RGB? Need investigation.
-			FrameFormat: frame.FormatRGBA,
-		},
-	})
+	for i := 0; i < int(c.cam.numProps); i++ {
+		p := C.getProp(c.cam, C.int(i))
+		// TODO: support other FOURCC
+		if p.fcc == fourccYUY2 {
+			properties = append(properties, prop.Media{
+				Video: prop.Video{
+					Width:       int(p.width),
+					Height:      int(p.height),
+					FrameFormat: frame.FormatYUY2,
+				},
+			})
+		}
+	}
 	return properties
 }
+
+const (
+	fourccYUY2 = 0x32595559
+)

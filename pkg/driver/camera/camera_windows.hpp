@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -8,16 +10,45 @@ typedef struct
 {
   int width;
   int height;
+  uint32_t fcc;
+} imageProp;
+
+typedef struct
+{
+  int width;
+  int height;
   size_t buf;  // uintptr
 
   char* name;
+  int numProps;
+  imageProp* props;
+
   void* grabber;
   void* mediaControl;
   void* callback;
 } camera;
 
+typedef struct
+{
+  int num;
+  char** name;
+} cameraList;
+
 int openCamera(camera* cam, const char** errstr);
 void freeCamera(camera* cam);
+int listResolution(camera* cam, const char** errstr);
+int listCamera(cameraList* list, const char** errstr);
+int freeCameraList(cameraList* list, const char** errstr);
+
+inline imageProp* getProp(camera* cam, int i)
+{
+  return &cam->props[i];
+}
+
+inline char* getName(cameraList* list, int i)
+{
+  return list->name[i];
+}
 
 #ifdef __cplusplus
 }
@@ -29,7 +60,7 @@ void freeCamera(camera* cam);
 #include <dshow.h>
 std::string utf16Decode(LPOLESTR olestr);
 IPin* getPin(IBaseFilter* filter, PIN_DIRECTION dir);
-HRESULT cbBuffer(double sampleTime, BYTE* buf, long len);
+char* getCameraName(IMoniker* monier);
 
 template <class T>
 void safeRelease(T** p)
@@ -84,5 +115,6 @@ const static char* errGrabber = "failed to create grabber";
 const static char* errGraphBuilder = "failed to build graph";
 const static char* errNoControl = "failed to control media";
 const static char* errTerminator = "failed to create graph terminator";
+const static char* errGetConfig = "failed to get config";
 
 #endif
