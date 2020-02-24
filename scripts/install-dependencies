@@ -9,7 +9,7 @@ TOOLCHAINS = {
     'windows': 'x86_64-w64-mingw32'
 }
 
-TARGET_OS = os.environ.get('TARGET_OS', '')
+TARGET_OS = os.environ.get('GOOS', '')
 VALID_TARGETS = TOOLCHAINS.keys()
 if TARGET_OS not in VALID_TARGETS:
     sys.exit(f'{TARGET_OS} is not in supported targets: {",".join(VALID_TARGETS)}')
