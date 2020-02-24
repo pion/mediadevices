@@ -2,6 +2,9 @@ FROM mediadevices-base
 
 ENV TARGET_OS=windows
 ENV PYTHONUNBUFFERED=1
+# Somehow libopus.dll is installed under /usr/local/bin, so we need to add this
+# path to WINEPATH so that wine can find this library
+ENV WINEPATH=/usr/local/bin
 
 COPY scripts /usr/bin/ 
 
