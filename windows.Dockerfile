@@ -1,7 +1,6 @@
 FROM fedora
 
-ENV TARGET_OS=windows \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
     # Somehow libopus.dll is installed under /usr/local/bin, so we need to add this
     # path to WINEPATH so that wine can find this library
     WINEPATH=/usr/local/bin \
