@@ -1,12 +1,15 @@
 FROM mediadevices-base
 
-ENV TARGET_OS=windows
-ENV PYTHONUNBUFFERED=1
-# Somehow libopus.dll is installed under /usr/local/bin, so we need to add this
-# path to WINEPATH so that wine can find this library
-ENV WINEPATH=/usr/local/bin
-
-ENV GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc
+ENV TARGET_OS=windows \
+    PYTHONUNBUFFERED=1 \
+    # Somehow libopus.dll is installed under /usr/local/bin, so we need to add this
+    # path to WINEPATH so that wine can find this library
+    WINEPATH=/usr/local/bin \
+    # Go and C default environments
+    GOOS=windows \
+    GOARCH=amd64 \
+    CGO_ENABLED=1 \
+    CC=x86_64-w64-mingw32-gcc
 
 COPY scripts /usr/bin/ 
 
