@@ -67,15 +67,14 @@ func main() {
 			fmt.Printf("Track (ID: %s, Label: %s) ended with error: %v\n",
 				t.ID(), t.Label(), err)
 		})
-		_, err = peerConnection.AddTrack(t)
+		_, err = peerConnection.AddTransceiverFromTrack(t,
+			webrtc.RtpTransceiverInit{
+				Direction: webrtc.RTPTransceiverDirectionSendonly,
+			},
+		)
 		if err != nil {
 			panic(err)
 		}
-	}
-
-	// Tweak transceiver direction to work with Firefox
-	for _, t := range peerConnection.GetTransceivers() {
-		t.Direction = webrtc.RTPTransceiverDirectionSendonly
 	}
 
 	// Set the remote SessionDescription
