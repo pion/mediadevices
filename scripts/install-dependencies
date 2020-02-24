@@ -16,6 +16,23 @@ if TARGET_OS not in VALID_TARGETS:
 
 TOOLCHAIN = TOOLCHAINS[TARGET_OS]
 
+'''
+Format:
+
+Git Dependency:
+name: <dependency_name>
+url: <repository_url>
+version: <git_tag>
+protocol: 'git'
+cmd: <command_how_to_install>
+
+HTTP Dependency:
+name: <dependency_name>
+url: <http_url>
+extension: <file_extension_that_will_be_downloaded>
+protocol: 'http'
+cmd: <command_how_to_install>
+'''
 DEPENDENCIES = [
     {
         'name': 'opus',
