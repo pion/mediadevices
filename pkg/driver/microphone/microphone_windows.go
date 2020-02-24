@@ -12,6 +12,12 @@ import (
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
+const (
+	// bufferNumber * prop.Audio.Latency is the maximum blockable duration
+	// to get data without dropping chunks.
+	bufferNumber = 5
+)
+
 // Windows APIs
 var (
 	winmm                 = windows.NewLazySystemDLL("Winmm.dll")
@@ -34,6 +40,9 @@ func newBuffer(samples int) *buffer {
 	b := make([]int16, samples)
 	return &buffer{
 		waveHdr: waveHdr{
+			// Sharing Go memory with Windows C API without reference.
+			// Make sure that the lifetime of the buffer struct is longer
+			// than the final access from cbWaveIn.
 			lpData:         uintptr(unsafe.Pointer(&b[0])),
 			dwBufferLength: uint32(samples * 2),
 		},
@@ -88,6 +97,7 @@ func (m *microphone) Close() error {
 	if err := errWinmm[ret]; err != nil {
 		return err
 	}
+	// All enqueued buffers are marked done by waveInReset.
 	ret, _, _ = waveInReset.Call(
 		uintptr(unsafe.Pointer(m.hWaveIn)),
 	)
@@ -95,6 +105,7 @@ func (m *microphone) Close() error {
 		return err
 	}
 	for _, buf := range m.buf {
+		// Detach buffers from waveIn API.
 		ret, _, _ := waveInUnprepareHeader.Call(
 			uintptr(unsafe.Pointer(m.hWaveIn)),
 			uintptr(unsafe.Pointer(&buf.waveHdr)),
@@ -104,6 +115,10 @@ func (m *microphone) Close() error {
 			return err
 		}
 	}
+	// Now, it's ready to free the buffers.
+	// As microphone struct still has reference to the buffers,
+	// they will be GC-ed once microphone is reopened or unreferenced.
+
 	ret, _, _ = waveInClose.Call(
 		uintptr(unsafe.Pointer(m.hWaveIn)),
 	)
@@ -117,10 +132,12 @@ func (m *microphone) Close() error {
 }
 
 func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
-	for i := 0; i < 5; i++ {
+	for i := 0; i < bufferNumber; i++ {
 		b := newBuffer(
 			int(uint64(p.Latency) * uint64(p.SampleRate) / uint64(time.Second)),
 		)
+		// Map the buffer by its data head address to restore access to the Go struct
+		// in callback function. Don't resize the buffer after it.
 		m.buf[uintptr(unsafe.Pointer(&b.waveHdr))] = b
 	}
 
@@ -145,6 +162,7 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 	}
 
 	for _, buf := range m.buf {
+		// Attach buffers to waveIn API.
 		ret, _, _ := waveInPrepareHeader.Call(
 			uintptr(unsafe.Pointer(m.hWaveIn)),
 			uintptr(unsafe.Pointer(&buf.waveHdr)),
@@ -155,6 +173,7 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 		}
 	}
 	for _, buf := range m.buf {
+		// Enqueue buffers.
 		ret, _, _ := waveInAddBuffer.Call(
 			uintptr(unsafe.Pointer(m.hWaveIn)),
 			uintptr(unsafe.Pointer(&buf.waveHdr)),
@@ -190,7 +209,7 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 				select {
 				case <-m.closed:
 				default:
-					// Enqueue used buffer
+					// Re-enqueue used buffer.
 					ret, _, _ := waveInAddBuffer.Call(
 						uintptr(unsafe.Pointer(m.hWaveIn)),
 						uintptr(unsafe.Pointer(&b.waveHdr)),
