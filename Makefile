@@ -44,13 +44,13 @@ $(lib_dir)/openh264/libopenh264.x86_64-darwin.a: $(src_dir)/openh264
 
 .PHONY: cross-libraries
 cross-libraries:
-	docker build -t mediadevices-builder -f builder.Dockerfile .
+	docker build -t mediadevices-libs-builder -f libs-builder.Dockerfile .
 	docker run --rm \
 		-v $(CURDIR):/go/src/github.com/pion/mediadevices \
-		mediadevices-builder make $(lib_dir)/openh264/libopenh264.x86_64-linux.a
+		mediadevices-libs-builder make $(lib_dir)/openh264/libopenh264.x86_64-linux.a
 	docker run --rm \
 		-v $(CURDIR):/go/src/github.com/pion/mediadevices \
-		mediadevices-builder make $(lib_dir)/openh264/libopenh264.x86_64-windows.a
+		mediadevices-libs-builder make $(lib_dir)/openh264/libopenh264.x86_64-windows.a
 	docker run --rm \
 		-v $(CURDIR):/go/src/github.com/pion/mediadevices \
-		mediadevices-builder make $(lib_dir)/openh264/libopenh264.x86_64-darwin.a
+		mediadevices-libs-builder make $(lib_dir)/openh264/libopenh264.x86_64-darwin.a
