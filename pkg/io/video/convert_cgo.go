@@ -9,13 +9,11 @@ import (
 // #include "convert_cgo.h"
 import "C"
 
-func init() {
-	// CGO version of the functions will be selected at runtime.
-	// All functions switched at runtime must be declared also in convert_nocgo.go.
-	hasCGOConvert = true
-}
+// CGO version of the functions will be selected at runtime.
+// All functions switched at runtime must be declared also in convert_nocgo.go.
+const hasCGOConvert = true
 
-func i444ToI420CGO(img *image.YCbCr) {
+func i444ToI420(img *image.YCbCr) {
 	h := img.Rect.Dy()
 	C.i444ToI420CGO(
 		(*C.uchar)(&img.Cb[0]), (*C.uchar)(&img.Cr[0]),
@@ -27,7 +25,7 @@ func i444ToI420CGO(img *image.YCbCr) {
 	img.Cr = img.Cr[:cLen]
 }
 
-func i422ToI420CGO(img *image.YCbCr) {
+func i422ToI420(img *image.YCbCr) {
 	h := img.Rect.Dy()
 	C.i422ToI420CGO(
 		(*C.uchar)(&img.Cb[0]), (*C.uchar)(&img.Cr[0]),
@@ -68,7 +66,7 @@ func repeatYCbCrToRGBCGO(n int, r, g, b *uint8, y, cb, cr uint8) { // For testin
 	)
 }
 
-func i444ToRGBACGO(dst *image.RGBA, src *image.YCbCr) {
+func i444ToRGBA(dst *image.RGBA, src *image.YCbCr) {
 	C.i444ToRGBACGO(
 		(*C.uchar)(&dst.Pix[0]),
 		(*C.uchar)(&src.Y[0]),
@@ -79,7 +77,7 @@ func i444ToRGBACGO(dst *image.RGBA, src *image.YCbCr) {
 	)
 }
 
-func rgbaToI444CGO(dst *image.YCbCr, src *image.RGBA) {
+func rgbaToI444(dst *image.YCbCr, src *image.RGBA) {
 	C.rgbaToI444(
 		(*C.uchar)(&dst.Y[0]),
 		(*C.uchar)(&dst.Cb[0]),
