@@ -15,16 +15,16 @@ ENV PYTHONUNBUFFERED=1 \
 COPY scripts /usr/bin/ 
 
 RUN dnf install -y \
-        python3 \
         diffutils \
+        golang \
         make \
-        pkg-config \
         mingw64-gcc \
         mingw64-gcc-c++ \
-        nasm \
-        wine \
-        golang \
         mingw64-opus && \
+        nasm \
+        pkg-config \
+        python3 \
+        wine \
     dnf clean all && \
     install-dependencies && \
     rm -rf /tmp/*
