@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,11 +20,11 @@ typedef struct Encoder {
   x264_param_t param;
 } Encoder;
 
-Encoder *enc_new(x264_param_t param) {
+Encoder *enc_new(x264_param_t param, int* rc) {
   Encoder *e = (Encoder *)malloc(sizeof(Encoder));
 
   if (x264_param_default_preset(&e->param, "veryfast", "zerolatency") < 0) {
-    errno = ERR_DEFAULT_PRESET;
+    *rc = ERR_DEFAULT_PRESET;
     goto fail;
   }
 
@@ -46,18 +45,18 @@ Encoder *enc_new(x264_param_t param) {
   e->param.b_annexb = 1;
 
   if (x264_param_apply_profile(&e->param, "baseline") < 0) {
-    errno = ERR_APPLY_PROFILE;
+    *rc = ERR_APPLY_PROFILE;
     goto fail;
   }
 
   if (x264_picture_alloc(&e->pic_in, param.i_csp, param.i_width, param.i_height) < 0) {
-    errno = ERR_ALLOC_PICTURE;
+    *rc = ERR_ALLOC_PICTURE;
     goto fail;
   }
 
   e->h = x264_encoder_open(&e->param);
   if (!e->h) {
-    errno = ERR_OPEN_ENGINE;
+    *rc = ERR_OPEN_ENGINE;
     x264_picture_clean(&e->pic_in);
     goto fail;
   }
@@ -69,7 +68,7 @@ fail:
   return NULL;
 }
 
-Slice enc_encode(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr) {
+Slice enc_encode(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr, int* rc) {
   x264_nal_t *nal;
   int i_nal;
 
@@ -80,7 +79,7 @@ Slice enc_encode(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr) {
   int frame_size = x264_encoder_encode(e->h, &nal, &i_nal, &e->pic_in, &e->pic_out);
   Slice s = {.data_len = frame_size};
   if (frame_size <= 0) {
-    errno = ERR_ENCODE;
+    *rc = ERR_ENCODE;
     return s;
   }
 
@@ -89,7 +88,7 @@ Slice enc_encode(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr) {
   return s;
 }
 
-void enc_close(Encoder *e) {
+void enc_close(Encoder *e, int* rc) {
   x264_encoder_close(e->h);
   x264_picture_clean(&e->pic_in);
   free(e);
