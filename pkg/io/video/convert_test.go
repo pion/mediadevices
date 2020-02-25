@@ -213,16 +213,6 @@ func TestToRGBA(t *testing.T) {
 	}
 }
 
-func TestNoCGO(t *testing.T) {
-	if !hasCGOConvert {
-		t.SkipNow()
-	}
-	hasCGOConvert = false
-	t.Run("ToI420", TestToI420)
-	t.Run("ToRGBA", TestToRGBA)
-	hasCGOConvert = true
-}
-
 func BenchmarkToI420(b *testing.B) {
 	for name, sz := range imageSizes {
 		cases := map[string]image.Image{
@@ -277,14 +267,4 @@ func BenchmarkToRGBA(b *testing.B) {
 			}
 		})
 	}
-}
-
-func BenchmarkNoCGO(b *testing.B) {
-	if !hasCGOConvert {
-		b.SkipNow()
-	}
-	hasCGOConvert = false
-	b.Run("ToI420", BenchmarkToI420)
-	b.Run("ToRGBA", BenchmarkToRGBA)
-	hasCGOConvert = true
 }

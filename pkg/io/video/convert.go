@@ -6,10 +6,6 @@ import (
 	"image/color"
 )
 
-var (
-	hasCGOConvert = false
-)
-
 // imageToYCbCr converts src to *image.YCbCr and store it to dst
 // Note: conversion can be lossy
 func imageToYCbCr(dst *image.YCbCr, src image.Image) {
@@ -46,21 +42,7 @@ func imageToYCbCr(dst *image.YCbCr, src image.Image) {
 
 	switch s := src.(type) {
 	case *image.RGBA:
-		if hasCGOConvert {
-			rgbaToI444CGO(dst, s)
-			return
-		}
-		i := 0
-		addr := 0
-		for yi := 0; yi < dy; yi++ {
-			for xi := 0; xi < dx; xi++ {
-				dst.Y[i], dst.Cb[i], dst.Cr[i] = color.RGBToYCbCr(
-					s.Pix[addr+0], s.Pix[addr+1], s.Pix[addr+2],
-				)
-				addr += 4
-				i++
-			}
-		}
+		rgbaToI444(dst, s)
 	default:
 		i := 0
 		for yi := 0; yi < dy; yi++ {
@@ -78,61 +60,8 @@ func imageToYCbCr(dst *image.YCbCr, src image.Image) {
 	}
 }
 
-func i444ToI420(img *image.YCbCr) {
-	h := img.Rect.Dy()
-	addrSrc0 := 0
-	addrSrc1 := img.CStride
-	addrDst := 0
-	for i := 0; i < h/2; i++ {
-		for j := 0; j < img.CStride/2; j++ {
-			cb := uint16(img.Cb[addrSrc0]) + uint16(img.Cb[addrSrc1]) +
-				uint16(img.Cb[addrSrc0+1]) + uint16(img.Cb[addrSrc1+1])
-			cr := uint16(img.Cr[addrSrc0]) + uint16(img.Cr[addrSrc1]) +
-				uint16(img.Cr[addrSrc0+1]) + uint16(img.Cr[addrSrc1+1])
-			img.Cb[addrDst] = uint8(cb / 4)
-			img.Cr[addrDst] = uint8(cr / 4)
-			addrSrc0 += 2
-			addrSrc1 += 2
-			addrDst++
-		}
-		addrSrc0 += img.CStride
-		addrSrc1 += img.CStride
-	}
-	img.CStride = img.CStride / 2
-	cLen := img.CStride * (h / 2)
-	img.Cb = img.Cb[:cLen]
-	img.Cr = img.Cr[:cLen]
-}
-
-func i422ToI420(img *image.YCbCr) {
-	h := img.Rect.Dy()
-	addrSrc := 0
-	addrDst := 0
-	for i := 0; i < h/2; i++ {
-		for j := 0; j < img.CStride; j++ {
-			cb := uint16(img.Cb[addrSrc]) + uint16(img.Cb[addrSrc+img.CStride])
-			cr := uint16(img.Cr[addrSrc]) + uint16(img.Cr[addrSrc+img.CStride])
-			img.Cb[addrDst] = uint8(cb / 2)
-			img.Cr[addrDst] = uint8(cr / 2)
-			addrDst++
-			addrSrc++
-		}
-		addrSrc += img.CStride
-	}
-	cLen := img.CStride * (h / 2)
-	img.Cb = img.Cb[:cLen]
-	img.Cr = img.Cr[:cLen]
-}
-
 // ToI420 converts r to a new reader that will output images in I420 format
 func ToI420(r Reader) Reader {
-	f444to420 := i444ToI420
-	f422to420 := i422ToI420
-	if hasCGOConvert {
-		f444to420 = i444ToI420CGO
-		f422to420 = i422ToI420CGO
-	}
-
 	var yuvImg image.YCbCr
 	return ReaderFunc(func() (image.Image, error) {
 		img, err := r.Read()
@@ -145,9 +74,9 @@ func ToI420(r Reader) Reader {
 		// Covert pixel format to I420
 		switch yuvImg.SubsampleRatio {
 		case image.YCbCrSubsampleRatio444:
-			f444to420(&yuvImg)
+			i444ToI420(&yuvImg)
 		case image.YCbCrSubsampleRatio422:
-			f422to420(&yuvImg)
+			i422ToI420(&yuvImg)
 		case image.YCbCrSubsampleRatio420:
 		default:
 			return nil, fmt.Errorf("unsupported pixel format: %s", yuvImg.SubsampleRatio)
@@ -179,13 +108,10 @@ func imageToRGBA(dst *image.RGBA, src image.Image) {
 	dst.Stride = 4 * dx
 	dst.Rect = bounds
 
-	if hasCGOConvert {
-		if srcYCbCr, ok := src.(*image.YCbCr); ok &&
-			srcYCbCr.SubsampleRatio == image.YCbCrSubsampleRatio444 {
-			// Use CGO version
-			i444ToRGBACGO(dst, srcYCbCr)
-			return
-		}
+	if srcYCbCr, ok := src.(*image.YCbCr); ok &&
+		srcYCbCr.SubsampleRatio == image.YCbCrSubsampleRatio444 {
+		i444ToRGBA(dst, srcYCbCr)
+		return
 	}
 
 	i := 0
