@@ -27,7 +27,8 @@ jobs:
           && sudo apt-get install --no-install-recommends -y \
             libopus-dev \
             libva-dev \
-            libvpx-dev
+            libvpx-dev \
+            libx264-dev
       - name: go vet
         run: go vet ./...
       - name: go build
