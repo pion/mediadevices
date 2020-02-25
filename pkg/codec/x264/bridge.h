@@ -38,8 +38,7 @@ Encoder *enc_new(x264_param_t param, int* rc) {
   e->param.i_keyint_max = param.i_keyint_max;
   // Rate control:
   e->param.rc.i_rc_method = X264_RC_CRF;
-  e->param.rc.f_rf_constant = 25;
-  e->param.rc.f_rf_constant_max = 35;
+  e->param.rc.f_rf_constant = param.rc.f_rf_constant;
   // For streaming:
   e->param.b_repeat_headers = 1;
   e->param.b_annexb = 1;
