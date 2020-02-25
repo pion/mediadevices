@@ -8,9 +8,13 @@ import (
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/webrtc/v2"
 
-	_ "github.com/pion/mediadevices/pkg/codec/openh264" // This is required to register h264 video encoder
-	_ "github.com/pion/mediadevices/pkg/codec/opus"     // This is required to register opus audio encoder
-	_ "github.com/pion/mediadevices/pkg/codec/vpx"      // This is required to register VP8/VP9 video encoder
+	_ "github.com/pion/mediadevices/pkg/codec/opus" // This is required to register opus audio encoder
+
+	// If you don't like vpx, you can also use x264 by importing as below
+	// _ "github.com/pion/mediadevices/pkg/codec/x264" // This is required to register h264 video encoder
+	// or you can also use openh264 for alternative h264 implementation
+	// _ "github.com/pion/mediadevices/pkg/codec/openh264" // This is required to register h264 video encoder
+	_ "github.com/pion/mediadevices/pkg/codec/vpx" // This is required to register VP8/VP9 video encoder
 
 	// Note: If you don't have a camera or microphone or your adapters are not supported,
 	//       you can always swap your adapters with our dummy adapters below.
