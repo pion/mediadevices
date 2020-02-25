@@ -48,6 +48,13 @@ func (e cerror) Error() string {
 	}
 }
 
+func errFromC(rc C.int) error {
+	if rc == 0 {
+		return nil
+	}
+	return cerror(rc)
+}
+
 var (
 	errInitEngine    = fmt.Errorf("failed to initialize x264")
 	errDefaultPreset = fmt.Errorf("failed to set default preset")
@@ -66,14 +73,15 @@ func newEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 		p.KeyFrameInterval = 60
 	}
 
-	engine, err := C.enc_new(C.x264_param_t{
+	var rc C.int
+	engine := C.enc_new(C.x264_param_t{
 		i_csp:        C.X264_CSP_I420,
 		i_width:      C.int(p.Width),
 		i_height:     C.int(p.Height),
 		i_keyint_max: C.int(p.KeyFrameInterval),
-	})
-	if err != nil {
-		return nil, cerror(err.(syscall.Errno))
+	}, &rc)
+	if err := errFromC(rc); err != nil {
+		return nil, err
 	}
 
 	e := encoder{
@@ -104,14 +112,17 @@ func (e *encoder) Read(p []byte) (int, error) {
 		return 0, err
 	}
 	yuvImg := img.(*image.YCbCr)
-	s, err := C.enc_encode(
+
+	var rc C.int
+	s := C.enc_encode(
 		e.engine,
 		(*C.uchar)(&yuvImg.Y[0]),
 		(*C.uchar)(&yuvImg.Cb[0]),
 		(*C.uchar)(&yuvImg.Cr[0]),
+		&rc,
 	)
-	if err != nil {
-		return 0, errEncode
+	if err := errFromC(rc); err != nil {
+		return 0, err
 	}
 
 	encoded := C.GoBytes(unsafe.Pointer(s.data), s.data_len)
@@ -126,7 +137,8 @@ func (e *encoder) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	C.enc_close(e.engine)
+	var rc C.int
+	C.enc_close(e.engine, &rc)
 	e.closed = true
 	return nil
 }
