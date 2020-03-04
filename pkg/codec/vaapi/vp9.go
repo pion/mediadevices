@@ -1,6 +1,6 @@
 package vaapi
 
-// reference: https://github.com/intel/libva-utils/blob/master/encode/vp8enc.c
+// reference: https://github.com/intel/libva-utils/blob/master/encode/vp9enc.c
 
 // #cgo pkg-config: libva libva-drm
 // #include <fcntl.h>
@@ -8,31 +8,32 @@ package vaapi
 // #include <stdio.h>
 // #include <stdlib.h>
 // #include <string.h>
-// #include <unistd.h>
 //
 // #include <va/va.h>
-// #include <va/va_drm.h>
-// #include <va/va_enc_vp8.h>
+// #include <va/va_enc_vp9.h>
 //
 // #include "helper.h"
 //
-// void setShowFrameFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
+// void setShowFrameFlag9(VAEncPictureParameterBufferVP9 *p, uint32_t f) {
 //   p->pic_flags.bits.show_frame = f;
 // }
-// void setForceKFFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
+// void setForceKFFlag9(VAEncPictureParameterBufferVP9 *p, uint32_t f) {
 //   p->ref_flags.bits.force_kf = f;
 // }
-// void setFrameTypeFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
+// void setFrameTypeFlagVP9(VAEncPictureParameterBufferVP9 *p, uint32_t f) {
 //   p->pic_flags.bits.frame_type = f;
 // }
-// void setRefreshLastFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
-//   p->pic_flags.bits.refresh_last = f;
+// void setRefFrameCtrlL0VP9(VAEncPictureParameterBufferVP9 *p, uint32_t f) {
+//   p->ref_flags.bits.ref_frame_ctrl_l0 = f;
 // }
-// void setCopyBufferToGoldenFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
-//   p->pic_flags.bits.copy_buffer_to_golden = f;
+// void setRefLastIndexVP9(VAEncPictureParameterBufferVP9 *p, uint32_t f) {
+//   p->ref_flags.bits.ref_last_idx = f;
 // }
-// void setCopyBufferToAlternateFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
-//   p->pic_flags.bits.copy_buffer_to_alternate = f;
+// void setRefGFIndexVP9(VAEncPictureParameterBufferVP9 *p, uint32_t f) {
+//   p->ref_flags.bits.ref_gf_idx = f;
+// }
+// void setRefARFIndexVP9(VAEncPictureParameterBufferVP9 *p, uint32_t f) {
+//   p->ref_flags.bits.ref_arf_idx = f;
 // }
 import "C"
 
@@ -53,15 +54,19 @@ import (
 )
 
 const (
-	surfaceVP8Ref0 = iota
-	surfaceVP8Ref1
-	surfaceVP8Ref2
-	surfaceVP8Ref3
-	surfaceVP8Input
-	surfaceVP8Num
+	surfaceVP9Ref0 = iota
+	surfaceVP9Ref1
+	surfaceVP9Ref2
+	surfaceVP9Ref3
+	surfaceVP9Ref4
+	surfaceVP9Ref5
+	surfaceVP9Ref6
+	surfaceVP9Ref7
+	surfaceVP9Input
+	surfaceVP9Num
 )
 
-type encoderVP8 struct {
+type encoderVP9 struct {
 	r     video.Reader
 	buf   []byte
 	frame []byte
@@ -69,14 +74,19 @@ type encoderVP8 struct {
 	fdDRI    C.int
 	display  C.VADisplay
 	confID   C.VAConfigID
-	surfs    [surfaceVP8Num]C.VASurfaceID
+	surfs    [surfaceVP9Num]C.VASurfaceID
 	ctxID    C.VAContextID
-	seqParam C.VAEncSequenceParameterBufferVP8
-	picParam C.VAEncPictureParameterBufferVP8
-	qMat     C.VAQMatrixBufferVP8
+	qMat     C.VAEncMiscParameterTypeVP9PerSegmantParam
+	seqParam C.VAEncSequenceParameterBufferVP9
+	picParam C.VAEncPictureParameterBufferVP9
 	hrdParam hrdParam
 	frParam  frParam
 	rcParam  rcParam
+
+	slotCurr int
+	slotLast int
+	slotGF   int
+	slotARF  int
 
 	frameCnt int
 	prop     prop.Media
@@ -86,11 +96,11 @@ type encoderVP8 struct {
 }
 
 func init() {
-	codec.Register(webrtc.VP8, codec.VideoEncoderBuilder(NewVP8Encoder))
+	codec.Register(webrtc.VP9, codec.VideoEncoderBuilder(NewVP9Encoder))
 }
 
-// NewVP8Encoder creates new VP8 encoder
-func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
+// NewVP9Encoder creates new VP9 encoder
+func NewVP9Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	if p.Width%16 != 0 || p.Width == 0 {
 		return nil, errors.New("width must be 16*n")
 	}
@@ -104,39 +114,44 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 		p.FrameRate = 30
 	}
 
-	// Parameters are from https://github.com/intel/libva-utils/blob/master/encode/vp8enc.c
-	e := &encoderVP8{
+	// Parameters are from https://github.com/intel/libva-utils/blob/master/encode/vp9enc.c
+	e := &encoderVP9{
 		r:    video.ToI420(r),
 		prop: p,
-		seqParam: C.VAEncSequenceParameterBufferVP8{
-			frame_width:     C.uint(p.Width),
-			frame_height:    C.uint(p.Height),
-			bits_per_second: C.uint(p.BitRate),
-			intra_period:    C.uint(p.KeyFrameInterval),
-			reference_frames: [4]C.VASurfaceID{
-				C.VA_INVALID_ID,
-				C.VA_INVALID_ID,
-				C.VA_INVALID_ID,
-				C.VA_INVALID_ID,
-			},
+		seqParam: C.VAEncSequenceParameterBufferVP9{
+			max_frame_width:  8192,
+			max_frame_height: 8192,
+			bits_per_second:  C.uint(p.BitRate),
+			intra_period:     C.uint(p.KeyFrameInterval),
+			kf_min_dist:      1,
+			kf_max_dist:      C.uint(p.KeyFrameInterval),
 		},
-		picParam: C.VAEncPictureParameterBufferVP8{
-			ref_last_frame:      C.VA_INVALID_SURFACE,
-			ref_gf_frame:        C.VA_INVALID_SURFACE,
-			ref_arf_frame:       C.VA_INVALID_SURFACE,
-			reconstructed_frame: C.VA_INVALID_SURFACE,
-			clamp_qindex_low:    9,
-			clamp_qindex_high:   127,
-			loop_filter_level: [4]C.int8_t{
-				19, 19, 19, 19,
+		picParam: C.VAEncPictureParameterBufferVP9{
+			reference_frames: [8]C.VASurfaceID{
+				C.VA_INVALID_ID,
+				C.VA_INVALID_ID,
+				C.VA_INVALID_ID,
+				C.VA_INVALID_ID,
+				C.VA_INVALID_ID,
+				C.VA_INVALID_ID,
+				C.VA_INVALID_ID,
+				C.VA_INVALID_ID,
 			},
-		},
-		qMat: C.VAQMatrixBufferVP8{
-			quantization_index: [4]C.uint16_t{
-				60, 60, 60, 60,
+			reconstructed_frame:    C.VA_INVALID_SURFACE,
+			frame_width_src:        C.uint(p.Width),
+			frame_height_src:       C.uint(p.Height),
+			frame_width_dst:        C.uint(p.Width),
+			frame_height_dst:       C.uint(p.Height),
+			luma_ac_qindex:         60,
+			luma_dc_qindex_delta:   1,
+			chroma_ac_qindex_delta: 1,
+			chroma_dc_qindex_delta: 1,
+			filter_level:           10,
+			ref_lf_delta: [4]C.int8_t{
+				1, 1, 1, 1,
 			},
-			quantization_index_delta: [5]C.int16_t{
-				0, 0, 0, 0, 0,
+			mode_lf_delta: [2]C.int8_t{
+				1, 1,
 			},
 		},
 		hrdParam: hrdParam{
@@ -169,9 +184,8 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 			},
 		},
 	}
-	C.setShowFrameFlagVP8(&e.picParam, 1)
+	C.setShowFrameFlag9(&e.picParam, 1)
 
-	// Try using dri
 	var err error
 	e.display, e.fdDRI, err = openDisplay("/dev/dri/card0")
 	if err != nil {
@@ -189,7 +203,7 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 
 	if s := C.vaQueryConfigEntrypoints(
 		e.display,
-		C.VAProfileVP8Version0_3,
+		C.VAProfileVP9Profile0,
 		&entrypoints[0],
 		&numEntrypoints,
 	); s != C.VA_STATUS_SUCCESS {
@@ -212,7 +226,7 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	}
 	if s := C.vaGetConfigAttributes(
 		e.display,
-		C.VAProfileVP8Version0_3,
+		C.VAProfileVP9Profile0,
 		C.VAEntrypointEncSlice,
 		&confAttrs[0], 2,
 	); s != C.VA_STATUS_SUCCESS {
@@ -229,7 +243,7 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 
 	if s := C.vaCreateConfig(
 		e.display,
-		C.VAProfileVP8Version0_3,
+		C.VAProfileVP9Profile0,
 		C.VAEntrypointEncSlice,
 		&confAttrs[0], 2,
 		&e.confID,
@@ -240,13 +254,13 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	surfAttr := C.VASurfaceAttrib{
 		_type: C.VASurfaceAttribPixelFormat,
 		flags: C.VA_SURFACE_ATTRIB_SETTABLE,
-		value: C.genValInt(C.VA_FOURCC_I420),
+		value: C.genValInt(C.VA_FOURCC_NV12), // libva VP9 seems not supporting I420 surface
 	}
 	if s := C.vaCreateSurfaces(
 		e.display,
 		C.VA_RT_FORMAT_YUV420,
 		C.uint(p.Width), C.uint(p.Height),
-		&e.surfs[0], surfaceVP8Num,
+		&e.surfs[0], surfaceVP9Num,
 		&surfAttr, 1,
 	); s != C.VA_STATUS_SUCCESS {
 		return nil, fmt.Errorf("failed to create surfaces: %s", C.GoString(C.vaErrorStr(s)))
@@ -257,7 +271,7 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 		e.confID,
 		C.int(p.Width), C.int(p.Height),
 		C.VA_PROGRESSIVE,
-		&e.surfs[0], surfaceVP8Num,
+		&e.surfs[0], surfaceVP9Num,
 		&e.ctxID,
 	); s != C.VA_STATUS_SUCCESS {
 		return nil, fmt.Errorf("failed to create context: %s", C.GoString(C.vaErrorStr(s)))
@@ -266,7 +280,7 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	return e, nil
 }
 
-func (e *encoderVP8) Read(p []byte) (int, error) {
+func (e *encoderVP9) Read(p []byte) (int, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -292,22 +306,22 @@ func (e *encoderVP8) Read(p []byte) (int, error) {
 	e.frameCnt++
 
 	if kf {
-		// Key frame
-		C.setForceKFFlagVP8(&e.picParam, 1)
-		C.setFrameTypeFlagVP8(&e.picParam, 0)
-		C.setRefreshLastFlagVP8(&e.picParam, 0)
-		C.setCopyBufferToGoldenFlagVP8(&e.picParam, 0)
-		C.setCopyBufferToAlternateFlagVP8(&e.picParam, 0)
+		C.setForceKFFlag9(&e.picParam, 1)
+		C.setFrameTypeFlagVP9(&e.picParam, 0)
+		e.picParam.refresh_frame_flags = 0
+		for i := range e.picParam.reference_frames {
+			e.picParam.reference_frames[i] = C.VA_INVALID_ID
+		}
 	} else {
-		C.setForceKFFlagVP8(&e.picParam, 0)
-		C.setFrameTypeFlagVP8(&e.picParam, 1)
-		C.setRefreshLastFlagVP8(&e.picParam, 1)
-		C.setCopyBufferToGoldenFlagVP8(&e.picParam, 1)
-		C.setCopyBufferToAlternateFlagVP8(&e.picParam, 2)
+		C.setForceKFFlag9(&e.picParam, 0)
+		C.setFrameTypeFlagVP9(&e.picParam, 1)
+		e.picParam.refresh_frame_flags = 1 << uint(e.slotCurr)
+		C.setRefFrameCtrlL0VP9(&e.picParam, 0x7)
+		C.setRefLastIndexVP9(&e.picParam, C.uint(e.slotLast))
+		C.setRefGFIndexVP9(&e.picParam, C.uint(e.slotGF))
+		C.setRefARFIndexVP9(&e.picParam, C.uint(e.slotARF))
 	}
-	if e.picParam.reconstructed_frame == C.VA_INVALID_SURFACE {
-		e.picParam.reconstructed_frame = e.surfs[surfaceVP8Ref0]
-	}
+	e.picParam.reconstructed_frame = e.surfs[e.slotCurr]
 
 	// Prepare buffers
 	buffs := make([]C.VABufferID, 0, bufferNum)
@@ -374,7 +388,7 @@ func (e *encoderVP8) Read(p []byte) (int, error) {
 	// Render picture
 	if s := C.vaBeginPicture(
 		e.display, e.ctxID,
-		e.surfs[surfaceVP8Input],
+		e.surfs[surfaceVP9Input],
 	); s != C.VA_STATUS_SUCCESS {
 		return 0, fmt.Errorf("failed to begin picture: %s", C.GoString(C.vaErrorStr(s)))
 	}
@@ -382,24 +396,19 @@ func (e *encoderVP8) Read(p []byte) (int, error) {
 	// Upload image
 	var vaImg C.VAImage
 	var rawBuf unsafe.Pointer
-	if s := C.vaDeriveImage(e.display, e.surfs[surfaceVP8Input], &vaImg); s != C.VA_STATUS_SUCCESS {
+	if s := C.vaDeriveImage(e.display, e.surfs[surfaceVP9Input], &vaImg); s != C.VA_STATUS_SUCCESS {
 		return 0, fmt.Errorf("failed to derive image: %s", C.GoString(C.vaErrorStr(s)))
 	}
 	if s := C.vaMapBuffer(e.display, vaImg.buf, &rawBuf); s != C.VA_STATUS_SUCCESS {
 		return 0, fmt.Errorf("failed to map buffer: %s", C.GoString(C.vaErrorStr(s)))
 	}
 	// TODO: use vaImg.pitches to support padding
-	C.memcpy(
-		unsafe.Pointer(uintptr(rawBuf)+uintptr(vaImg.offsets[0])),
-		unsafe.Pointer(&yuvImg.Y[0]), C.size_t(len(yuvImg.Y)),
-	)
-	C.memcpy(
-		unsafe.Pointer(uintptr(rawBuf)+uintptr(vaImg.offsets[1])),
-		unsafe.Pointer(&yuvImg.Cb[0]), C.size_t(len(yuvImg.Cb)),
-	)
-	C.memcpy(
-		unsafe.Pointer(uintptr(rawBuf)+uintptr(vaImg.offsets[2])),
-		unsafe.Pointer(&yuvImg.Cr[0]), C.size_t(len(yuvImg.Cr)),
+	C.copyI420toNV12(
+		rawBuf,
+		(*C.uchar)(&yuvImg.Y[0]),
+		(*C.uchar)(&yuvImg.Cb[0]),
+		(*C.uchar)(&yuvImg.Cr[0]),
+		C.uint(len(yuvImg.Y)),
 	)
 	if s := C.vaUnmapBuffer(e.display, vaImg.buf); s != C.VA_STATUS_SUCCESS {
 		return 0, fmt.Errorf("failed to unmap buffer: %s", C.GoString(C.vaErrorStr(s)))
@@ -455,21 +464,12 @@ func (e *encoderVP8) Read(p []byte) (int, error) {
 		}
 	}
 
-	// vp8enc_update_reference_list
-	if kf {
-		e.picParam.ref_last_frame = e.picParam.reconstructed_frame
-		e.picParam.ref_gf_frame = e.picParam.reconstructed_frame
-		e.picParam.ref_arf_frame = e.picParam.reconstructed_frame
-	} else {
-		e.picParam.ref_last_frame, e.picParam.ref_gf_frame, e.picParam.ref_arf_frame =
-			e.picParam.reconstructed_frame, e.picParam.ref_last_frame, e.picParam.ref_gf_frame
-	}
-
-	// Select released surface for next frame
-	for _, s := range e.surfs {
-		if s != e.picParam.ref_last_frame && s != e.picParam.ref_gf_frame && s != e.picParam.ref_arf_frame {
-			e.picParam.reconstructed_frame = s
-		}
+	// Update reference list
+	e.picParam.reference_frames[e.slotCurr] = e.picParam.reconstructed_frame
+	e.slotLast, e.slotGF, e.slotARF = e.slotCurr, e.slotLast, e.slotGF
+	e.slotCurr++
+	if e.slotCurr >= len(e.picParam.reference_frames) {
+		e.slotCurr = 0
 	}
 
 	n, err := mio.Copy(p, e.frame)
@@ -479,15 +479,14 @@ func (e *encoderVP8) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func (e *encoderVP8) Close() error {
+func (e *encoderVP9) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	C.vaDestroySurfaces(e.display, &e.surfs[0], C.int(len(e.surfs)))
 	C.vaDestroyContext(e.display, e.ctxID)
 	C.vaDestroyConfig(e.display, e.confID)
-	C.vaTerminate(e.display)
-	C.close(e.fdDRI)
+	closeDisplay(e.display, e.fdDRI)
 
 	e.closed = true
 	return nil
