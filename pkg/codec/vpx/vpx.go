@@ -93,6 +93,26 @@ func NewVP9Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	return newEncoder(r, p, C.ifaceVP9())
 }
 
+// NewVP8Param returns default VP8 codec specific parameters.
+func NewVP8Param() (Params, error) { return newParam(C.ifaceVP8()) }
+
+// NewVP9Param returns default VP9 codec specific parameters.
+func NewVP9Param() (Params, error) { return newParam(C.ifaceVP9()) }
+
+func newParam(codecIface *C.vpx_codec_iface_t) (Params, error) {
+	cfg := &C.vpx_codec_enc_cfg_t{}
+	if ec := C.vpx_codec_enc_config_default(codecIface, cfg, 0); ec != 0 {
+		return Params{}, fmt.Errorf("vpx_codec_enc_config_default failed (%d)", ec)
+	}
+	return Params{
+		RateControlEndUsage:          RateControlMode(cfg.rc_end_usage),
+		RateControlUndershootPercent: uint(cfg.rc_undershoot_pct),
+		RateControlOvershootPercent:  uint(cfg.rc_overshoot_pct),
+		RateControlMinQuantizer:      uint(cfg.rc_min_quantizer),
+		RateControlMaxQuantizer:      uint(cfg.rc_max_quantizer),
+	}, nil
+}
+
 func newEncoder(r video.Reader, p prop.Media, codecIface *C.vpx_codec_iface_t) (io.ReadCloser, error) {
 	if p.BitRate == 0 {
 		p.BitRate = 100000
@@ -106,6 +126,19 @@ func newEncoder(r video.Reader, p prop.Media, codecIface *C.vpx_codec_iface_t) (
 	if ec := C.vpx_codec_enc_config_default(codecIface, cfg, 0); ec != 0 {
 		return nil, fmt.Errorf("vpx_codec_enc_config_default failed (%d)", ec)
 	}
+
+	switch cp := p.CodecParams.(type) {
+	case nil:
+	case Params:
+		cfg.rc_end_usage = uint32(cp.RateControlEndUsage)
+		cfg.rc_undershoot_pct = C.uint(cp.RateControlUndershootPercent)
+		cfg.rc_overshoot_pct = C.uint(cp.RateControlOvershootPercent)
+		cfg.rc_min_quantizer = C.uint(cp.RateControlMinQuantizer)
+		cfg.rc_max_quantizer = C.uint(cp.RateControlMaxQuantizer)
+	default:
+		return nil, errors.New("unsupported CodecParams type")
+	}
+
 	cfg.g_w = C.uint(p.Width)
 	cfg.g_h = C.uint(p.Height)
 	cfg.g_timebase.num = 1

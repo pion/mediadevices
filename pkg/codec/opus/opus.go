@@ -1,6 +1,7 @@
 package opus
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -40,6 +41,10 @@ func NewEncoder(r audio.Reader, p prop.Media) (io.ReadCloser, error) {
 
 	if p.BitRate == 0 {
 		p.BitRate = 32000
+	}
+
+	if p.CodecParams != nil {
+		return nil, errors.New("unsupported CodecParams type")
 	}
 
 	// Select the nearest supported latency

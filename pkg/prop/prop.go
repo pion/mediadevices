@@ -119,11 +119,9 @@ type Codec struct {
 	// Target bitrate in bps.
 	BitRate int
 
-	// Quolity of the encoding [0-9].
-	// Larger value results higher quality and higher CPU usage.
-	// It depends on the selected codec.
-	Quality int
-
 	// Expected interval of the keyframes in frames.
 	KeyFrameInterval int
+
+	// Library specific parameter struct defined by each codec package
+	CodecParams interface{}
 }
