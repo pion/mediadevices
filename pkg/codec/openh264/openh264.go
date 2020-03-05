@@ -9,6 +9,7 @@ package openh264
 import "C"
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"io"
@@ -41,6 +42,10 @@ func init() {
 func NewEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	if p.BitRate == 0 {
 		p.BitRate = 100000
+	}
+
+	if p.CodecParams != nil {
+		return nil, errors.New("unsupported CodecParams type")
 	}
 
 	var rv C.int
