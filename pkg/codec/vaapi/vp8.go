@@ -28,6 +28,12 @@ package vaapi
 // void setRefreshLastFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
 //   p->pic_flags.bits.refresh_last = f;
 // }
+// void setRefreshGoldenFrameFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
+//   p->pic_flags.bits.refresh_golden_frame = f;
+// }
+// void setRefreshAlternateFrameFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
+//   p->pic_flags.bits.refresh_alternate_frame = f;
+// }
 // void setCopyBufferToGoldenFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
 //   p->pic_flags.bits.copy_buffer_to_golden = f;
 // }
@@ -81,12 +87,33 @@ type encoderVP8 struct {
 	frameCnt int
 	prop     prop.Media
 
+	rate *framerateDetector
+
 	mu     sync.Mutex
 	closed bool
 }
 
 func init() {
 	codec.Register(webrtc.VP8, codec.VideoEncoderBuilder(NewVP8Encoder))
+}
+
+// NewVP8Param returns default parameters of VP8 codec.
+func NewVP8Param() (ParamVP8, error) {
+	return ParamVP8{
+		Sequence: SequenceParamVP8{
+			ClampQindexLow:  9,
+			ClampQindexHigh: 127,
+		},
+		RateControlMode: RateControlVBR,
+		RateControl: RateControlParam{
+			BitsPerSecond:    400000,
+			TargetPercentage: 80,
+			WindowSize:       1500,
+			InitialQP:        60,
+			MinQP:            9,
+			MaxQP:            127,
+		},
+	}, nil
 }
 
 // NewVP8Encoder creates new VP8 encoder
@@ -104,15 +131,28 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 		p.FrameRate = 30
 	}
 
+	var cp ParamVP8
+	switch params := p.Codec.CodecParams.(type) {
+	case nil:
+		cp, _ = NewVP8Param()
+		cp.RateControl.BitsPerSecond = uint(float32(p.BitRate) * 1.5)
+	case ParamVP8:
+		cp = params
+	default:
+		return nil, errors.New("unsupported CodecParams type")
+	}
+
 	// Parameters are from https://github.com/intel/libva-utils/blob/master/encode/vp8enc.c
 	e := &encoderVP8{
 		r:    video.ToI420(r),
 		prop: p,
+		rate: newFramerateDetector(uint32(p.FrameRate)),
 		seqParam: C.VAEncSequenceParameterBufferVP8{
 			frame_width:     C.uint(p.Width),
 			frame_height:    C.uint(p.Height),
-			bits_per_second: C.uint(p.BitRate),
+			bits_per_second: C.uint(cp.RateControl.BitsPerSecond),
 			intra_period:    C.uint(p.KeyFrameInterval),
+			kf_max_dist:     C.uint(p.KeyFrameInterval),
 			reference_frames: [4]C.VASurfaceID{
 				C.VA_INVALID_ID,
 				C.VA_INVALID_ID,
@@ -125,8 +165,8 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 			ref_gf_frame:        C.VA_INVALID_SURFACE,
 			ref_arf_frame:       C.VA_INVALID_SURFACE,
 			reconstructed_frame: C.VA_INVALID_SURFACE,
-			clamp_qindex_low:    9,
-			clamp_qindex_high:   127,
+			clamp_qindex_low:    C.uint8_t(cp.Sequence.ClampQindexLow),
+			clamp_qindex_high:   C.uint8_t(cp.Sequence.ClampQindexHigh),
 			loop_filter_level: [4]C.int8_t{
 				19, 19, 19, 19,
 			},
@@ -144,8 +184,10 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 				_type: C.VAEncMiscParameterTypeHRD,
 			},
 			data: C.VAEncMiscParameterHRD{
-				initial_buffer_fullness: C.uint(float32(p.BitRate) * 1.5 / 2),
-				buffer_size:             C.uint(float32(p.BitRate) * 1.5),
+				initial_buffer_fullness: C.uint(cp.RateControl.BitsPerSecond *
+					cp.RateControl.WindowSize / 2000),
+				buffer_size: C.uint(cp.RateControl.BitsPerSecond *
+					cp.RateControl.WindowSize / 1000),
 			},
 		},
 		frParam: frParam{
@@ -161,11 +203,12 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 				_type: C.VAEncMiscParameterTypeRateControl,
 			},
 			data: C.VAEncMiscParameterRateControl{
-				window_size:       1500,
-				initial_qp:        60,
-				min_qp:            9,
-				bits_per_second:   C.uint(float32(p.BitRate) * 1.25),
-				target_percentage: C.uint(100.0 / 1.25),
+				window_size:       C.uint(cp.RateControl.WindowSize),
+				initial_qp:        C.uint(cp.RateControl.InitialQP),
+				min_qp:            C.uint(cp.RateControl.MinQP),
+				max_qp:            C.uint(cp.RateControl.MaxQP),
+				bits_per_second:   C.uint(cp.RateControl.BitsPerSecond),
+				target_percentage: C.uint(cp.RateControl.TargetPercentage),
 			},
 		},
 	}
@@ -185,7 +228,7 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	}
 
 	var numEntrypoints C.int
-	entrypoints := make([]C.VAEntrypoint, 5)
+	entrypoints := make([]C.VAEntrypoint, int(C.vaMaxNumEntrypoints(e.display)))
 
 	if s := C.vaQueryConfigEntrypoints(
 		e.display,
@@ -221,11 +264,11 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	if (confAttrs[0].value & C.VA_RT_FORMAT_YUV420) == 0 {
 		return nil, errors.New("the hardware encoder doesn't support YUV420")
 	}
-	if (confAttrs[1].value & C.VA_RC_VBR) == 0 {
-		return nil, errors.New("the hardware encoder doesn't support VBR mode")
+	if (confAttrs[1].value & C.uint(cp.RateControlMode)) == 0 {
+		return nil, errors.New("the hardware encoder doesn't support specified rate control mode")
 	}
 	confAttrs[0].value = C.VA_RT_FORMAT_YUV420
-	confAttrs[1].value = C.VA_RC_VBR
+	confAttrs[1].value = C.uint(cp.RateControlMode)
 
 	if s := C.vaCreateConfig(
 		e.display,
@@ -291,18 +334,24 @@ func (e *encoderVP8) Read(p []byte) (int, error) {
 	kf := e.frameCnt%e.prop.KeyFrameInterval == 0
 	e.frameCnt++
 
+	e.frParam.data.framerate = C.uint(e.rate.Calc())
+
 	if kf {
 		// Key frame
 		C.setForceKFFlagVP8(&e.picParam, 1)
 		C.setFrameTypeFlagVP8(&e.picParam, 0)
-		C.setRefreshLastFlagVP8(&e.picParam, 0)
+		C.setRefreshLastFlagVP8(&e.picParam, 1)
+		C.setRefreshGoldenFrameFlagVP8(&e.picParam, 1)
 		C.setCopyBufferToGoldenFlagVP8(&e.picParam, 0)
+		C.setRefreshAlternateFrameFlagVP8(&e.picParam, 1)
 		C.setCopyBufferToAlternateFlagVP8(&e.picParam, 0)
 	} else {
 		C.setForceKFFlagVP8(&e.picParam, 0)
 		C.setFrameTypeFlagVP8(&e.picParam, 1)
 		C.setRefreshLastFlagVP8(&e.picParam, 1)
+		C.setRefreshGoldenFrameFlagVP8(&e.picParam, 0)
 		C.setCopyBufferToGoldenFlagVP8(&e.picParam, 1)
+		C.setRefreshAlternateFrameFlagVP8(&e.picParam, 0)
 		C.setCopyBufferToAlternateFlagVP8(&e.picParam, 2)
 	}
 	if e.picParam.reconstructed_frame == C.VA_INVALID_SURFACE {

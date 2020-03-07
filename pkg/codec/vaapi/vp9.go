@@ -91,12 +91,29 @@ type encoderVP9 struct {
 	frameCnt int
 	prop     prop.Media
 
+	rate *framerateDetector
+
 	mu     sync.Mutex
 	closed bool
 }
 
 func init() {
 	codec.Register(webrtc.VP9, codec.VideoEncoderBuilder(NewVP9Encoder))
+}
+
+// NewVP8Param returns default parameters of VP9 codec.
+func NewVP9Param() (ParamVP9, error) {
+	return ParamVP9{
+		RateControlMode: RateControlVBR,
+		RateControl: RateControlParam{
+			BitsPerSecond:    400000,
+			TargetPercentage: 80,
+			WindowSize:       1500,
+			InitialQP:        60,
+			MinQP:            9,
+			MaxQP:            127,
+		},
+	}, nil
 }
 
 // NewVP9Encoder creates new VP9 encoder
@@ -114,14 +131,26 @@ func NewVP9Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 		p.FrameRate = 30
 	}
 
+	var cp ParamVP9
+	switch params := p.Codec.CodecParams.(type) {
+	case nil:
+		cp, _ = NewVP9Param()
+		cp.RateControl.BitsPerSecond = uint(float32(p.BitRate) * 1.5)
+	case ParamVP9:
+		cp = params
+	default:
+		return nil, errors.New("unsupported CodecParams type")
+	}
+
 	// Parameters are from https://github.com/intel/libva-utils/blob/master/encode/vp9enc.c
 	e := &encoderVP9{
 		r:    video.ToI420(r),
 		prop: p,
+		rate: newFramerateDetector(uint32(p.FrameRate)),
 		seqParam: C.VAEncSequenceParameterBufferVP9{
 			max_frame_width:  8192,
 			max_frame_height: 8192,
-			bits_per_second:  C.uint(p.BitRate),
+			bits_per_second:  C.uint(cp.RateControl.BitsPerSecond),
 			intra_period:     C.uint(p.KeyFrameInterval),
 			kf_min_dist:      1,
 			kf_max_dist:      C.uint(p.KeyFrameInterval),
@@ -159,8 +188,10 @@ func NewVP9Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 				_type: C.VAEncMiscParameterTypeHRD,
 			},
 			data: C.VAEncMiscParameterHRD{
-				initial_buffer_fullness: C.uint(float32(p.BitRate) * 1.5 / 2),
-				buffer_size:             C.uint(float32(p.BitRate) * 1.5),
+				initial_buffer_fullness: C.uint(cp.RateControl.BitsPerSecond *
+					cp.RateControl.WindowSize / 2000),
+				buffer_size: C.uint(cp.RateControl.BitsPerSecond *
+					cp.RateControl.WindowSize / 1000),
 			},
 		},
 		frParam: frParam{
@@ -176,11 +207,12 @@ func NewVP9Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 				_type: C.VAEncMiscParameterTypeRateControl,
 			},
 			data: C.VAEncMiscParameterRateControl{
-				window_size:       1500,
-				initial_qp:        60,
-				min_qp:            9,
-				bits_per_second:   C.uint(float32(p.BitRate) * 1.25),
-				target_percentage: C.uint(100.0 / 1.25),
+				window_size:       C.uint(cp.RateControl.WindowSize),
+				initial_qp:        C.uint(cp.RateControl.InitialQP),
+				min_qp:            C.uint(cp.RateControl.MinQP),
+				max_qp:            C.uint(cp.RateControl.MaxQP),
+				bits_per_second:   C.uint(cp.RateControl.BitsPerSecond),
+				target_percentage: C.uint(cp.RateControl.TargetPercentage),
 			},
 		},
 	}
@@ -199,7 +231,7 @@ func NewVP9Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	}
 
 	var numEntrypoints C.int
-	entrypoints := make([]C.VAEntrypoint, 5)
+	entrypoints := make([]C.VAEntrypoint, int(C.vaMaxNumEntrypoints(e.display)))
 
 	if s := C.vaQueryConfigEntrypoints(
 		e.display,
@@ -235,11 +267,11 @@ func NewVP9Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	if (confAttrs[0].value & C.VA_RT_FORMAT_YUV420) == 0 {
 		return nil, errors.New("the hardware encoder doesn't support YUV420")
 	}
-	if (confAttrs[1].value & C.VA_RC_VBR) == 0 {
-		return nil, errors.New("the hardware encoder doesn't support VBR mode")
+	if (confAttrs[1].value & C.uint(cp.RateControlMode)) == 0 {
+		return nil, errors.New("the hardware encoder doesn't support specified rate control mode")
 	}
 	confAttrs[0].value = C.VA_RT_FORMAT_YUV420
-	confAttrs[1].value = C.VA_RC_VBR
+	confAttrs[1].value = C.uint(cp.RateControlMode)
 
 	if s := C.vaCreateConfig(
 		e.display,
@@ -304,6 +336,8 @@ func (e *encoderVP9) Read(p []byte) (int, error) {
 
 	kf := e.frameCnt%e.prop.KeyFrameInterval == 0
 	e.frameCnt++
+
+	e.frParam.data.framerate = C.uint(e.rate.Calc())
 
 	if kf {
 		C.setForceKFFlag9(&e.picParam, 1)
