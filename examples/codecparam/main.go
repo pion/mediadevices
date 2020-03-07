@@ -9,7 +9,7 @@ import (
 	"github.com/pion/webrtc/v2"
 
 	_ "github.com/pion/mediadevices/pkg/codec/opus" // This is required to register opus audio encoder
-	"github.com/pion/mediadevices/pkg/codec/vpx"    // This is required to register VP8/VP9 video encoder
+	"github.com/pion/mediadevices/pkg/codec/vaapi"  // This is required to register VP8/VP9 video encoder
 
 	// Note: If you don't have a camera or microphone or your adapters are not supported,
 	//       you can always swap your adapters with our dummy adapters below.
@@ -63,19 +63,20 @@ func main() {
 			c.Enabled = true
 			c.Width = 640
 			c.Height = 480
-			c.BitRate = 400000 // 400kbps
+			c.FrameRate = 30
 
 			// Load default parameters.
-			cp, err := vpx.NewVP8Param()
+			cp, err := vaapi.NewVP8Param()
 			if err != nil {
 				panic(err)
 			}
 			fmt.Printf("default codec parameters: %+v\n", cp)
 
-			// Set parameters to avoid bitrate overshoot as possible.
-			cp.RateControlEndUsage = vpx.RateControlCBR
-			cp.RateControlOvershootPercent = 1
-			cp.RateControlUndershootPercent = 95
+			// This example is using libva's hardware accelerated codec.
+			// Set encoder parameters to prohibit bitrate overshoot as possible.
+			cp.RateControlMode = vaapi.RateControlVBR
+			cp.RateControl.BitsPerSecond = 400000
+			cp.RateControl.TargetPercentage = 95
 			c.CodecParams = cp
 		},
 	})
