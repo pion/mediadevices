@@ -21,14 +21,6 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
-const (
-	// maxRF is a limit for x264 compression level
-	// TODO: Probably remove this hardcoded value.
-	//       I only saw that 51 was also hardcoded in their source.
-	maxRF      = 51
-	maxQuality = 10
-)
-
 type encoder struct {
 	engine *C.Encoder
 	buff   []byte
@@ -81,25 +73,12 @@ func newEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 		p.KeyFrameInterval = 60
 	}
 
-	quality := 5
-	switch cp := p.CodecParams.(type) {
+	switch p.CodecParams.(type) {
 	case nil:
 	case Params:
-		quality = cp.Quality
 	default:
 		return nil, errors.New("unsupported CodecParams type")
 	}
-
-	var rf C.float
-	// first reverse quality value since rf is the inverse of Quality,
-	// and add 1 to map [1,maxQuality] to [maxQuality-1,0]
-	rf = C.float(maxQuality - quality)
-	// Then, map to x264 RF range, [0,maxQuality-1] to [1,maxRF].
-	// [1,maxRF] because 0 is lossless and constrained baseline doesn't support
-	// lossless.
-	rf *= (maxRF - 1)
-	rf /= (maxQuality - 1)
-	rf++
 
 	param := C.x264_param_t{
 		i_csp:        C.X264_CSP_I420,
@@ -107,7 +86,9 @@ func newEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 		i_height:     C.int(p.Height),
 		i_keyint_max: C.int(p.KeyFrameInterval),
 	}
-	param.rc.f_rf_constant = rf
+	param.rc.i_bitrate = C.int(p.BitRate)
+	param.rc.i_vbv_max_bitrate = param.rc.i_bitrate
+	param.rc.i_vbv_buffer_size = param.rc.i_vbv_max_bitrate * 2
 
 	var rc C.int
 	engine := C.enc_new(param, &rc)
