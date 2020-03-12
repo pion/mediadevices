@@ -20,13 +20,15 @@ typedef struct Encoder {
   x264_param_t param;
 } Encoder;
 
-Encoder *enc_new(x264_param_t param, int* rc) {
+Encoder *enc_new(x264_param_t param, char *preset, int* rc) {
   Encoder *e = (Encoder *)malloc(sizeof(Encoder));
 
-  if (x264_param_default_preset(&e->param, "veryfast", "zerolatency") < 0) {
+  if (x264_param_default_preset(&e->param, preset, "zerolatency") < 0) {
+    free(preset);
     *rc = ERR_DEFAULT_PRESET;
     goto fail;
   }
+  free(preset);
 
   /* Configure non-default params */
   e->param.i_csp = param.i_csp;

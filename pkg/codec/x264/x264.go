@@ -73,9 +73,11 @@ func newEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 		p.KeyFrameInterval = 60
 	}
 
-	switch p.CodecParams.(type) {
+	var preset Preset
+	switch cp := p.CodecParams.(type) {
 	case nil:
 	case Params:
+		preset = cp.Preset
 	default:
 		return nil, errors.New("unsupported CodecParams type")
 	}
@@ -91,7 +93,8 @@ func newEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	param.rc.i_vbv_buffer_size = param.rc.i_vbv_max_bitrate * 2
 
 	var rc C.int
-	engine := C.enc_new(param, &rc)
+	cPreset := C.CString(fmt.Sprint(preset))
+	engine := C.enc_new(param, cPreset, &rc)
 	if err := errFromC(rc); err != nil {
 		return nil, err
 	}
