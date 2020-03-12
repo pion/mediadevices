@@ -93,6 +93,7 @@ func newEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	param.rc.i_vbv_buffer_size = param.rc.i_vbv_max_bitrate * 2
 
 	var rc C.int
+	// cPreset will be freed in C.enc_new
 	cPreset := C.CString(fmt.Sprint(preset))
 	engine := C.enc_new(param, cPreset, &rc)
 	if err := errFromC(rc); err != nil {
