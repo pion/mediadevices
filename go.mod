@@ -14,3 +14,5 @@ require (
 	golang.org/x/image v0.0.0-20200119044424-58c23975cae1
 	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527
 )
+
+replace github.com/blackjack/webcam v0.0.0-20191123110216-08fa32efcb67 => github.com/at-wat/webcam v0.0.0-20200313121942-23f0348cdd62
