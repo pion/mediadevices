@@ -3,7 +3,7 @@ module github.com/pion/mediadevices
 go 1.13
 
 require (
-	github.com/blackjack/webcam v0.0.0-20191123110216-08fa32efcb67
+	github.com/blackjack/webcam v0.0.0-20200313125108-10ed912a8539
 	github.com/disintegration/imaging v1.6.2
 	github.com/faiface/beep v1.0.2
 	github.com/jfreymuth/pulse v0.0.0-20200118113426-7cf5f487291e
