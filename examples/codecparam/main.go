@@ -5,18 +5,16 @@ import (
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
+	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/webrtc/v2"
 
-	_ "github.com/pion/mediadevices/pkg/codec/opus" // This is required to register opus audio encoder
-	"github.com/pion/mediadevices/pkg/codec/vaapi"  // This is required to register VP8/VP9 video encoder
+	"github.com/pion/mediadevices/pkg/codec/vaapi" // This is required to register VP8/VP9 video encoder
 
-	// Note: If you don't have a camera or microphone or your adapters are not supported,
+	// Note: If you don't have a camera or your adapters are not supported,
 	//       you can always swap your adapters with our dummy adapters below.
 	// _ "github.com/pion/mediadevices/pkg/driver/videotest"
-	// _ "github.com/pion/mediadevices/pkg/driver/audiotest"
-	_ "github.com/pion/mediadevices/pkg/driver/camera"     // This is required to register camera adapter
-	_ "github.com/pion/mediadevices/pkg/driver/microphone" // This is required to register microphone adapter
+	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
 )
 
 func main() {
@@ -52,13 +50,7 @@ func main() {
 	md := mediadevices.NewMediaDevices(peerConnection)
 
 	s, err := md.GetUserMedia(mediadevices.MediaStreamConstraints{
-		Audio: func(c *mediadevices.MediaTrackConstraints) {
-			c.CodecName = webrtc.Opus
-			c.Enabled = true
-			c.BitRate = 32000 // 32kbps
-		},
 		Video: func(c *mediadevices.MediaTrackConstraints) {
-			c.CodecName = webrtc.VP8
 			c.FrameFormat = frame.FormatYUY2
 			c.Enabled = true
 			c.Width = 640
@@ -77,7 +69,7 @@ func main() {
 			cp.RateControlMode = vaapi.RateControlVBR
 			cp.RateControl.BitsPerSecond = 400000
 			cp.RateControl.TargetPercentage = 95
-			c.CodecParams = cp
+			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&cp}
 		},
 	})
 	if err != nil {

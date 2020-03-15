@@ -14,7 +14,6 @@ type Media struct {
 	DeviceID string
 	Video
 	Audio
-	Codec
 }
 
 // Merge merges all the field values from o to p, except zero values.
@@ -110,18 +109,4 @@ type Audio struct {
 	Latency      time.Duration
 	SampleRate   int
 	SampleSize   int
-}
-
-// Codec represents an codec's encoding properties
-type Codec struct {
-	CodecName string
-
-	// Target bitrate in bps.
-	BitRate int
-
-	// Expected interval of the keyframes in frames.
-	KeyFrameInterval int
-
-	// Library specific parameter struct defined by each codec package
-	CodecParams interface{}
 }

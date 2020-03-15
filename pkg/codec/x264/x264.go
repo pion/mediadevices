@@ -7,18 +7,15 @@ package x264
 // #include "bridge.h"
 import "C"
 import (
-	"errors"
 	"fmt"
 	"image"
 	"io"
 	"sync"
 	"unsafe"
 
-	"github.com/pion/mediadevices/pkg/codec"
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
-	"github.com/pion/webrtc/v2"
 )
 
 type encoder struct {
@@ -64,37 +61,24 @@ var (
 	errEncode        = fmt.Errorf("failed to encode")
 )
 
-func init() {
-	codec.Register(webrtc.H264, codec.VideoEncoderBuilder(newEncoder))
-}
-
-func newEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
-	if p.KeyFrameInterval == 0 {
-		p.KeyFrameInterval = 60
-	}
-
-	var preset Preset
-	switch cp := p.CodecParams.(type) {
-	case nil:
-	case Params:
-		preset = cp.Preset
-	default:
-		return nil, errors.New("unsupported CodecParams type")
+func newEncoder(r video.Reader, p prop.Media, params Params) (io.ReadCloser, error) {
+	if params.KeyFrameInterval == 0 {
+		params.KeyFrameInterval = 60
 	}
 
 	param := C.x264_param_t{
 		i_csp:        C.X264_CSP_I420,
 		i_width:      C.int(p.Width),
 		i_height:     C.int(p.Height),
-		i_keyint_max: C.int(p.KeyFrameInterval),
+		i_keyint_max: C.int(params.KeyFrameInterval),
 	}
-	param.rc.i_bitrate = C.int(p.BitRate)
+	param.rc.i_bitrate = C.int(params.BitRate)
 	param.rc.i_vbv_max_bitrate = param.rc.i_bitrate
 	param.rc.i_vbv_buffer_size = param.rc.i_vbv_max_bitrate * 2
 
 	var rc C.int
 	// cPreset will be freed in C.enc_new
-	cPreset := C.CString(fmt.Sprint(preset))
+	cPreset := C.CString(fmt.Sprint(params.Preset))
 	engine := C.enc_new(param, cPreset, &rc)
 	if err := errFromC(rc); err != nil {
 		return nil, err

@@ -45,12 +45,9 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/pion/mediadevices/pkg/codec"
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
-
-	"github.com/pion/webrtc/v2"
 )
 
 const (
@@ -90,6 +87,7 @@ type encoderVP9 struct {
 
 	frameCnt int
 	prop     prop.Media
+	params   ParamVP9
 
 	rate *framerateDetector
 
@@ -97,63 +95,38 @@ type encoderVP9 struct {
 	closed bool
 }
 
-func init() {
-	codec.Register(webrtc.VP9, codec.VideoEncoderBuilder(NewVP9Encoder))
-}
-
-// NewVP8Param returns default parameters of VP9 codec.
-func NewVP9Param() (ParamVP9, error) {
-	return ParamVP9{
-		RateControlMode: RateControlVBR,
-		RateControl: RateControlParam{
-			BitsPerSecond:    400000,
-			TargetPercentage: 80,
-			WindowSize:       1500,
-			InitialQP:        60,
-			MinQP:            9,
-			MaxQP:            127,
-		},
-	}, nil
-}
-
-// NewVP9Encoder creates new VP9 encoder
-func NewVP9Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
+// newVP9Encoder creates new VP9 encoder
+func newVP9Encoder(r video.Reader, p prop.Media, params ParamVP9) (io.ReadCloser, error) {
 	if p.Width%16 != 0 || p.Width == 0 {
 		return nil, errors.New("width must be 16*n")
 	}
 	if p.Height%16 != 0 || p.Height == 0 {
 		return nil, errors.New("height must be 16*n")
 	}
-	if p.KeyFrameInterval == 0 {
-		p.KeyFrameInterval = 30
+	if params.KeyFrameInterval == 0 {
+		params.KeyFrameInterval = 30
 	}
 	if p.FrameRate == 0 {
 		p.FrameRate = 30
 	}
 
-	var cp ParamVP9
-	switch params := p.Codec.CodecParams.(type) {
-	case nil:
-		cp, _ = NewVP9Param()
-		cp.RateControl.BitsPerSecond = uint(float32(p.BitRate) * 1.5)
-	case ParamVP9:
-		cp = params
-	default:
-		return nil, errors.New("unsupported CodecParams type")
+	if params.RateControl.BitsPerSecond == 0 {
+		params.RateControl.BitsPerSecond = uint(float32(params.BitRate) * 1.5)
 	}
 
 	// Parameters are from https://github.com/intel/libva-utils/blob/master/encode/vp9enc.c
 	e := &encoderVP9{
-		r:    video.ToI420(r),
-		prop: p,
-		rate: newFramerateDetector(uint32(p.FrameRate)),
+		r:      video.ToI420(r),
+		prop:   p,
+		params: params,
+		rate:   newFramerateDetector(uint32(p.FrameRate)),
 		seqParam: C.VAEncSequenceParameterBufferVP9{
 			max_frame_width:  8192,
 			max_frame_height: 8192,
-			bits_per_second:  C.uint(cp.RateControl.BitsPerSecond),
-			intra_period:     C.uint(p.KeyFrameInterval),
+			bits_per_second:  C.uint(params.RateControl.BitsPerSecond),
+			intra_period:     C.uint(params.KeyFrameInterval),
 			kf_min_dist:      1,
-			kf_max_dist:      C.uint(p.KeyFrameInterval),
+			kf_max_dist:      C.uint(params.KeyFrameInterval),
 		},
 		picParam: C.VAEncPictureParameterBufferVP9{
 			reference_frames: [8]C.VASurfaceID{
@@ -188,10 +161,10 @@ func NewVP9Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 				_type: C.VAEncMiscParameterTypeHRD,
 			},
 			data: C.VAEncMiscParameterHRD{
-				initial_buffer_fullness: C.uint(cp.RateControl.BitsPerSecond *
-					cp.RateControl.WindowSize / 2000),
-				buffer_size: C.uint(cp.RateControl.BitsPerSecond *
-					cp.RateControl.WindowSize / 1000),
+				initial_buffer_fullness: C.uint(params.RateControl.BitsPerSecond *
+					params.RateControl.WindowSize / 2000),
+				buffer_size: C.uint(params.RateControl.BitsPerSecond *
+					params.RateControl.WindowSize / 1000),
 			},
 		},
 		frParam: frParam{
@@ -207,12 +180,12 @@ func NewVP9Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 				_type: C.VAEncMiscParameterTypeRateControl,
 			},
 			data: C.VAEncMiscParameterRateControl{
-				window_size:       C.uint(cp.RateControl.WindowSize),
-				initial_qp:        C.uint(cp.RateControl.InitialQP),
-				min_qp:            C.uint(cp.RateControl.MinQP),
-				max_qp:            C.uint(cp.RateControl.MaxQP),
-				bits_per_second:   C.uint(cp.RateControl.BitsPerSecond),
-				target_percentage: C.uint(cp.RateControl.TargetPercentage),
+				window_size:       C.uint(params.RateControl.WindowSize),
+				initial_qp:        C.uint(params.RateControl.InitialQP),
+				min_qp:            C.uint(params.RateControl.MinQP),
+				max_qp:            C.uint(params.RateControl.MaxQP),
+				bits_per_second:   C.uint(params.RateControl.BitsPerSecond),
+				target_percentage: C.uint(params.RateControl.TargetPercentage),
 			},
 		},
 	}
@@ -267,11 +240,11 @@ func NewVP9Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	if (confAttrs[0].value & C.VA_RT_FORMAT_YUV420) == 0 {
 		return nil, errors.New("the hardware encoder doesn't support YUV420")
 	}
-	if (confAttrs[1].value & C.uint(cp.RateControlMode)) == 0 {
+	if (confAttrs[1].value & C.uint(params.RateControlMode)) == 0 {
 		return nil, errors.New("the hardware encoder doesn't support specified rate control mode")
 	}
 	confAttrs[0].value = C.VA_RT_FORMAT_YUV420
-	confAttrs[1].value = C.uint(cp.RateControlMode)
+	confAttrs[1].value = C.uint(params.RateControlMode)
 
 	if s := C.vaCreateConfig(
 		e.display,
@@ -334,7 +307,7 @@ func (e *encoderVP9) Read(p []byte) (int, error) {
 	}
 	yuvImg := img.(*image.YCbCr)
 
-	kf := e.frameCnt%e.prop.KeyFrameInterval == 0
+	kf := e.frameCnt%e.params.KeyFrameInterval == 0
 	e.frameCnt++
 
 	e.frParam.data.framerate = C.uint(e.rate.Calc())

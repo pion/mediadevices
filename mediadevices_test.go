@@ -18,23 +18,18 @@ import (
 )
 
 func TestGetUserMedia(t *testing.T) {
-	codec.Register("MockVideo", codec.VideoEncoderBuilder(func(r video.Reader, p prop.Media) (io.ReadCloser, error) {
-		if p.BitRate == 0 {
-			// This is a dummy error to test the failure condition.
-			return nil, errors.New("wrong codec parameter")
-		}
-		return &mockVideoCodec{
-			r:      r,
-			closed: make(chan struct{}),
-		}, nil
-	}))
-	codec.Register("MockAudio", codec.AudioEncoderBuilder(func(r audio.Reader, p prop.Media) (io.ReadCloser, error) {
-		return &mockAudioCodec{
-			r:      r,
-			closed: make(chan struct{}),
-		}, nil
-	}))
-
+	videoParams := mockParams{
+		BaseParams: codec.BaseParams{
+			BitRate: 100000,
+		},
+		name: "MockVideo",
+	}
+	audioParams := mockParams{
+		BaseParams: codec.BaseParams{
+			BitRate: 32000,
+		},
+		name: "MockAudio",
+	}
 	md := NewMediaDevicesFromCodecs(
 		map[webrtc.RTPCodecType][]*webrtc.RTPCodec{
 			webrtc.RTPCodecTypeVideo: []*webrtc.RTPCodec{
@@ -54,30 +49,31 @@ func TestGetUserMedia(t *testing.T) {
 	)
 	constraints := MediaStreamConstraints{
 		Video: func(c *MediaTrackConstraints) {
-			c.CodecName = "MockVideo"
 			c.Enabled = true
 			c.Width = 640
 			c.Height = 480
-			c.BitRate = 100000
+			params := videoParams
+			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&params}
 		},
 		Audio: func(c *MediaTrackConstraints) {
-			c.CodecName = "MockAudio"
 			c.Enabled = true
-			c.BitRate = 32000
+			params := audioParams
+			c.AudioEncoderBuilders = []codec.AudioEncoderBuilder{&params}
 		},
 	}
 	constraintsWrong := MediaStreamConstraints{
 		Video: func(c *MediaTrackConstraints) {
-			c.CodecName = "MockVideo"
 			c.Enabled = true
 			c.Width = 640
 			c.Height = 480
-			c.BitRate = 0
+			params := videoParams
+			params.BitRate = 0
+			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&params}
 		},
 		Audio: func(c *MediaTrackConstraints) {
-			c.CodecName = "MockAudio"
 			c.Enabled = true
-			c.BitRate = 32000
+			params := audioParams
+			c.AudioEncoderBuilders = []codec.AudioEncoderBuilder{&params}
 		},
 	}
 
@@ -154,6 +150,33 @@ func (t *mockTrack) ID() string {
 
 func (t *mockTrack) Kind() webrtc.RTPCodecType {
 	return t.codec.Type
+}
+
+type mockParams struct {
+	codec.BaseParams
+	name string
+}
+
+func (params *mockParams) Name() string {
+	return params.name
+}
+
+func (params *mockParams) BuildVideoEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
+	if params.BitRate == 0 {
+		// This is a dummy error to test the failure condition.
+		return nil, errors.New("wrong codec parameter")
+	}
+	return &mockVideoCodec{
+		r:      r,
+		closed: make(chan struct{}),
+	}, nil
+}
+
+func (params *mockParams) BuildAudioEncoder(r audio.Reader, p prop.Media) (io.ReadCloser, error) {
+	return &mockAudioCodec{
+		r:      r,
+		closed: make(chan struct{}),
+	}, nil
 }
 
 type mockVideoCodec struct {
