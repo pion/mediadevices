@@ -1,8 +1,13 @@
 package vpx
 
+import (
+	"github.com/pion/mediadevices/pkg/codec"
+)
+
 // Params stores libvpx specific encoding parameters.
 // Value range is codec (VP8/VP9) specific.
 type Params struct {
+	codec.BaseParams
 	RateControlEndUsage          RateControlMode
 	RateControlUndershootPercent uint
 	RateControlOvershootPercent  uint

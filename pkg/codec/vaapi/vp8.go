@@ -50,12 +50,9 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/pion/mediadevices/pkg/codec"
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
-
-	"github.com/pion/webrtc/v2"
 )
 
 const (
@@ -86,6 +83,7 @@ type encoderVP8 struct {
 
 	frameCnt int
 	prop     prop.Media
+	params   ParamVP8
 
 	rate *framerateDetector
 
@@ -93,66 +91,37 @@ type encoderVP8 struct {
 	closed bool
 }
 
-func init() {
-	codec.Register(webrtc.VP8, codec.VideoEncoderBuilder(NewVP8Encoder))
-}
-
-// NewVP8Param returns default parameters of VP8 codec.
-func NewVP8Param() (ParamVP8, error) {
-	return ParamVP8{
-		Sequence: SequenceParamVP8{
-			ClampQindexLow:  9,
-			ClampQindexHigh: 127,
-		},
-		RateControlMode: RateControlVBR,
-		RateControl: RateControlParam{
-			BitsPerSecond:    400000,
-			TargetPercentage: 80,
-			WindowSize:       1500,
-			InitialQP:        60,
-			MinQP:            9,
-			MaxQP:            127,
-		},
-	}, nil
-}
-
-// NewVP8Encoder creates new VP8 encoder
-func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
+// newVP8Encoder creates new VP8 encoder
+func newVP8Encoder(r video.Reader, p prop.Media, params ParamVP8) (io.ReadCloser, error) {
 	if p.Width%16 != 0 || p.Width == 0 {
 		return nil, errors.New("width must be 16*n")
 	}
 	if p.Height%16 != 0 || p.Height == 0 {
 		return nil, errors.New("height must be 16*n")
 	}
-	if p.KeyFrameInterval == 0 {
-		p.KeyFrameInterval = 30
+	if params.KeyFrameInterval == 0 {
+		params.KeyFrameInterval = 30
 	}
 	if p.FrameRate == 0 {
 		p.FrameRate = 30
 	}
 
-	var cp ParamVP8
-	switch params := p.Codec.CodecParams.(type) {
-	case nil:
-		cp, _ = NewVP8Param()
-		cp.RateControl.BitsPerSecond = uint(float32(p.BitRate) * 1.5)
-	case ParamVP8:
-		cp = params
-	default:
-		return nil, errors.New("unsupported CodecParams type")
+	if params.RateControl.BitsPerSecond == 0 {
+		params.RateControl.BitsPerSecond = uint(float32(params.BitRate) * 1.5)
 	}
 
 	// Parameters are from https://github.com/intel/libva-utils/blob/master/encode/vp8enc.c
 	e := &encoderVP8{
-		r:    video.ToI420(r),
-		prop: p,
-		rate: newFramerateDetector(uint32(p.FrameRate)),
+		r:      video.ToI420(r),
+		prop:   p,
+		params: params,
+		rate:   newFramerateDetector(uint32(p.FrameRate)),
 		seqParam: C.VAEncSequenceParameterBufferVP8{
 			frame_width:     C.uint(p.Width),
 			frame_height:    C.uint(p.Height),
-			bits_per_second: C.uint(cp.RateControl.BitsPerSecond),
-			intra_period:    C.uint(p.KeyFrameInterval),
-			kf_max_dist:     C.uint(p.KeyFrameInterval),
+			bits_per_second: C.uint(params.RateControl.BitsPerSecond),
+			intra_period:    C.uint(params.KeyFrameInterval),
+			kf_max_dist:     C.uint(params.KeyFrameInterval),
 			reference_frames: [4]C.VASurfaceID{
 				C.VA_INVALID_ID,
 				C.VA_INVALID_ID,
@@ -165,8 +134,8 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 			ref_gf_frame:        C.VA_INVALID_SURFACE,
 			ref_arf_frame:       C.VA_INVALID_SURFACE,
 			reconstructed_frame: C.VA_INVALID_SURFACE,
-			clamp_qindex_low:    C.uint8_t(cp.Sequence.ClampQindexLow),
-			clamp_qindex_high:   C.uint8_t(cp.Sequence.ClampQindexHigh),
+			clamp_qindex_low:    C.uint8_t(params.Sequence.ClampQindexLow),
+			clamp_qindex_high:   C.uint8_t(params.Sequence.ClampQindexHigh),
 			loop_filter_level: [4]C.int8_t{
 				19, 19, 19, 19,
 			},
@@ -184,10 +153,10 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 				_type: C.VAEncMiscParameterTypeHRD,
 			},
 			data: C.VAEncMiscParameterHRD{
-				initial_buffer_fullness: C.uint(cp.RateControl.BitsPerSecond *
-					cp.RateControl.WindowSize / 2000),
-				buffer_size: C.uint(cp.RateControl.BitsPerSecond *
-					cp.RateControl.WindowSize / 1000),
+				initial_buffer_fullness: C.uint(params.RateControl.BitsPerSecond *
+					params.RateControl.WindowSize / 2000),
+				buffer_size: C.uint(params.RateControl.BitsPerSecond *
+					params.RateControl.WindowSize / 1000),
 			},
 		},
 		frParam: frParam{
@@ -203,12 +172,12 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 				_type: C.VAEncMiscParameterTypeRateControl,
 			},
 			data: C.VAEncMiscParameterRateControl{
-				window_size:       C.uint(cp.RateControl.WindowSize),
-				initial_qp:        C.uint(cp.RateControl.InitialQP),
-				min_qp:            C.uint(cp.RateControl.MinQP),
-				max_qp:            C.uint(cp.RateControl.MaxQP),
-				bits_per_second:   C.uint(cp.RateControl.BitsPerSecond),
-				target_percentage: C.uint(cp.RateControl.TargetPercentage),
+				window_size:       C.uint(params.RateControl.WindowSize),
+				initial_qp:        C.uint(params.RateControl.InitialQP),
+				min_qp:            C.uint(params.RateControl.MinQP),
+				max_qp:            C.uint(params.RateControl.MaxQP),
+				bits_per_second:   C.uint(params.RateControl.BitsPerSecond),
+				target_percentage: C.uint(params.RateControl.TargetPercentage),
 			},
 		},
 	}
@@ -264,11 +233,11 @@ func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
 	if (confAttrs[0].value & C.VA_RT_FORMAT_YUV420) == 0 {
 		return nil, errors.New("the hardware encoder doesn't support YUV420")
 	}
-	if (confAttrs[1].value & C.uint(cp.RateControlMode)) == 0 {
+	if (confAttrs[1].value & C.uint(params.RateControlMode)) == 0 {
 		return nil, errors.New("the hardware encoder doesn't support specified rate control mode")
 	}
 	confAttrs[0].value = C.VA_RT_FORMAT_YUV420
-	confAttrs[1].value = C.uint(cp.RateControlMode)
+	confAttrs[1].value = C.uint(params.RateControlMode)
 
 	if s := C.vaCreateConfig(
 		e.display,
@@ -331,7 +300,7 @@ func (e *encoderVP8) Read(p []byte) (int, error) {
 	}
 	yuvImg := img.(*image.YCbCr)
 
-	kf := e.frameCnt%e.prop.KeyFrameInterval == 0
+	kf := e.frameCnt%e.params.KeyFrameInterval == 0
 	e.frameCnt++
 
 	e.frParam.data.framerate = C.uint(e.rate.Calc())

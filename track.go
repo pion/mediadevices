@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"sync"
 
-	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/driver"
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/webrtc/v2"
@@ -42,16 +41,9 @@ type track struct {
 	endOnce        sync.Once
 }
 
-func newTrack(codecs []*webrtc.RTPCodec, trackGenerator TrackGenerator, d driver.Driver, codecName string) (*track, error) {
-	var selectedCodec *webrtc.RTPCodec
-	for _, c := range codecs {
-		if c.Name == codecName {
-			selectedCodec = c
-			break
-		}
-	}
+func newTrack(selectedCodec *webrtc.RTPCodec, trackGenerator TrackGenerator, d driver.Driver) (*track, error) {
 	if selectedCodec == nil {
-		return nil, fmt.Errorf("track: %s is not registered in media engine", codecName)
+		panic("codec is required")
 	}
 
 	t, err := trackGenerator(
@@ -116,13 +108,7 @@ type videoTrack struct {
 var _ Tracker = &videoTrack{}
 
 func newVideoTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrackConstraints) (*videoTrack, error) {
-	codecName := constraints.CodecName
-	t, err := newTrack(opts.codecs[webrtc.RTPCodecTypeVideo], opts.trackGenerator, d, codecName)
-	if err != nil {
-		return nil, err
-	}
-
-	err = d.Open()
+	err := d.Open()
 	if err != nil {
 		return nil, err
 	}
@@ -137,21 +123,47 @@ func newVideoTrack(opts *MediaDevicesOptions, d driver.Driver, constraints Media
 		r = constraints.VideoTransform(r)
 	}
 
-	encoder, err := codec.BuildVideoEncoder(r, constraints.Media)
-	if err != nil {
-		_ = d.Close()
-		return nil, err
+	var vt *videoTrack
+	rtpCodecs := opts.codecs[webrtc.RTPCodecTypeVideo]
+	for _, codecBuilder := range constraints.VideoEncoderBuilders {
+		var matchedRTPCodec *webrtc.RTPCodec
+		for _, rtpCodec := range rtpCodecs {
+			if rtpCodec.Name == codecBuilder.Name() {
+				matchedRTPCodec = rtpCodec
+				break
+			}
+		}
+
+		if matchedRTPCodec == nil {
+			continue
+		}
+
+		t, err := newTrack(matchedRTPCodec, opts.trackGenerator, d)
+		if err != nil {
+			continue
+		}
+
+		encoder, err := codecBuilder.BuildVideoEncoder(r, constraints.Media)
+		if err != nil {
+			continue
+		}
+
+		vt = &videoTrack{
+			track:       t,
+			d:           d,
+			constraints: constraints,
+			encoder:     encoder,
+		}
+		break
 	}
 
-	vt := videoTrack{
-		track:       t,
-		d:           d,
-		constraints: constraints,
-		encoder:     encoder,
+	if vt == nil {
+		d.Close()
+		return nil, fmt.Errorf("failed to find a matching video codec")
 	}
 
 	go vt.start()
-	return &vt, nil
+	return vt, nil
 }
 
 func (vt *videoTrack) start() {
@@ -192,41 +204,61 @@ type audioTrack struct {
 var _ Tracker = &audioTrack{}
 
 func newAudioTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrackConstraints) (*audioTrack, error) {
-	codecName := constraints.CodecName
-	t, err := newTrack(opts.codecs[webrtc.RTPCodecTypeAudio], opts.trackGenerator, d, codecName)
-	if err != nil {
-		return nil, err
-	}
-
-	err = d.Open()
+	err := d.Open()
 	if err != nil {
 		return nil, err
 	}
 
 	ar := d.(driver.AudioRecorder)
-	reader, err := ar.AudioRecord(constraints.Media)
+	r, err := ar.AudioRecord(constraints.Media)
 	if err != nil {
 		return nil, err
 	}
 
 	if constraints.AudioTransform != nil {
-		reader = constraints.AudioTransform(reader)
+		r = constraints.AudioTransform(r)
 	}
 
-	encoder, err := codec.BuildAudioEncoder(reader, constraints.Media)
-	if err != nil {
-		_ = d.Close()
-		return nil, err
+	var at *audioTrack
+	rtpCodecs := opts.codecs[webrtc.RTPCodecTypeAudio]
+	for _, codecBuilder := range constraints.AudioEncoderBuilders {
+		var matchedRTPCodec *webrtc.RTPCodec
+		for _, rtpCodec := range rtpCodecs {
+			if rtpCodec.Name == codecBuilder.Name() {
+				matchedRTPCodec = rtpCodec
+				break
+			}
+		}
+
+		if matchedRTPCodec == nil {
+			continue
+		}
+
+		t, err := newTrack(matchedRTPCodec, opts.trackGenerator, d)
+		if err != nil {
+			continue
+		}
+
+		encoder, err := codecBuilder.BuildAudioEncoder(r, constraints.Media)
+		if err != nil {
+			continue
+		}
+
+		at = &audioTrack{
+			track:       t,
+			d:           d,
+			constraints: constraints,
+			encoder:     encoder,
+		}
 	}
 
-	at := audioTrack{
-		track:       t,
-		d:           d,
-		constraints: constraints,
-		encoder:     encoder,
+	if at == nil {
+		d.Close()
+		return nil, fmt.Errorf("failed to find a matching audio codec")
 	}
+
 	go at.start()
-	return &at, nil
+	return at, nil
 }
 
 func (t *audioTrack) start() {

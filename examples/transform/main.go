@@ -7,15 +7,12 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
-	_ "github.com/pion/mediadevices/pkg/codec/vpx"     // This is required to register VP8/VP9 video encoder
+	"github.com/pion/mediadevices/pkg/codec"
+	"github.com/pion/mediadevices/pkg/codec/vpx"       // This is required to register VP8/VP9 video encoder
 	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/webrtc/v2"
-)
-
-const (
-	videoCodecName = webrtc.VP8
 )
 
 func rotate180(r video.Reader) video.Reader {
@@ -62,15 +59,20 @@ func main() {
 
 	md := mediadevices.NewMediaDevices(peerConnection)
 
+	vp8Params, err := vpx.NewVP8Params()
+	if err != nil {
+		panic(err)
+	}
+	vp8Params.BitRate = 100000 // 100kbps
+
 	s, err := md.GetUserMedia(mediadevices.MediaStreamConstraints{
 		Video: func(c *mediadevices.MediaTrackConstraints) {
-			c.CodecName = videoCodecName
 			c.FrameFormat = frame.FormatI420 // most of the encoder accepts I420
 			c.Enabled = true
 			c.Width = 640
 			c.Height = 480
-			c.BitRate = 100000 // 100kbps
 			c.VideoTransform = rotate180
+			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&vp8Params}
 		},
 	})
 	if err != nil {

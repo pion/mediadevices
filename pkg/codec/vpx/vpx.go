@@ -55,7 +55,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/pion/mediadevices/pkg/codec"
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -78,28 +77,61 @@ type encoder struct {
 	closed bool
 }
 
-func init() {
-	codec.Register(webrtc.VP8, codec.VideoEncoderBuilder(NewVP8Encoder))
-	codec.Register(webrtc.VP9, codec.VideoEncoderBuilder(NewVP9Encoder))
+// VP8Params is codec specific paramaters
+type VP8Params struct {
+	Params
 }
 
-// NewVP8Encoder creates new VP8 encoder
-func NewVP8Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
-	return newEncoder(r, p, C.ifaceVP8())
+// NewVP8Params returns default VP8 codec specific parameters.
+func NewVP8Params() (VP8Params, error) {
+	p, err := newParams(C.ifaceVP8())
+	if err != nil {
+		return VP8Params{}, err
+	}
+
+	return VP8Params{
+		Params: p,
+	}, nil
 }
 
-// NewVP9Encoder creates new VP9 encoder
-func NewVP9Encoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
-	return newEncoder(r, p, C.ifaceVP9())
+// Name represents the codec name
+func (p *VP8Params) Name() string {
+	return webrtc.VP8
 }
 
-// NewVP8Param returns default VP8 codec specific parameters.
-func NewVP8Param() (Params, error) { return newParam(C.ifaceVP8()) }
+// BuildVideoEncoder builds VP8 encoder with given params
+func (p *VP8Params) BuildVideoEncoder(r video.Reader, property prop.Media) (io.ReadCloser, error) {
+	return newEncoder(r, property, p.Params, C.ifaceVP8())
+}
 
-// NewVP9Param returns default VP9 codec specific parameters.
-func NewVP9Param() (Params, error) { return newParam(C.ifaceVP9()) }
+// VP9Params is codec specific paramaters
+type VP9Params struct {
+	Params
+}
 
-func newParam(codecIface *C.vpx_codec_iface_t) (Params, error) {
+// NewVP9Params returns default VP9 codec specific parameters.
+func NewVP9Params() (VP9Params, error) {
+	p, err := newParams(C.ifaceVP9())
+	if err != nil {
+		return VP9Params{}, err
+	}
+
+	return VP9Params{
+		Params: p,
+	}, nil
+}
+
+// Name represents the codec name
+func (p *VP9Params) Name() string {
+	return webrtc.VP9
+}
+
+// BuildVideoEncoder builds VP9 encoder with given params
+func (p *VP9Params) BuildVideoEncoder(r video.Reader, property prop.Media) (io.ReadCloser, error) {
+	return newEncoder(r, property, p.Params, C.ifaceVP9())
+}
+
+func newParams(codecIface *C.vpx_codec_iface_t) (Params, error) {
 	cfg := &C.vpx_codec_enc_cfg_t{}
 	if ec := C.vpx_codec_enc_config_default(codecIface, cfg, 0); ec != 0 {
 		return Params{}, fmt.Errorf("vpx_codec_enc_config_default failed (%d)", ec)
@@ -113,13 +145,13 @@ func newParam(codecIface *C.vpx_codec_iface_t) (Params, error) {
 	}, nil
 }
 
-func newEncoder(r video.Reader, p prop.Media, codecIface *C.vpx_codec_iface_t) (io.ReadCloser, error) {
-	if p.BitRate == 0 {
-		p.BitRate = 100000
+func newEncoder(r video.Reader, p prop.Media, params Params, codecIface *C.vpx_codec_iface_t) (io.ReadCloser, error) {
+	if params.BitRate == 0 {
+		params.BitRate = 100000
 	}
 
-	if p.KeyFrameInterval == 0 {
-		p.KeyFrameInterval = 60
+	if params.KeyFrameInterval == 0 {
+		params.KeyFrameInterval = 60
 	}
 
 	cfg := &C.vpx_codec_enc_cfg_t{}
@@ -127,24 +159,18 @@ func newEncoder(r video.Reader, p prop.Media, codecIface *C.vpx_codec_iface_t) (
 		return nil, fmt.Errorf("vpx_codec_enc_config_default failed (%d)", ec)
 	}
 
-	switch cp := p.CodecParams.(type) {
-	case nil:
-	case Params:
-		cfg.rc_end_usage = uint32(cp.RateControlEndUsage)
-		cfg.rc_undershoot_pct = C.uint(cp.RateControlUndershootPercent)
-		cfg.rc_overshoot_pct = C.uint(cp.RateControlOvershootPercent)
-		cfg.rc_min_quantizer = C.uint(cp.RateControlMinQuantizer)
-		cfg.rc_max_quantizer = C.uint(cp.RateControlMaxQuantizer)
-	default:
-		return nil, errors.New("unsupported CodecParams type")
-	}
+	cfg.rc_end_usage = uint32(params.RateControlEndUsage)
+	cfg.rc_undershoot_pct = C.uint(params.RateControlUndershootPercent)
+	cfg.rc_overshoot_pct = C.uint(params.RateControlOvershootPercent)
+	cfg.rc_min_quantizer = C.uint(params.RateControlMinQuantizer)
+	cfg.rc_max_quantizer = C.uint(params.RateControlMaxQuantizer)
 
 	cfg.g_w = C.uint(p.Width)
 	cfg.g_h = C.uint(p.Height)
 	cfg.g_timebase.num = 1
 	cfg.g_timebase.den = 1000
-	cfg.rc_target_bitrate = C.uint(p.BitRate) / 1000
-	cfg.kf_max_dist = C.uint(p.KeyFrameInterval)
+	cfg.rc_target_bitrate = C.uint(params.BitRate) / 1000
+	cfg.kf_max_dist = C.uint(params.KeyFrameInterval)
 
 	cfg.rc_resize_allowed = 0
 	cfg.g_pass = C.VPX_RC_ONE_PASS

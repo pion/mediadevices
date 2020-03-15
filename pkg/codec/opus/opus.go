@@ -1,7 +1,6 @@
 package opus
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -9,10 +8,8 @@ import (
 	"unsafe"
 
 	"github.com/lherman-cs/opus"
-	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
-	"github.com/pion/webrtc/v2"
 )
 
 type encoder struct {
@@ -24,13 +21,8 @@ type encoder struct {
 var latencies = []float64{5, 10, 20, 40, 60}
 
 var _ io.ReadCloser = &encoder{}
-var _ codec.AudioEncoderBuilder = codec.AudioEncoderBuilder(NewEncoder)
 
-func init() {
-	codec.Register(webrtc.Opus, codec.AudioEncoderBuilder(NewEncoder))
-}
-
-func NewEncoder(r audio.Reader, p prop.Media) (io.ReadCloser, error) {
+func newEncoder(r audio.Reader, p prop.Media, params Params) (io.ReadCloser, error) {
 	if p.SampleRate == 0 {
 		return nil, fmt.Errorf("opus: inProp.SampleRate is required")
 	}
@@ -39,12 +31,8 @@ func NewEncoder(r audio.Reader, p prop.Media) (io.ReadCloser, error) {
 		p.Latency = 20
 	}
 
-	if p.BitRate == 0 {
-		p.BitRate = 32000
-	}
-
-	if p.CodecParams != nil {
-		return nil, errors.New("unsupported CodecParams type")
+	if params.BitRate == 0 {
+		params.BitRate = 32000
 	}
 
 	// Select the nearest supported latency
@@ -69,7 +57,7 @@ func NewEncoder(r audio.Reader, p prop.Media) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := engine.SetBitrate(p.BitRate); err != nil {
+	if err := engine.SetBitrate(params.BitRate); err != nil {
 		return nil, err
 	}
 

@@ -5,16 +5,11 @@ import (
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
-	_ "github.com/pion/mediadevices/pkg/codec/openh264" // This is required to register h264 video encoder
-	_ "github.com/pion/mediadevices/pkg/codec/opus"     // This is required to register opus audio encoder
-	_ "github.com/pion/mediadevices/pkg/codec/vpx"      // This is required to register VP8/VP9 video encoder
-	_ "github.com/pion/mediadevices/pkg/driver/screen"  // This is required to register screen capture adapter
+	"github.com/pion/mediadevices/pkg/codec"
+	"github.com/pion/mediadevices/pkg/codec/vpx"       // This is required to register VP8/VP9 video encoder
+	_ "github.com/pion/mediadevices/pkg/driver/screen" // This is required to register screen capture adapter
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/webrtc/v2"
-)
-
-const (
-	videoCodecName = webrtc.VP8
 )
 
 func main() {
@@ -49,12 +44,17 @@ func main() {
 
 	md := mediadevices.NewMediaDevices(peerConnection)
 
+	vp8Params, err := vpx.NewVP8Params()
+	if err != nil {
+		panic(err)
+	}
+	vp8Params.BitRate = 100000 // 100kbps
+
 	s, err := md.GetDisplayMedia(mediadevices.MediaStreamConstraints{
 		Video: func(c *mediadevices.MediaTrackConstraints) {
-			c.CodecName = videoCodecName
 			c.Enabled = true
-			c.BitRate = 100000                           // 100kbps
 			c.VideoTransform = video.Scale(-1, 360, nil) // Resize to 360p
+			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&vp8Params}
 		},
 	})
 	if err != nil {

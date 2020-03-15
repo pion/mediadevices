@@ -9,19 +9,15 @@ package openh264
 import "C"
 
 import (
-	"errors"
 	"fmt"
 	"image"
 	"io"
 	"sync"
 	"unsafe"
 
-	"github.com/pion/mediadevices/pkg/codec"
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
-
-	"github.com/pion/webrtc/v2"
 )
 
 type encoder struct {
@@ -33,26 +29,16 @@ type encoder struct {
 	closed bool
 }
 
-var _ codec.VideoEncoderBuilder = codec.VideoEncoderBuilder(NewEncoder)
-
-func init() {
-	codec.Register(webrtc.H264, codec.VideoEncoderBuilder(NewEncoder))
-}
-
-func NewEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
-	if p.BitRate == 0 {
-		p.BitRate = 100000
-	}
-
-	if p.CodecParams != nil {
-		return nil, errors.New("unsupported CodecParams type")
+func newEncoder(r video.Reader, p prop.Media, params Params) (io.ReadCloser, error) {
+	if params.BitRate == 0 {
+		params.BitRate = 100000
 	}
 
 	var rv C.int
 	cEncoder := C.enc_new(C.EncoderOptions{
 		width:          C.int(p.Width),
 		height:         C.int(p.Height),
-		target_bitrate: C.int(p.BitRate),
+		target_bitrate: C.int(params.BitRate),
 		max_fps:        C.float(p.FrameRate),
 	}, &rv)
 	if err := errResult(rv); err != nil {

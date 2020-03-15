@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/pion/mediadevices"
-	_ "github.com/pion/mediadevices/pkg/codec/openh264" // This is required to register h264 video encoder
-	_ "github.com/pion/mediadevices/pkg/codec/vpx"      // This is required to register VP8/VP9 video encoder
-	_ "github.com/pion/mediadevices/pkg/driver/camera"  // This is required to register camera adapter
+	"github.com/pion/mediadevices/pkg/codec"
+	"github.com/pion/mediadevices/pkg/codec/vpx"       // This is required to register VP8/VP9 video encoder
+	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v2"
@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	videoCodecName = webrtc.VP8
-	mtu            = 1000
+	mtu = 1000
 )
 
 func main() {
@@ -41,14 +40,19 @@ func main() {
 		),
 	)
 
-	_, err := md.GetUserMedia(mediadevices.MediaStreamConstraints{
+	vp8Params, err := vpx.NewVP8Params()
+	if err != nil {
+		panic(err)
+	}
+	vp8Params.BitRate = 100000 // 100kbps
+
+	_, err = md.GetUserMedia(mediadevices.MediaStreamConstraints{
 		Video: func(c *mediadevices.MediaTrackConstraints) {
-			c.CodecName = videoCodecName
 			c.FrameFormat = frame.FormatYUY2
 			c.Enabled = true
 			c.Width = 640
 			c.Height = 480
-			c.BitRate = 100000 // 100kbps
+			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&vp8Params}
 		},
 	})
 	if err != nil {
