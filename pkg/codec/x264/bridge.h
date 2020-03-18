@@ -20,7 +20,7 @@ typedef struct Encoder {
   x264_param_t param;
 } Encoder;
 
-Encoder *enc_new(x264_param_t param, char *preset, int* rc) {
+Encoder *enc_new(x264_param_t param, char *preset, int *rc) {
   Encoder *e = (Encoder *)malloc(sizeof(Encoder));
 
   if (x264_param_default_preset(&e->param, preset, "zerolatency") < 0) {
@@ -71,7 +71,7 @@ fail:
   return NULL;
 }
 
-Slice enc_encode(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr, int* rc) {
+Slice enc_encode(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr, int *rc) {
   x264_nal_t *nal;
   int i_nal;
 
@@ -91,7 +91,7 @@ Slice enc_encode(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr, int* rc) {
   return s;
 }
 
-void enc_close(Encoder *e, int* rc) {
+void enc_close(Encoder *e, int *rc) {
   x264_encoder_close(e->h);
   x264_picture_clean(&e->pic_in);
   free(e);

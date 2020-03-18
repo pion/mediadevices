@@ -153,6 +153,10 @@ func (e *encoder) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	if e.closed {
+		return nil
+	}
+
 	var rc C.int
 	C.enc_close(e.engine, &rc)
 	e.closed = true
