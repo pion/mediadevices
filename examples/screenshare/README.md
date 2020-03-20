@@ -8,7 +8,7 @@ go get github.com/pion/mediadevices/examples/screenshare
 
 ### Open example page
 
-[jsfiddle.net](https://jsfiddle.net/z7ms3u5r/) you should see two text-areas and a 'Start Session' button
+[jsfiddle.net](https://jsfiddle.net/gh/get/library/pure/pion/mediadevices/tree/master/examples/internal/jsfiddle/audio-and-video) you should see two text-areas and a 'Start Session' button
 
 ### Run screenshare with your browsers SessionDescription as stdin
 
