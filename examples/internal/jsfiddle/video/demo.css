@@ -1,0 +1,14 @@
+textarea {
+  width: 100%;
+  min-height: 3.5em;
+  display: block;
+}
+button {
+  display: block;
+}
+video {
+  display: block;
+}
+h3 {
+  margin-bottom: 0;
+}
