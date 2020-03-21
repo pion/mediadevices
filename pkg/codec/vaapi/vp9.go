@@ -110,9 +110,8 @@ func newVP9Encoder(r video.Reader, p prop.Media, params ParamVP9) (io.ReadCloser
 		p.FrameRate = 30
 	}
 
-	if params.RateControl.BitsPerSecond == 0 {
-		params.RateControl.BitsPerSecond = uint(float32(params.BitRate) * 1.5)
-	}
+	params.RateControl.bitsPerSecond =
+		uint(float32(params.BitRate) / (0.01 * float32(params.RateControl.TargetPercentage)))
 
 	// Parameters are from https://github.com/intel/libva-utils/blob/master/encode/vp9enc.c
 	e := &encoderVP9{
@@ -123,7 +122,7 @@ func newVP9Encoder(r video.Reader, p prop.Media, params ParamVP9) (io.ReadCloser
 		seqParam: C.VAEncSequenceParameterBufferVP9{
 			max_frame_width:  8192,
 			max_frame_height: 8192,
-			bits_per_second:  C.uint(params.RateControl.BitsPerSecond),
+			bits_per_second:  C.uint(params.RateControl.bitsPerSecond),
 			intra_period:     C.uint(params.KeyFrameInterval),
 			kf_min_dist:      1,
 			kf_max_dist:      C.uint(params.KeyFrameInterval),
@@ -161,9 +160,9 @@ func newVP9Encoder(r video.Reader, p prop.Media, params ParamVP9) (io.ReadCloser
 				_type: C.VAEncMiscParameterTypeHRD,
 			},
 			data: C.VAEncMiscParameterHRD{
-				initial_buffer_fullness: C.uint(params.RateControl.BitsPerSecond *
+				initial_buffer_fullness: C.uint(params.RateControl.bitsPerSecond *
 					params.RateControl.WindowSize / 2000),
-				buffer_size: C.uint(params.RateControl.BitsPerSecond *
+				buffer_size: C.uint(params.RateControl.bitsPerSecond *
 					params.RateControl.WindowSize / 1000),
 			},
 		},
@@ -184,7 +183,7 @@ func newVP9Encoder(r video.Reader, p prop.Media, params ParamVP9) (io.ReadCloser
 				initial_qp:        C.uint(params.RateControl.InitialQP),
 				min_qp:            C.uint(params.RateControl.MinQP),
 				max_qp:            C.uint(params.RateControl.MaxQP),
-				bits_per_second:   C.uint(params.RateControl.BitsPerSecond),
+				bits_per_second:   C.uint(params.RateControl.bitsPerSecond),
 				target_percentage: C.uint(params.RateControl.TargetPercentage),
 			},
 		},
