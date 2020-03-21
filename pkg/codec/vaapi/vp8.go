@@ -106,9 +106,8 @@ func newVP8Encoder(r video.Reader, p prop.Media, params ParamVP8) (io.ReadCloser
 		p.FrameRate = 30
 	}
 
-	if params.RateControl.BitsPerSecond == 0 {
-		params.RateControl.BitsPerSecond = uint(float32(params.BitRate) * 1.5)
-	}
+	params.RateControl.bitsPerSecond =
+		uint(float32(params.BitRate) / (0.01 * float32(params.RateControl.TargetPercentage)))
 
 	// Parameters are from https://github.com/intel/libva-utils/blob/master/encode/vp8enc.c
 	e := &encoderVP8{
@@ -119,7 +118,7 @@ func newVP8Encoder(r video.Reader, p prop.Media, params ParamVP8) (io.ReadCloser
 		seqParam: C.VAEncSequenceParameterBufferVP8{
 			frame_width:     C.uint(p.Width),
 			frame_height:    C.uint(p.Height),
-			bits_per_second: C.uint(params.RateControl.BitsPerSecond),
+			bits_per_second: C.uint(params.RateControl.bitsPerSecond),
 			intra_period:    C.uint(params.KeyFrameInterval),
 			kf_max_dist:     C.uint(params.KeyFrameInterval),
 			reference_frames: [4]C.VASurfaceID{
@@ -153,9 +152,9 @@ func newVP8Encoder(r video.Reader, p prop.Media, params ParamVP8) (io.ReadCloser
 				_type: C.VAEncMiscParameterTypeHRD,
 			},
 			data: C.VAEncMiscParameterHRD{
-				initial_buffer_fullness: C.uint(params.RateControl.BitsPerSecond *
+				initial_buffer_fullness: C.uint(params.RateControl.bitsPerSecond *
 					params.RateControl.WindowSize / 2000),
-				buffer_size: C.uint(params.RateControl.BitsPerSecond *
+				buffer_size: C.uint(params.RateControl.bitsPerSecond *
 					params.RateControl.WindowSize / 1000),
 			},
 		},
@@ -176,7 +175,7 @@ func newVP8Encoder(r video.Reader, p prop.Media, params ParamVP8) (io.ReadCloser
 				initial_qp:        C.uint(params.RateControl.InitialQP),
 				min_qp:            C.uint(params.RateControl.MinQP),
 				max_qp:            C.uint(params.RateControl.MaxQP),
-				bits_per_second:   C.uint(params.RateControl.BitsPerSecond),
+				bits_per_second:   C.uint(params.RateControl.bitsPerSecond),
 				target_percentage: C.uint(params.RateControl.TargetPercentage),
 			},
 		},

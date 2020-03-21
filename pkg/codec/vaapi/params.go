@@ -27,13 +27,16 @@ type SequenceParamVP8 struct {
 // NewVP8Param returns default parameters of VP8 codec.
 func NewVP8Param() (ParamVP8, error) {
 	return ParamVP8{
+		BaseParams: codec.BaseParams{
+			BitRate:          320000,
+			KeyFrameInterval: 30,
+		},
 		Sequence: SequenceParamVP8{
 			ClampQindexLow:  9,
 			ClampQindexHigh: 127,
 		},
 		RateControlMode: RateControlVBR,
 		RateControl: RateControlParam{
-			BitsPerSecond:    400000,
 			TargetPercentage: 80,
 			WindowSize:       1500,
 			InitialQP:        60,
@@ -62,10 +65,11 @@ type ParamVP9 struct {
 
 // RateControlParam represents VAEncMiscParameterRateControl.
 type RateControlParam struct {
-	// BitsPerSecond is a maximum bit-rate.
-	// This parameter overwrites prop.Codec.BitRate.
-	BitsPerSecond uint
-	// TargetPercentage is a target bit-rate relative to BitsPerSecond.
+	// bitsPerSecond is a maximum bit-rate.
+	// This parameter is calculated from BaseParams.BitRate.
+	bitsPerSecond uint
+	// TargetPercentage is a target bit-rate relative to the maximum bit-rate.
+	// BaseParams.BitRate / (TargetPercentage * 0.01) will be the maximum bit-rate.
 	TargetPercentage uint
 	// WindowSize is a rate control window size in milliseconds.
 	WindowSize uint
@@ -96,9 +100,12 @@ const (
 // NewVP9Param returns default parameters of VP9 codec.
 func NewVP9Param() (ParamVP9, error) {
 	return ParamVP9{
+		BaseParams: codec.BaseParams{
+			BitRate:          320000,
+			KeyFrameInterval: 30,
+		},
 		RateControlMode: RateControlVBR,
 		RateControl: RateControlParam{
-			BitsPerSecond:    400000,
 			TargetPercentage: 80,
 			WindowSize:       1500,
 			InitialQP:        60,

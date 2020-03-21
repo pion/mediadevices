@@ -67,7 +67,7 @@ func main() {
 			// This example is using libva's hardware accelerated codec.
 			// Set encoder parameters to prohibit bitrate overshoot as possible.
 			cp.RateControlMode = vaapi.RateControlVBR
-			cp.RateControl.BitsPerSecond = 400000
+			cp.BitRate = 400000
 			cp.RateControl.TargetPercentage = 95
 			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&cp}
 		},
