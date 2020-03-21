@@ -6,7 +6,7 @@ import (
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
 	"github.com/pion/mediadevices/pkg/codec"
-	"github.com/pion/mediadevices/pkg/codec/vpx"       // This is required to register VP8/VP9 video encoder
+	"github.com/pion/mediadevices/pkg/codec/vpx"       // This is required to use VP8/VP9 video encoder
 	_ "github.com/pion/mediadevices/pkg/driver/screen" // This is required to register screen capture adapter
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/webrtc/v2"

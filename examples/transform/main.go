@@ -8,7 +8,7 @@ import (
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
 	"github.com/pion/mediadevices/pkg/codec"
-	"github.com/pion/mediadevices/pkg/codec/vpx"       // This is required to register VP8/VP9 video encoder
+	"github.com/pion/mediadevices/pkg/codec/vpx"       // This is required to use VP8/VP9 video encoder
 	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"

@@ -9,7 +9,7 @@ import (
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/webrtc/v2"
 
-	"github.com/pion/mediadevices/pkg/codec/vaapi" // This is required to register VP8/VP9 video encoder
+	"github.com/pion/mediadevices/pkg/codec/vaapi" // This is required to use VP8/VP9 video encoder
 
 	// Note: If you don't have a camera or your adapters are not supported,
 	//       you can always swap your adapters with our dummy adapters below.
