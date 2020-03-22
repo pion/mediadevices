@@ -87,7 +87,7 @@ type encoderVP9 struct {
 
 	frameCnt int
 	prop     prop.Media
-	params   ParamVP9
+	params   ParamsVP9
 
 	rate *framerateDetector
 
@@ -96,7 +96,7 @@ type encoderVP9 struct {
 }
 
 // newVP9Encoder creates new VP9 encoder
-func newVP9Encoder(r video.Reader, p prop.Media, params ParamVP9) (io.ReadCloser, error) {
+func newVP9Encoder(r video.Reader, p prop.Media, params ParamsVP9) (io.ReadCloser, error) {
 	if p.Width%16 != 0 || p.Width == 0 {
 		return nil, errors.New("width must be 16*n")
 	}
