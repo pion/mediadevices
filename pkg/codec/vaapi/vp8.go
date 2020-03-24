@@ -83,7 +83,7 @@ type encoderVP8 struct {
 
 	frameCnt int
 	prop     prop.Media
-	params   ParamVP8
+	params   ParamsVP8
 
 	rate *framerateDetector
 
@@ -92,7 +92,7 @@ type encoderVP8 struct {
 }
 
 // newVP8Encoder creates new VP8 encoder
-func newVP8Encoder(r video.Reader, p prop.Media, params ParamVP8) (io.ReadCloser, error) {
+func newVP8Encoder(r video.Reader, p prop.Media, params ParamsVP8) (io.ReadCloser, error) {
 	if p.Width%16 != 0 || p.Width == 0 {
 		return nil, errors.New("width must be 16*n")
 	}

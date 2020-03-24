@@ -58,7 +58,7 @@ func main() {
 			c.FrameRate = 30
 
 			// Load default parameters.
-			cp, err := vaapi.NewVP8Param()
+			cp, err := vaapi.NewVP8Params()
 			if err != nil {
 				panic(err)
 			}
