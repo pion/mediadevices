@@ -13,6 +13,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/pion/mediadevices/pkg/codec"
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -61,7 +62,7 @@ var (
 	errEncode        = fmt.Errorf("failed to encode")
 )
 
-func newEncoder(r video.Reader, p prop.Media, params Params) (io.ReadCloser, error) {
+func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, error) {
 	if params.KeyFrameInterval == 0 {
 		params.KeyFrameInterval = 60
 	}
@@ -131,6 +132,14 @@ func (e *encoder) Read(p []byte) (int, error) {
 		e.buff = encoded
 	}
 	return n, err
+}
+
+func (e *encoder) SetBitRate(b int) error {
+	panic("SetBitRate is not implemented")
+}
+
+func (e *encoder) ForceKeyFrame() error {
+	panic("ForceKeyFrame is not implemented")
 }
 
 func (e *encoder) Close() error {

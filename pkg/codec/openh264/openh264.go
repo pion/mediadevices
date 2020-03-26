@@ -15,6 +15,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/pion/mediadevices/pkg/codec"
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -29,7 +30,7 @@ type encoder struct {
 	closed bool
 }
 
-func newEncoder(r video.Reader, p prop.Media, params Params) (io.ReadCloser, error) {
+func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, error) {
 	if params.BitRate == 0 {
 		params.BitRate = 100000
 	}
@@ -94,6 +95,14 @@ func (e *encoder) Read(p []byte) (n int, err error) {
 	}
 
 	return n, err
+}
+
+func (e *encoder) SetBitRate(b int) error {
+	panic("SetBitRate is not implemented")
+}
+
+func (e *encoder) ForceKeyFrame() error {
+	panic("ForceKeyFrame is not implemented")
 }
 
 func (e *encoder) Close() error {
