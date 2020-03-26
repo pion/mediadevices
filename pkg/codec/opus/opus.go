@@ -2,12 +2,12 @@ package opus
 
 import (
 	"fmt"
-	"io"
 	"math"
 	"reflect"
 	"unsafe"
 
 	"github.com/lherman-cs/opus"
+	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
 )
@@ -20,9 +20,7 @@ type encoder struct {
 
 var latencies = []float64{5, 10, 20, 40, 60}
 
-var _ io.ReadCloser = &encoder{}
-
-func newEncoder(r audio.Reader, p prop.Media, params Params) (io.ReadCloser, error) {
+func newEncoder(r audio.Reader, p prop.Media, params Params) (codec.ReadCloser, error) {
 	if p.SampleRate == 0 {
 		return nil, fmt.Errorf("opus: inProp.SampleRate is required")
 	}
@@ -96,6 +94,14 @@ func (e *encoder) Read(p []byte) (n int, err error) {
 	}
 
 	return n, nil
+}
+
+func (e *encoder) SetBitRate(b int) error {
+	panic("SetBitRate is not implemented")
+}
+
+func (e *encoder) ForceKeyFrame() error {
+	panic("ForceKeyFrame is not implemented")
 }
 
 func (e *encoder) Close() error {

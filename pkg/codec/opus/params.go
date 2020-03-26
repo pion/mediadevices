@@ -1,8 +1,6 @@
 package opus
 
 import (
-	"io"
-
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -24,7 +22,7 @@ func (p *Params) Name() string {
 	return webrtc.Opus
 }
 
-// BuildVideoEncoder builds x264 encoder with given params
-func (p *Params) BuildAudioEncoder(r audio.Reader, property prop.Media) (io.ReadCloser, error) {
+// BuildAudioEncoder builds opus encoder with given params
+func (p *Params) BuildAudioEncoder(r audio.Reader, property prop.Media) (codec.ReadCloser, error) {
 	return newEncoder(r, property, *p)
 }

@@ -50,6 +50,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/pion/mediadevices/pkg/codec"
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -92,7 +93,7 @@ type encoderVP8 struct {
 }
 
 // newVP8Encoder creates new VP8 encoder
-func newVP8Encoder(r video.Reader, p prop.Media, params ParamsVP8) (io.ReadCloser, error) {
+func newVP8Encoder(r video.Reader, p prop.Media, params ParamsVP8) (codec.ReadCloser, error) {
 	if p.Width%16 != 0 || p.Width == 0 {
 		return nil, errors.New("width must be 16*n")
 	}
@@ -494,6 +495,14 @@ func (e *encoderVP8) Read(p []byte) (int, error) {
 		e.buf = e.frame
 	}
 	return n, err
+}
+
+func (e *encoderVP8) SetBitRate(b int) error {
+	panic("SetBitRate is not implemented")
+}
+
+func (e *encoderVP8) ForceKeyFrame() error {
+	panic("ForceKeyFrame is not implemented")
 }
 
 func (e *encoderVP8) Close() error {

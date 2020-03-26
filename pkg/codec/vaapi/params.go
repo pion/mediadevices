@@ -1,8 +1,6 @@
 package vaapi
 
 import (
-	"io"
-
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -52,7 +50,7 @@ func (p *ParamsVP8) Name() string {
 }
 
 // BuildVideoEncoder builds VP8 encoder with given params
-func (p *ParamsVP8) BuildVideoEncoder(r video.Reader, property prop.Media) (io.ReadCloser, error) {
+func (p *ParamsVP8) BuildVideoEncoder(r video.Reader, property prop.Media) (codec.ReadCloser, error) {
 	return newVP8Encoder(r, property, *p)
 }
 
@@ -121,6 +119,6 @@ func (p *ParamsVP9) Name() string {
 }
 
 // BuildVideoEncoder builds VP9 encoder with given params
-func (p *ParamsVP9) BuildVideoEncoder(r video.Reader, property prop.Media) (io.ReadCloser, error) {
+func (p *ParamsVP9) BuildVideoEncoder(r video.Reader, property prop.Media) (codec.ReadCloser, error) {
 	return newVP9Encoder(r, property, *p)
 }

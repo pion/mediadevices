@@ -2,10 +2,10 @@ package mediadevices
 
 import (
 	"fmt"
-	"io"
 	"math/rand"
 	"sync"
 
+	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/driver"
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/webrtc/v2"
@@ -102,7 +102,7 @@ type videoTrack struct {
 	*track
 	d           driver.Driver
 	constraints MediaTrackConstraints
-	encoder     io.ReadCloser
+	encoder     codec.ReadCloser
 }
 
 var _ Tracker = &videoTrack{}
@@ -198,7 +198,7 @@ type audioTrack struct {
 	*track
 	d           driver.Driver
 	constraints MediaTrackConstraints
-	encoder     io.ReadCloser
+	encoder     codec.ReadCloser
 }
 
 var _ Tracker = &audioTrack{}

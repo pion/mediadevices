@@ -1,8 +1,6 @@
 package openh264
 
 import (
-	"io"
-
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -29,6 +27,6 @@ func (p *Params) Name() string {
 }
 
 // BuildVideoEncoder builds openh264 encoder with given params
-func (p *Params) BuildVideoEncoder(r video.Reader, property prop.Media) (io.ReadCloser, error) {
+func (p *Params) BuildVideoEncoder(r video.Reader, property prop.Media) (codec.ReadCloser, error) {
 	return newEncoder(r, property, *p)
 }

@@ -161,7 +161,7 @@ func (params *mockParams) Name() string {
 	return params.name
 }
 
-func (params *mockParams) BuildVideoEncoder(r video.Reader, p prop.Media) (io.ReadCloser, error) {
+func (params *mockParams) BuildVideoEncoder(r video.Reader, p prop.Media) (codec.ReadCloser, error) {
 	if params.BitRate == 0 {
 		// This is a dummy error to test the failure condition.
 		return nil, errors.New("wrong codec parameter")
@@ -172,14 +172,25 @@ func (params *mockParams) BuildVideoEncoder(r video.Reader, p prop.Media) (io.Re
 	}, nil
 }
 
-func (params *mockParams) BuildAudioEncoder(r audio.Reader, p prop.Media) (io.ReadCloser, error) {
+func (params *mockParams) BuildAudioEncoder(r audio.Reader, p prop.Media) (codec.ReadCloser, error) {
 	return &mockAudioCodec{
 		r:      r,
 		closed: make(chan struct{}),
 	}, nil
 }
 
+type mockCodec struct{}
+
+func (e *mockCodec) SetBitRate(b int) error {
+	return nil
+}
+
+func (e *mockCodec) ForceKeyFrame() error {
+	return nil
+}
+
 type mockVideoCodec struct {
+	mockCodec
 	r      video.Reader
 	closed chan struct{}
 }
@@ -190,9 +201,11 @@ func (m *mockVideoCodec) Read(b []byte) (int, error) {
 	}
 	return len(b), nil
 }
+
 func (m *mockVideoCodec) Close() error { return nil }
 
 type mockAudioCodec struct {
+	mockCodec
 	r      audio.Reader
 	closed chan struct{}
 }
