@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef HAS_VAAPI
+
 #include <unistd.h>
 #include <va/va.h>
 
@@ -15,3 +17,5 @@ void copyI420toNV12(
     void *nv12,
     const uint8_t *y, const uint8_t *cb, const uint8_t *cr,
     const unsigned int n);
+
+#endif // HAS_VAAPI

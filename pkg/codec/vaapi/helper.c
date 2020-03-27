@@ -1,3 +1,5 @@
+#ifdef HAS_VAAPI
+
 #include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
@@ -48,3 +50,5 @@ void copyI420toNV12(
     p[i * 2 + 1] = cr[i];
   }
 }
+
+#endif // HAS_VAAPI

@@ -1,3 +1,5 @@
+// +build dragonfly freebsd linux netbsd openbsd solaris
+
 // Package vaapi implements hardware accelerated codecs.
 // This package requires libva headers and libraries to be built.
 // libva requires supported graphic card and its driver.
@@ -8,6 +10,8 @@ import (
 	"unsafe"
 )
 
+// #cgo pkg-config: libva libva-drm
+// #cgo CFLAGS: -DHAS_VAAPI
 // #include <stdlib.h>
 // #include <fcntl.h>
 // #include <unistd.h>
