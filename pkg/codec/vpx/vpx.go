@@ -55,10 +55,10 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/pion/mediadevices/pkg/codec"
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
-
 	"github.com/pion/webrtc/v2"
 )
 
@@ -100,7 +100,7 @@ func (p *VP8Params) Name() string {
 }
 
 // BuildVideoEncoder builds VP8 encoder with given params
-func (p *VP8Params) BuildVideoEncoder(r video.Reader, property prop.Media) (io.ReadCloser, error) {
+func (p *VP8Params) BuildVideoEncoder(r video.Reader, property prop.Media) (codec.ReadCloser, error) {
 	return newEncoder(r, property, p.Params, C.ifaceVP8())
 }
 
@@ -127,7 +127,7 @@ func (p *VP9Params) Name() string {
 }
 
 // BuildVideoEncoder builds VP9 encoder with given params
-func (p *VP9Params) BuildVideoEncoder(r video.Reader, property prop.Media) (io.ReadCloser, error) {
+func (p *VP9Params) BuildVideoEncoder(r video.Reader, property prop.Media) (codec.ReadCloser, error) {
 	return newEncoder(r, property, p.Params, C.ifaceVP9())
 }
 
@@ -145,7 +145,7 @@ func newParams(codecIface *C.vpx_codec_iface_t) (Params, error) {
 	}, nil
 }
 
-func newEncoder(r video.Reader, p prop.Media, params Params, codecIface *C.vpx_codec_iface_t) (io.ReadCloser, error) {
+func newEncoder(r video.Reader, p prop.Media, params Params, codecIface *C.vpx_codec_iface_t) (codec.ReadCloser, error) {
 	if params.BitRate == 0 {
 		params.BitRate = 100000
 	}
@@ -271,6 +271,14 @@ func (e *encoder) Read(p []byte) (int, error) {
 		e.buff = e.frame
 	}
 	return n, err
+}
+
+func (e *encoder) SetBitRate(b int) error {
+	panic("SetBitRate is not implemented")
+}
+
+func (e *encoder) ForceKeyFrame() error {
+	panic("ForceKeyFrame is not implemented")
 }
 
 func (e *encoder) Close() error {
