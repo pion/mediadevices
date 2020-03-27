@@ -1,3 +1,5 @@
+// +build dragonfly freebsd linux netbsd openbsd solaris
+
 package vaapi
 
 // reference: https://github.com/intel/libva-utils/blob/master/encode/vp8enc.c
