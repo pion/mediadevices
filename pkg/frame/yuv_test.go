@@ -36,6 +36,35 @@ func TestDecodeYUY2(t *testing.T) {
 	}
 }
 
+func TestDecodeUYVY(t *testing.T) {
+	const (
+		width  = 2
+		height = 2
+	)
+	input := []byte{
+		//Cb     Y    Cr     Y
+		0x82, 0x01, 0x84, 0x03,
+		0x86, 0x05, 0x88, 0x07,
+	}
+	expected := &image.YCbCr{
+		Y:              []byte{0x01, 0x03, 0x05, 0x07},
+		YStride:        width,
+		Cb:             []byte{0x82, 0x86},
+		Cr:             []byte{0x84, 0x88},
+		CStride:        width / 2,
+		SubsampleRatio: image.YCbCrSubsampleRatio422,
+		Rect:           image.Rect(0, 0, width, height),
+	}
+
+	img, err := decodeUYVY(input, width, height)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(expected, img) {
+		t.Errorf("Wrong decode result,\nexpected:\n%+v\ngot:\n%+v", expected, img)
+	}
+}
+
 func BenchmarkDecodeYUY2(b *testing.B) {
 	sizes := []struct {
 		width, height int

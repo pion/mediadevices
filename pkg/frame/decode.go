@@ -14,6 +14,8 @@ func NewDecoder(f Format) (Decoder, error) {
 		decoder = decodeNV21
 	case FormatYUY2:
 		decoder = decodeYUY2
+	case FormatUYVY:
+		decoder = decodeUYVY
 	case FormatMJPEG:
 		decoder = decodeMJPEG
 	default:
