@@ -23,6 +23,7 @@ Go implementation of the [MediaDevices](https://developer.mozilla.org/en-US/docs
 |                     Pixel Format                      | Linux | Mac | Windows |
 | :---------------------------------------------------: | :---: | :-: | :-----: |
 | [YUY2](https://www.fourcc.org/pixel-format/yuv-yuy2/) |  ✔️   | ✖️  |   ✔️    |
+| [UYVY](https://www.fourcc.org/pixel-format/yuv-uyvy/) |  ✔️   | ✖️  |   ✖️    |
 | [I420](https://www.fourcc.org/pixel-format/yuv-i420/) |  ✔️   | ✖️  |   ✖️    |
 | [NV21](https://www.fourcc.org/pixel-format/yuv-nv21/) |  ✔️   | ✖️  |   ✖️    |
 |         [MJPEG](https://www.fourcc.org/mjpg/)         |  ✔️   | ✖️  |   ✖️    |
