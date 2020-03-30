@@ -13,6 +13,8 @@ const (
 	FormatNV21 = "NV21"
 	// FormatYUY2 https://www.fourcc.org/pixel-format/yuv-yuy2/
 	FormatYUY2 = "YUY2"
+	// FormatUYVY https://www.fourcc.org/pixel-format/yuv-uyvy/
+	FormatUYVY = "UYVY"
 
 	// RGB Formats
 
