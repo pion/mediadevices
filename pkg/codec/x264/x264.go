@@ -67,6 +67,10 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 		params.KeyFrameInterval = 60
 	}
 
+	// Convert from bit/s to kbit/s because x264 uses kbit/s instead.
+	// Reference: https://code.videolan.org/videolan/x264/-/blob/7923c5818b50a3d8816eed222a7c43b418a73b36/encoder/ratecontrol.c#L657
+	params.BitRate /= 1000
+
 	param := C.x264_param_t{
 		i_csp:        C.X264_CSP_I420,
 		i_width:      C.int(p.Width),
