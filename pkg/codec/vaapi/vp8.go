@@ -310,10 +310,10 @@ func (e *encoderVP8) Read(p []byte) (int, error) {
 		// Key frame
 		C.setForceKFFlagVP8(&e.picParam, 1)
 		C.setFrameTypeFlagVP8(&e.picParam, 0)
-		C.setRefreshLastFlagVP8(&e.picParam, 1)
-		C.setRefreshGoldenFrameFlagVP8(&e.picParam, 1)
+		C.setRefreshLastFlagVP8(&e.picParam, 0)
+		C.setRefreshGoldenFrameFlagVP8(&e.picParam, 0)
 		C.setCopyBufferToGoldenFlagVP8(&e.picParam, 0)
-		C.setRefreshAlternateFrameFlagVP8(&e.picParam, 1)
+		C.setRefreshAlternateFrameFlagVP8(&e.picParam, 0)
 		C.setCopyBufferToAlternateFlagVP8(&e.picParam, 0)
 	} else {
 		C.setForceKFFlagVP8(&e.picParam, 0)
@@ -485,7 +485,8 @@ func (e *encoderVP8) Read(p []byte) (int, error) {
 	}
 
 	// Select released surface for next frame
-	for _, s := range e.surfs {
+	for i := surfaceVP8Ref0; i <= surfaceVP8Ref3; i++ {
+		s := e.surfs[i]
 		if s != e.picParam.ref_last_frame && s != e.picParam.ref_gf_frame && s != e.picParam.ref_arf_frame {
 			e.picParam.reconstructed_frame = s
 		}
