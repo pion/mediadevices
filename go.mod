@@ -10,5 +10,5 @@ require (
 	github.com/pion/webrtc/v2 v2.2.4
 	github.com/satori/go.uuid v1.2.0
 	golang.org/x/image v0.0.0-20200119044424-58c23975cae1
-	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527
+	golang.org/x/sys v0.0.0-20200331124033-c3d80250170d
 )
