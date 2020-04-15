@@ -1,6 +1,8 @@
 package vpx
 
 import (
+	"time"
+
 	"github.com/pion/mediadevices/pkg/codec"
 )
 
@@ -8,6 +10,7 @@ import (
 // Value range is codec (VP8/VP9) specific.
 type Params struct {
 	codec.BaseParams
+	Deadline                     time.Duration
 	RateControlEndUsage          RateControlMode
 	RateControlUndershootPercent uint
 	RateControlOvershootPercent  uint

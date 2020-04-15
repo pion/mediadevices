@@ -72,6 +72,7 @@ type encoder struct {
 	tStart     int
 	tLastFrame int
 	frame      []byte
+	deadline   int
 
 	mu     sync.Mutex
 	closed bool
@@ -137,6 +138,7 @@ func newParams(codecIface *C.vpx_codec_iface_t) (Params, error) {
 		return Params{}, fmt.Errorf("vpx_codec_enc_config_default failed (%d)", ec)
 	}
 	return Params{
+		Deadline:                     time.Microsecond * time.Duration(C.VPX_DL_REALTIME),
 		RateControlEndUsage:          RateControlMode(cfg.rc_end_usage),
 		RateControlUndershootPercent: uint(cfg.rc_undershoot_pct),
 		RateControlOvershootPercent:  uint(cfg.rc_overshoot_pct),
@@ -197,6 +199,7 @@ func newEncoder(r video.Reader, p prop.Media, params Params, codecIface *C.vpx_c
 		cfg:        cfg,
 		tStart:     t0,
 		tLastFrame: t0,
+		deadline:   int(params.Deadline / time.Microsecond),
 		frame:      make([]byte, 1024),
 	}, nil
 }
@@ -245,7 +248,7 @@ func (e *encoder) Read(p []byte) (int, error) {
 	var flags int
 	if ec := C.encode_wrapper(
 		e.codec, e.raw,
-		C.long(t-e.tStart), C.ulong(t-e.tLastFrame), C.long(flags), C.VPX_DL_REALTIME,
+		C.long(t-e.tStart), C.ulong(t-e.tLastFrame), C.long(flags), C.ulong(e.deadline),
 		(*C.uchar)(&yuvImg.Y[0]), (*C.uchar)(&yuvImg.Cb[0]), (*C.uchar)(&yuvImg.Cr[0]),
 	); ec != C.VPX_CODEC_OK {
 		return 0, fmt.Errorf("vpx_codec_encode failed (%d)", ec)
