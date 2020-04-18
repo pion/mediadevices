@@ -6,26 +6,25 @@ import (
 	"github.com/pion/webrtc/v2/pkg/media"
 )
 
-type sampler struct {
-	track         LocalTrack
-	clockRate     float64
-	lastTimestamp time.Time
+type samplerFunc func(b []byte) error
+
+func newVideoSampler(t LocalTrack) samplerFunc {
+	clockRate := float64(t.Codec().ClockRate)
+	lastTimestamp := time.Now()
+
+	return samplerFunc(func(b []byte) error {
+		now := time.Now()
+		duration := now.Sub(lastTimestamp).Seconds()
+		samples := uint32(clockRate * duration)
+		lastTimestamp = now
+
+		return t.WriteSample(media.Sample{Data: b, Samples: samples})
+	})
 }
 
-func newSampler(track LocalTrack) *sampler {
-	return &sampler{
-		track:         track,
-		clockRate:     float64(track.Codec().ClockRate),
-		lastTimestamp: time.Now(),
-	}
-}
-
-func (s *sampler) sample(b []byte) error {
-	now := time.Now()
-	duration := now.Sub(s.lastTimestamp).Seconds()
-	samples := uint32(s.clockRate * duration)
-	s.lastTimestamp = now
-
-	sample := media.Sample{Data: b, Samples: samples}
-	return s.track.WriteSample(sample)
+func newAudioSampler(t LocalTrack, latency time.Duration) samplerFunc {
+	samples := uint32(float64(t.Codec().ClockRate) * latency.Seconds())
+	return samplerFunc(func(b []byte) error {
+		return t.WriteSample(media.Sample{Data: b, Samples: samples})
+	})
 }

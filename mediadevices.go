@@ -230,7 +230,7 @@ func (m *mediaDevices) selectAudio(constraints MediaTrackConstraints) (Tracker, 
 		return nil, err
 	}
 
-	return newAudioTrack(&m.MediaDevicesOptions, d, c)
+	return newTrack(&m.MediaDevicesOptions, d, c)
 }
 func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, error) {
 	typeFilter := driver.FilterVideoRecorder()
@@ -246,7 +246,7 @@ func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, 
 		return nil, err
 	}
 
-	return newVideoTrack(&m.MediaDevicesOptions, d, c)
+	return newTrack(&m.MediaDevicesOptions, d, c)
 }
 
 func (m *mediaDevices) selectScreen(constraints MediaTrackConstraints) (Tracker, error) {
@@ -263,7 +263,7 @@ func (m *mediaDevices) selectScreen(constraints MediaTrackConstraints) (Tracker,
 		return nil, err
 	}
 
-	return newVideoTrack(&m.MediaDevicesOptions, d, c)
+	return newTrack(&m.MediaDevicesOptions, d, c)
 }
 
 func (m *mediaDevices) EnumerateDevices() []MediaDeviceInfo {

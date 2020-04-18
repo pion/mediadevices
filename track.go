@@ -32,8 +32,10 @@ type LocalTrack interface {
 }
 
 type track struct {
-	t LocalTrack
-	s *sampler
+	localTrack LocalTrack
+	d          driver.Driver
+	sample     samplerFunc
+	encoder    codec.ReadCloser
 
 	onErrorHandler func(error)
 	err            error
@@ -41,26 +43,69 @@ type track struct {
 	endOnce        sync.Once
 }
 
-func newTrack(selectedCodec *webrtc.RTPCodec, trackGenerator TrackGenerator, d driver.Driver) (*track, error) {
-	if selectedCodec == nil {
-		panic("codec is required")
+func newTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrackConstraints) (*track, error) {
+	var encoderBuilders []encoderBuilder
+	var rtpCodecs []*webrtc.RTPCodec
+	var buildSampler func(t LocalTrack) samplerFunc
+	var err error
+	switch r := d.(type) {
+	case driver.VideoRecorder:
+		rtpCodecs = opts.codecs[webrtc.RTPCodecTypeVideo]
+		buildSampler = newVideoSampler
+		encoderBuilders, err = newVideoEncoderBuilders(r, constraints)
+	case driver.AudioRecorder:
+		rtpCodecs = opts.codecs[webrtc.RTPCodecTypeAudio]
+		buildSampler = func(t LocalTrack) samplerFunc {
+			return newAudioSampler(t, constraints.Latency)
+		}
+		encoderBuilders, err = newAudioEncoderBuilders(r, constraints)
+	default:
+		return nil, fmt.Errorf("newTrack: invalid driver type")
 	}
 
-	t, err := trackGenerator(
-		selectedCodec.PayloadType,
-		rand.Uint32(),
-		d.ID(),
-		selectedCodec.Type.String(),
-		selectedCodec,
-	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &track{
-		t: t,
-		s: newSampler(t),
-	}, nil
+	for _, builder := range encoderBuilders {
+		var matchedRTPCodec *webrtc.RTPCodec
+		for _, rtpCodec := range rtpCodecs {
+			if rtpCodec.Name == builder.name {
+				matchedRTPCodec = rtpCodec
+				break
+			}
+		}
+
+		if matchedRTPCodec == nil {
+			continue
+		}
+
+		localTrack, err := opts.trackGenerator(
+			matchedRTPCodec.PayloadType,
+			rand.Uint32(),
+			d.ID(),
+			matchedRTPCodec.Type.String(),
+			matchedRTPCodec,
+		)
+		if err != nil {
+			continue
+		}
+
+		encoder, err := builder.build()
+		if err != nil {
+			continue
+		}
+
+		t := track{
+			localTrack: localTrack,
+			sample:     buildSampler(localTrack),
+			encoder:    encoder,
+		}
+		go t.start()
+		return &t, nil
+	}
+
+	return nil, fmt.Errorf("newTrack: failed to to create")
 }
 
 func (t *track) OnEnded(handler func(error)) {
@@ -90,30 +135,48 @@ func (t *track) onError(err error) {
 	}
 }
 
+func (t *track) start() {
+	var n int
+	var err error
+	buff := make([]byte, 1024)
+	for {
+		n, err = t.encoder.Read(buff)
+		if err != nil {
+			if e, ok := err.(*mio.InsufficientBufferError); ok {
+				buff = make([]byte, 2*e.RequiredSize)
+				continue
+			}
+
+			t.onError(err)
+			return
+		}
+
+		if err := t.sample(buff[:n]); err != nil {
+			t.onError(err)
+			return
+		}
+	}
+}
+
+func (t *track) Stop() {
+	t.d.Close()
+	t.encoder.Close()
+}
+
 func (t *track) Track() *webrtc.Track {
-	return t.t.(*webrtc.Track)
+	return t.localTrack.(*webrtc.Track)
 }
 
 func (t *track) LocalTrack() LocalTrack {
-	return t.t
+	return t.localTrack
 }
 
-type videoTrack struct {
-	*track
-	d           driver.Driver
-	constraints MediaTrackConstraints
-	encoder     codec.ReadCloser
+type encoderBuilder struct {
+	name  string
+	build func() (codec.ReadCloser, error)
 }
 
-var _ Tracker = &videoTrack{}
-
-func newVideoTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrackConstraints) (*videoTrack, error) {
-	err := d.Open()
-	if err != nil {
-		return nil, err
-	}
-
-	vr := d.(driver.VideoRecorder)
+func newVideoEncoderBuilders(vr driver.VideoRecorder, constraints MediaTrackConstraints) ([]encoderBuilder, error) {
 	r, err := vr.VideoRecord(constraints.Media)
 	if err != nil {
 		return nil, err
@@ -123,93 +186,17 @@ func newVideoTrack(opts *MediaDevicesOptions, d driver.Driver, constraints Media
 		r = constraints.VideoTransform(r)
 	}
 
-	var vt *videoTrack
-	rtpCodecs := opts.codecs[webrtc.RTPCodecTypeVideo]
-	for _, codecBuilder := range constraints.VideoEncoderBuilders {
-		var matchedRTPCodec *webrtc.RTPCodec
-		for _, rtpCodec := range rtpCodecs {
-			if rtpCodec.Name == codecBuilder.Name() {
-				matchedRTPCodec = rtpCodec
-				break
-			}
-		}
-
-		if matchedRTPCodec == nil {
-			continue
-		}
-
-		t, err := newTrack(matchedRTPCodec, opts.trackGenerator, d)
-		if err != nil {
-			continue
-		}
-
-		encoder, err := codecBuilder.BuildVideoEncoder(r, constraints.Media)
-		if err != nil {
-			continue
-		}
-
-		vt = &videoTrack{
-			track:       t,
-			d:           d,
-			constraints: constraints,
-			encoder:     encoder,
-		}
-		break
-	}
-
-	if vt == nil {
-		d.Close()
-		return nil, fmt.Errorf("failed to find a matching video codec")
-	}
-
-	go vt.start()
-	return vt, nil
-}
-
-func (vt *videoTrack) start() {
-	var n int
-	var err error
-	buff := make([]byte, 1024)
-	for {
-		n, err = vt.encoder.Read(buff)
-		if err != nil {
-			if e, ok := err.(*mio.InsufficientBufferError); ok {
-				buff = make([]byte, 2*e.RequiredSize)
-				continue
-			}
-
-			vt.track.onError(err)
-			return
-		}
-
-		if err := vt.s.sample(buff[:n]); err != nil {
-			vt.track.onError(err)
-			return
+	encoderBuilders := make([]encoderBuilder, len(constraints.VideoEncoderBuilders))
+	for i, b := range constraints.VideoEncoderBuilders {
+		encoderBuilders[i].name = b.Name()
+		encoderBuilders[i].build = func() (codec.ReadCloser, error) {
+			return b.BuildVideoEncoder(r, constraints.Media)
 		}
 	}
+	return encoderBuilders, nil
 }
 
-func (vt *videoTrack) Stop() {
-	vt.d.Close()
-	vt.encoder.Close()
-}
-
-type audioTrack struct {
-	*track
-	d           driver.Driver
-	constraints MediaTrackConstraints
-	encoder     codec.ReadCloser
-}
-
-var _ Tracker = &audioTrack{}
-
-func newAudioTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrackConstraints) (*audioTrack, error) {
-	err := d.Open()
-	if err != nil {
-		return nil, err
-	}
-
-	ar := d.(driver.AudioRecorder)
+func newAudioEncoderBuilders(ar driver.AudioRecorder, constraints MediaTrackConstraints) ([]encoderBuilder, error) {
 	r, err := ar.AudioRecord(constraints.Media)
 	if err != nil {
 		return nil, err
@@ -219,69 +206,12 @@ func newAudioTrack(opts *MediaDevicesOptions, d driver.Driver, constraints Media
 		r = constraints.AudioTransform(r)
 	}
 
-	var at *audioTrack
-	rtpCodecs := opts.codecs[webrtc.RTPCodecTypeAudio]
-	for _, codecBuilder := range constraints.AudioEncoderBuilders {
-		var matchedRTPCodec *webrtc.RTPCodec
-		for _, rtpCodec := range rtpCodecs {
-			if rtpCodec.Name == codecBuilder.Name() {
-				matchedRTPCodec = rtpCodec
-				break
-			}
-		}
-
-		if matchedRTPCodec == nil {
-			continue
-		}
-
-		t, err := newTrack(matchedRTPCodec, opts.trackGenerator, d)
-		if err != nil {
-			continue
-		}
-
-		encoder, err := codecBuilder.BuildAudioEncoder(r, constraints.Media)
-		if err != nil {
-			continue
-		}
-
-		at = &audioTrack{
-			track:       t,
-			d:           d,
-			constraints: constraints,
-			encoder:     encoder,
+	encoderBuilders := make([]encoderBuilder, len(constraints.AudioEncoderBuilders))
+	for i, b := range constraints.AudioEncoderBuilders {
+		encoderBuilders[i].name = b.Name()
+		encoderBuilders[i].build = func() (codec.ReadCloser, error) {
+			return b.BuildAudioEncoder(r, constraints.Media)
 		}
 	}
-
-	if at == nil {
-		d.Close()
-		return nil, fmt.Errorf("failed to find a matching audio codec")
-	}
-
-	go at.start()
-	return at, nil
-}
-
-func (t *audioTrack) start() {
-	buff := make([]byte, 1024)
-	sampleSize := uint32(float64(t.constraints.SampleRate) * t.constraints.Latency.Seconds())
-	for {
-		n, err := t.encoder.Read(buff)
-		if err != nil {
-			t.track.onError(err)
-			return
-		}
-
-		if err := t.t.WriteSample(media.Sample{
-			Data:    buff[:n],
-			Samples: sampleSize,
-		}); err != nil {
-			t.track.onError(err)
-			return
-		}
-	}
-}
-
-func (t *audioTrack) Stop() {
-	t.d.Close()
-	t.encoder.Close()
+	return encoderBuilders, nil
 }
