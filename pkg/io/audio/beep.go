@@ -4,12 +4,13 @@ import (
 	"io"
 
 	"github.com/faiface/beep"
+
+	"github.com/pion/mediadevices/pkg/wave"
 )
 
 type beepStreamer struct {
-	err  error
-	r    Reader
-	buff [][2]float32
+	err error
+	r   Reader
 }
 
 func ToBeep(r Reader) beep.Streamer {
@@ -20,17 +21,13 @@ func ToBeep(r Reader) beep.Streamer {
 	return &beepStreamer{r: r}
 }
 
-func (b *beepStreamer) Stream(samples [][2]float64) (n int, ok bool) {
+func (b *beepStreamer) Stream(samples [][2]float64) (int, bool) {
 	// Since there was an error, the stream has to be drained
 	if b.err != nil {
 		return 0, false
 	}
 
-	if len(b.buff) < len(samples) {
-		b.buff = append(b.buff, make([][2]float32, len(samples)-len(b.buff))...)
-	}
-
-	n, err := b.r.Read(b.buff[:len(samples)])
+	d, err := b.r.Read()
 	if err != nil {
 		b.err = err
 		if err != io.EOF {
@@ -38,9 +35,10 @@ func (b *beepStreamer) Stream(samples [][2]float64) (n int, ok bool) {
 		}
 	}
 
+	n := d.ChunkInfo().Len
 	for i := 0; i < n; i++ {
-		samples[i][0] = float64(b.buff[i][0])
-		samples[i][1] = float64(b.buff[i][1])
+		samples[i][0] = float64(wave.Float32SampleFormat.Convert(d.At(i, 0)).(wave.Float32Sample))
+		samples[i][1] = float64(wave.Float32SampleFormat.Convert(d.At(i, 1)).(wave.Float32Sample))
 	}
 
 	return n, true
@@ -53,6 +51,7 @@ func (b *beepStreamer) Err() error {
 type beepReader struct {
 	s    beep.Streamer
 	buff [][2]float64
+	size int
 }
 
 func FromBeep(s beep.Streamer) Reader {
@@ -60,28 +59,31 @@ func FromBeep(s beep.Streamer) Reader {
 		panic("FromStreamer requires a non-nil beep.Streamer")
 	}
 
-	return &beepReader{s: s}
+	return &beepReader{
+		s:    s,
+		buff: make([][2]float64, 1024), // TODO: configure chunk size
+	}
 }
 
-func (r *beepReader) Read(samples [][2]float32) (n int, err error) {
-	if len(r.buff) < len(samples) {
-		r.buff = append(r.buff, make([][2]float64, len(samples)-len(r.buff))...)
-	}
+func (r *beepReader) Read() (wave.Audio, error) {
+	out := wave.NewFloat32Interleaved(
+		wave.ChunkInfo{Len: len(r.buff), Channels: 2, SamplingRate: 48000},
+	)
 
-	n, ok := r.s.Stream(r.buff[:len(samples)])
+	n, ok := r.s.Stream(r.buff)
 	if !ok {
 		err := r.s.Err()
 		if err == nil {
 			err = io.EOF
 		}
 
-		return n, err
+		return nil, err
 	}
 
 	for i := 0; i < n; i++ {
-		samples[i][0] = float32(r.buff[i][0])
-		samples[i][1] = float32(r.buff[i][1])
+		out.SetFloat32(i, 0, wave.Float32Sample(r.buff[i][0]))
+		out.SetFloat32(i, 1, wave.Float32Sample(r.buff[i][1]))
 	}
 
-	return n, nil
+	return out, nil
 }
