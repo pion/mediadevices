@@ -106,7 +106,7 @@ func newTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrack
 		t := track{
 			localTrack: localTrack,
 			sample:     buildSampler(localTrack),
-			d: 					d,
+			d:          d,
 			encoder:    encoder,
 		}
 		go t.start()
