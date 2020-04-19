@@ -5,10 +5,10 @@ import (
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
-	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/codec/vpx"       // This is required to use VP8/VP9 video encoder
 	_ "github.com/pion/mediadevices/pkg/driver/screen" // This is required to register screen capture adapter
 	"github.com/pion/mediadevices/pkg/io/video"
+	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -42,20 +42,20 @@ func main() {
 		fmt.Printf("Connection State has changed %s \n", connectionState.String())
 	})
 
-	md := mediadevices.NewMediaDevices(peerConnection)
-
 	vp8Params, err := vpx.NewVP8Params()
 	if err != nil {
 		panic(err)
 	}
 	vp8Params.BitRate = 100000 // 100kbps
 
+	md := mediadevices.NewMediaDevices(
+		peerConnection,
+		mediadevices.WithVideoEncoders(&vp8Params),
+		mediadevices.WithVideoTransformers(video.Scale(-1, 360, nil)),
+	)
+
 	s, err := md.GetDisplayMedia(mediadevices.MediaStreamConstraints{
-		Video: func(c *mediadevices.MediaTrackConstraints) {
-			c.Enabled = true
-			c.VideoTransform = video.Scale(-1, 360, nil) // Resize to 360p
-			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&vp8Params}
-		},
+		Video: func(p *prop.Media) {},
 	})
 	if err != nil {
 		panic(err)

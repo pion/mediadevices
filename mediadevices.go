@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/driver"
+	"github.com/pion/mediadevices/pkg/io/audio"
+	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/webrtc/v2"
 )
@@ -62,8 +65,12 @@ type mediaDevices struct {
 
 // MediaDevicesOptions stores parameters used by MediaDevices.
 type MediaDevicesOptions struct {
-	codecs         map[webrtc.RTPCodecType][]*webrtc.RTPCodec
-	trackGenerator TrackGenerator
+	codecs               map[webrtc.RTPCodecType][]*webrtc.RTPCodec
+	trackGenerator       TrackGenerator
+	videoEncoderBuilders []codec.VideoEncoderBuilder
+	audioEncoderBuilders []codec.AudioEncoderBuilder
+	videoTransform       video.TransformFunc
+	audioTransform       audio.TransformFunc
 }
 
 // MediaDevicesOption is a type of MediaDevices functional option.
@@ -73,6 +80,46 @@ type MediaDevicesOption func(*MediaDevicesOptions)
 func WithTrackGenerator(gen TrackGenerator) MediaDevicesOption {
 	return func(o *MediaDevicesOptions) {
 		o.trackGenerator = gen
+	}
+}
+
+// WithVideoEncoders specifies available video encoders.
+// encoders are codec builders that are used for encoding the video
+// and later being used for sending the appropriate RTP payload type.
+//
+// If one encoder builder fails to build the codec, the next builder will be used,
+// repeating until a codec builds. If no builders build successfully, an error is returned.
+func WithVideoEncoders(encoders ...codec.VideoEncoderBuilder) MediaDevicesOption {
+	return func(o *MediaDevicesOptions) {
+		o.videoEncoderBuilders = encoders
+	}
+}
+
+// WithAudioEncoders specifies available audio encoders
+// encoders are codec builders that are used for encoding the audio
+// and later being used for sending the appropriate RTP payload type.
+//
+// If one encoder builder fails to build the codec, the next builder will be used,
+// repeating until a codec builds. If no builders build successfully, an error is returned.
+func WithAudioEncoders(encoders ...codec.AudioEncoderBuilder) MediaDevicesOption {
+	return func(o *MediaDevicesOptions) {
+		o.audioEncoderBuilders = encoders
+	}
+}
+
+// WithVideoTransformers will be used to transform the video that's coming from the driver.
+// So, basically it'll look like following: driver -> VideoTransform -> codec
+func WithVideoTransformers(transformFuncs ...video.TransformFunc) MediaDevicesOption {
+	return func(o *MediaDevicesOptions) {
+		o.videoTransform = video.Merge(transformFuncs...)
+	}
+}
+
+// WithAudioTransformers will be used to transform the audio that's coming from the driver.
+// So, basically it'll look like following: driver -> AudioTransform -> code
+func WithAudioTransformers(transformFuncs ...audio.TransformFunc) MediaDevicesOption {
+	return func(o *MediaDevicesOptions) {
+		o.audioTransform = audio.Merge(transformFuncs...)
 	}
 }
 
@@ -88,13 +135,10 @@ func (m *mediaDevices) GetDisplayMedia(constraints MediaStreamConstraints) (Medi
 		}
 	}
 
-	var videoConstraints MediaTrackConstraints
 	if constraints.Video != nil {
-		constraints.Video(&videoConstraints)
-	}
-
-	if videoConstraints.Enabled {
-		tracker, err := m.selectScreen(videoConstraints)
+		var p prop.Media
+		constraints.Video(&p)
+		tracker, err := m.selectScreen(p)
 		if err != nil {
 			cleanTrackers()
 			return nil, err
@@ -125,17 +169,10 @@ func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaSt
 		}
 	}
 
-	var videoConstraints, audioConstraints MediaTrackConstraints
 	if constraints.Video != nil {
-		constraints.Video(&videoConstraints)
-	}
-
-	if constraints.Audio != nil {
-		constraints.Audio(&audioConstraints)
-	}
-
-	if videoConstraints.Enabled {
-		tracker, err := m.selectVideo(videoConstraints)
+		var p prop.Media
+		constraints.Video(&p)
+		tracker, err := m.selectVideo(p)
 		if err != nil {
 			cleanTrackers()
 			return nil, err
@@ -144,8 +181,10 @@ func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaSt
 		trackers = append(trackers, tracker)
 	}
 
-	if audioConstraints.Enabled {
-		tracker, err := m.selectAudio(audioConstraints)
+	if constraints.Audio != nil {
+		var p prop.Media
+		constraints.Audio(&p)
+		tracker, err := m.selectAudio(p)
 		if err != nil {
 			cleanTrackers()
 			return nil, err
@@ -191,7 +230,7 @@ func queryDriverProperties(filter driver.FilterFn) map[driver.Driver][]prop.Medi
 
 // select implements SelectSettings algorithm.
 // Reference: https://w3c.github.io/mediacapture-main/#dfn-selectsettings
-func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints) (driver.Driver, MediaTrackConstraints, error) {
+func selectBestDriver(filter driver.FilterFn, constraints prop.Media) (driver.Driver, prop.Media, error) {
 	var bestDriver driver.Driver
 	var bestProp prop.Media
 	minFitnessDist := math.Inf(1)
@@ -200,7 +239,7 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 	for d, props := range driverProperties {
 		priority := float64(d.Info().Priority)
 		for _, p := range props {
-			fitnessDist := constraints.Media.FitnessDistance(p) - priority
+			fitnessDist := constraints.FitnessDistance(p) - priority
 			if fitnessDist < minFitnessDist {
 				minFitnessDist = fitnessDist
 				bestDriver = d
@@ -210,14 +249,14 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 	}
 
 	if bestDriver == nil {
-		return nil, MediaTrackConstraints{}, errNotFound
+		return nil, prop.Media{}, errNotFound
 	}
 
 	constraints.Merge(bestProp)
 	return bestDriver, constraints, nil
 }
 
-func (m *mediaDevices) selectAudio(constraints MediaTrackConstraints) (Tracker, error) {
+func (m *mediaDevices) selectAudio(constraints prop.Media) (Tracker, error) {
 	typeFilter := driver.FilterAudioRecorder()
 	filter := typeFilter
 	if constraints.DeviceID != "" {
@@ -232,7 +271,8 @@ func (m *mediaDevices) selectAudio(constraints MediaTrackConstraints) (Tracker, 
 
 	return newTrack(&m.MediaDevicesOptions, d, c)
 }
-func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, error) {
+
+func (m *mediaDevices) selectVideo(constraints prop.Media) (Tracker, error) {
 	typeFilter := driver.FilterVideoRecorder()
 	notScreenFilter := driver.FilterNot(driver.FilterDeviceType(driver.Screen))
 	filter := driver.FilterAnd(typeFilter, notScreenFilter)
@@ -249,7 +289,7 @@ func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, 
 	return newTrack(&m.MediaDevicesOptions, d, c)
 }
 
-func (m *mediaDevices) selectScreen(constraints MediaTrackConstraints) (Tracker, error) {
+func (m *mediaDevices) selectScreen(constraints prop.Media) (Tracker, error) {
 	typeFilter := driver.FilterVideoRecorder()
 	screenFilter := driver.FilterDeviceType(driver.Screen)
 	filter := driver.FilterAnd(typeFilter, screenFilter)

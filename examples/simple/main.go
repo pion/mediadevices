@@ -5,12 +5,11 @@ import (
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
-	"github.com/pion/mediadevices/pkg/codec"
-	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/webrtc/v2"
 
 	// This is required to use opus audio encoder
 	"github.com/pion/mediadevices/pkg/codec/opus"
+	"github.com/pion/mediadevices/pkg/prop"
 
 	// If you don't like vpx, you can also use x264 by importing as below
 	// "github.com/pion/mediadevices/pkg/codec/x264" // This is required to use h264 video encoder
@@ -60,8 +59,6 @@ func main() {
 		fmt.Printf("Connection State has changed %s \n", connectionState.String())
 	})
 
-	md := mediadevices.NewMediaDevices(peerConnection)
-
 	opusParams, err := opus.NewParams()
 	if err != nil {
 		panic(err)
@@ -74,17 +71,17 @@ func main() {
 	}
 	vp8Params.BitRate = 100000 // 100kbps
 
+	md := mediadevices.NewMediaDevices(
+		peerConnection,
+		mediadevices.WithVideoEncoders(&vp8Params),
+		mediadevices.WithAudioEncoders(&opusParams),
+	)
+
 	s, err := md.GetUserMedia(mediadevices.MediaStreamConstraints{
-		Audio: func(c *mediadevices.MediaTrackConstraints) {
-			c.Enabled = true
-			c.AudioEncoderBuilders = []codec.AudioEncoderBuilder{&opusParams}
-		},
-		Video: func(c *mediadevices.MediaTrackConstraints) {
-			c.FrameFormat = frame.FormatYUY2
-			c.Enabled = true
-			c.Width = 640
-			c.Height = 480
-			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&vp8Params}
+		Audio: func(p *prop.Media) {},
+		Video: func(p *prop.Media) {
+			p.Width = 640
+			p.Height = 480
 		},
 	})
 	if err != nil {

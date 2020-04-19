@@ -18,18 +18,25 @@ import (
 )
 
 func TestGetUserMedia(t *testing.T) {
-	videoParams := mockParams{
-		BaseParams: codec.BaseParams{
-			BitRate: 100000,
-		},
+	brokenVideoParams := mockParams{
 		name: "MockVideo",
 	}
+	videoParams := brokenVideoParams
+	videoParams.BitRate = 100000
 	audioParams := mockParams{
 		BaseParams: codec.BaseParams{
 			BitRate: 32000,
 		},
 		name: "MockAudio",
 	}
+	constraints := MediaStreamConstraints{
+		Video: func(p *prop.Media) {
+			p.Width = 640
+			p.Height = 480
+		},
+		Audio: func(p *prop.Media) {},
+	}
+
 	md := NewMediaDevicesFromCodecs(
 		map[webrtc.RTPCodecType][]*webrtc.RTPCodec{
 			webrtc.RTPCodecTypeVideo: []*webrtc.RTPCodec{
@@ -46,42 +53,35 @@ func TestGetUserMedia(t *testing.T) {
 				return newMockTrack(codec, id), nil
 			},
 		),
+		WithVideoEncoders(&brokenVideoParams),
+		WithAudioEncoders(&audioParams),
 	)
-	constraints := MediaStreamConstraints{
-		Video: func(c *MediaTrackConstraints) {
-			c.Enabled = true
-			c.Width = 640
-			c.Height = 480
-			params := videoParams
-			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&params}
-		},
-		Audio: func(c *MediaTrackConstraints) {
-			c.Enabled = true
-			params := audioParams
-			c.AudioEncoderBuilders = []codec.AudioEncoderBuilder{&params}
-		},
-	}
-	constraintsWrong := MediaStreamConstraints{
-		Video: func(c *MediaTrackConstraints) {
-			c.Enabled = true
-			c.Width = 640
-			c.Height = 480
-			params := videoParams
-			params.BitRate = 0
-			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&params}
-		},
-		Audio: func(c *MediaTrackConstraints) {
-			c.Enabled = true
-			params := audioParams
-			c.AudioEncoderBuilders = []codec.AudioEncoderBuilder{&params}
-		},
-	}
 
 	// GetUserMedia with broken parameters
-	ms, err := md.GetUserMedia(constraintsWrong)
+	ms, err := md.GetUserMedia(constraints)
 	if err == nil {
 		t.Fatal("Expected error, but got nil")
 	}
+
+	md = NewMediaDevicesFromCodecs(
+		map[webrtc.RTPCodecType][]*webrtc.RTPCodec{
+			webrtc.RTPCodecTypeVideo: []*webrtc.RTPCodec{
+				&webrtc.RTPCodec{Type: webrtc.RTPCodecTypeVideo, Name: "MockVideo", PayloadType: 1},
+			},
+			webrtc.RTPCodecTypeAudio: []*webrtc.RTPCodec{
+				&webrtc.RTPCodec{Type: webrtc.RTPCodecTypeAudio, Name: "MockAudio", PayloadType: 2},
+			},
+		},
+		WithTrackGenerator(
+			func(_ uint8, _ uint32, id, _ string, codec *webrtc.RTPCodec) (
+				LocalTrack, error,
+			) {
+				return newMockTrack(codec, id), nil
+			},
+		),
+		WithVideoEncoders(&videoParams),
+		WithAudioEncoders(&audioParams),
+	)
 
 	// GetUserMedia with correct parameters
 	ms, err = md.GetUserMedia(constraints)

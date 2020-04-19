@@ -8,6 +8,7 @@ import (
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/driver"
 	mio "github.com/pion/mediadevices/pkg/io"
+	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
 )
@@ -43,7 +44,7 @@ type track struct {
 	endOnce        sync.Once
 }
 
-func newTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrackConstraints) (*track, error) {
+func newTrack(opts *MediaDevicesOptions, d driver.Driver, constraints prop.Media) (*track, error) {
 	var encoderBuilders []encoderBuilder
 	var rtpCodecs []*webrtc.RTPCodec
 	var buildSampler func(t LocalTrack) samplerFunc
@@ -58,13 +59,13 @@ func newTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrack
 	case driver.VideoRecorder:
 		rtpCodecs = opts.codecs[webrtc.RTPCodecTypeVideo]
 		buildSampler = newVideoSampler
-		encoderBuilders, err = newVideoEncoderBuilders(r, constraints)
+		encoderBuilders, err = newVideoEncoderBuilders(opts, r, constraints)
 	case driver.AudioRecorder:
 		rtpCodecs = opts.codecs[webrtc.RTPCodecTypeAudio]
 		buildSampler = func(t LocalTrack) samplerFunc {
 			return newAudioSampler(t, constraints.Latency)
 		}
-		encoderBuilders, err = newAudioEncoderBuilders(r, constraints)
+		encoderBuilders, err = newAudioEncoderBuilders(opts, r, constraints)
 	default:
 		err = fmt.Errorf("newTrack: invalid driver type")
 	}
@@ -195,21 +196,21 @@ type encoderBuilder struct {
 
 // newVideoEncoderBuilders transforms video given by VideoRecorder with the video transformer that is passed through
 // constraints and create a list of generic encoder builders
-func newVideoEncoderBuilders(vr driver.VideoRecorder, constraints MediaTrackConstraints) ([]encoderBuilder, error) {
-	r, err := vr.VideoRecord(constraints.Media)
+func newVideoEncoderBuilders(opts *MediaDevicesOptions, vr driver.VideoRecorder, constraints prop.Media) ([]encoderBuilder, error) {
+	r, err := vr.VideoRecord(constraints)
 	if err != nil {
 		return nil, err
 	}
 
-	if constraints.VideoTransform != nil {
-		r = constraints.VideoTransform(r)
+	if opts.videoTransform != nil {
+		r = opts.videoTransform(r)
 	}
 
-	encoderBuilders := make([]encoderBuilder, len(constraints.VideoEncoderBuilders))
-	for i, b := range constraints.VideoEncoderBuilders {
+	encoderBuilders := make([]encoderBuilder, len(opts.videoEncoderBuilders))
+	for i, b := range opts.videoEncoderBuilders {
 		encoderBuilders[i].name = b.Name()
 		encoderBuilders[i].build = func() (codec.ReadCloser, error) {
-			return b.BuildVideoEncoder(r, constraints.Media)
+			return b.BuildVideoEncoder(r, constraints)
 		}
 	}
 	return encoderBuilders, nil
@@ -217,21 +218,21 @@ func newVideoEncoderBuilders(vr driver.VideoRecorder, constraints MediaTrackCons
 
 // newAudioEncoderBuilders transforms audio given by AudioRecorder with the audio transformer that is passed through
 // constraints and create a list of generic encoder builders
-func newAudioEncoderBuilders(ar driver.AudioRecorder, constraints MediaTrackConstraints) ([]encoderBuilder, error) {
-	r, err := ar.AudioRecord(constraints.Media)
+func newAudioEncoderBuilders(opts *MediaDevicesOptions, ar driver.AudioRecorder, constraints prop.Media) ([]encoderBuilder, error) {
+	r, err := ar.AudioRecord(constraints)
 	if err != nil {
 		return nil, err
 	}
 
-	if constraints.AudioTransform != nil {
-		r = constraints.AudioTransform(r)
+	if opts.audioTransform != nil {
+		r = opts.audioTransform(r)
 	}
 
-	encoderBuilders := make([]encoderBuilder, len(constraints.AudioEncoderBuilders))
-	for i, b := range constraints.AudioEncoderBuilders {
+	encoderBuilders := make([]encoderBuilder, len(opts.audioEncoderBuilders))
+	for i, b := range opts.audioEncoderBuilders {
 		encoderBuilders[i].name = b.Name()
 		encoderBuilders[i].build = func() (codec.ReadCloser, error) {
-			return b.BuildAudioEncoder(r, constraints.Media)
+			return b.BuildAudioEncoder(r, constraints)
 		}
 	}
 	return encoderBuilders, nil

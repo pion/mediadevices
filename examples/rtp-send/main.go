@@ -6,10 +6,9 @@ import (
 	"os"
 
 	"github.com/pion/mediadevices"
-	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/codec/vpx"       // This is required to use VP8/VP9 video encoder
 	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
-	"github.com/pion/mediadevices/pkg/frame"
+	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
@@ -25,6 +24,12 @@ func main() {
 		return
 	}
 
+	vp8Params, err := vpx.NewVP8Params()
+	if err != nil {
+		panic(err)
+	}
+	vp8Params.BitRate = 100000 // 100kbps
+
 	md := mediadevices.NewMediaDevicesFromCodecs(
 		map[webrtc.RTPCodecType][]*webrtc.RTPCodec{
 			webrtc.RTPCodecTypeVideo: []*webrtc.RTPCodec{
@@ -38,21 +43,13 @@ func main() {
 				return newTrack(codec, id, os.Args[1]), nil
 			},
 		),
+		mediadevices.WithVideoEncoders(&vp8Params),
 	)
 
-	vp8Params, err := vpx.NewVP8Params()
-	if err != nil {
-		panic(err)
-	}
-	vp8Params.BitRate = 100000 // 100kbps
-
 	_, err = md.GetUserMedia(mediadevices.MediaStreamConstraints{
-		Video: func(c *mediadevices.MediaTrackConstraints) {
-			c.FrameFormat = frame.FormatYUY2
-			c.Enabled = true
-			c.Width = 640
-			c.Height = 480
-			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&vp8Params}
+		Video: func(p *prop.Media) {
+			p.Width = 640
+			p.Height = 480
 		},
 	})
 	if err != nil {
