@@ -1,13 +1,17 @@
 package audio
 
+import (
+	"github.com/pion/mediadevices/pkg/wave"
+)
+
 type Reader interface {
-	Read(samples [][2]float32) (n int, err error)
+	Read() (wave.Audio, error)
 }
 
-type ReaderFunc func(samples [][2]float32) (n int, err error)
+type ReaderFunc func() (wave.Audio, error)
 
-func (rf ReaderFunc) Read(samples [][2]float32) (n int, err error) {
-	return rf(samples)
+func (rf ReaderFunc) Read() (wave.Audio, error) {
+	return rf()
 }
 
 // TransformFunc produces a new Reader that will produces a transformed audio
