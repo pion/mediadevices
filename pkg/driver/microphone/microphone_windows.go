@@ -10,6 +10,7 @@ import (
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/pion/mediadevices/pkg/wave"
 )
 
 const (
@@ -193,44 +194,42 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 
 	// TODO: detect microphone device disconnection and return EOF
 
-	var bi int
-	reader := audio.ReaderFunc(func(samples [][2]float32) (n int, err error) {
-		var b *buffer
-		for i := range samples {
-			// if we don't have anything left in buff, we'll wait until we receive
-			// more samples
-			if b == nil || bi == int(b.waveHdr.dwBytesRecorded/2) {
-				var more bool
-				b, more = <-m.chBuf
-				if !more {
-					return i, io.EOF
-				}
-
-				select {
-				case <-m.closed:
-				default:
-					// Re-enqueue used buffer.
-					ret, _, _ := waveInAddBuffer.Call(
-						uintptr(unsafe.Pointer(m.hWaveIn)),
-						uintptr(unsafe.Pointer(&b.waveHdr)),
-						uintptr(unsafe.Sizeof(b.waveHdr)),
-					)
-					if err := errWinmm[ret]; err != nil {
-						return 0, err
-					}
-				}
-
-				bi = 0
-			}
-
-			samples[i][0] = float32(b.data[bi]) / 0x8000
-			if p.ChannelCount == 2 {
-				samples[i][1] = float32(b.data[bi+1]) / 0x8000
-				bi++
-			}
-			bi++
+	reader := audio.ReaderFunc(func() (wave.Audio, error) {
+		b, ok := <-m.chBuf
+		if !ok {
+			return nil, io.EOF
 		}
-		return len(samples), nil
+
+		select {
+		case <-m.closed:
+		default:
+			// Re-enqueue used buffer.
+			ret, _, _ := waveInAddBuffer.Call(
+				uintptr(unsafe.Pointer(m.hWaveIn)),
+				uintptr(unsafe.Pointer(&b.waveHdr)),
+				uintptr(unsafe.Sizeof(b.waveHdr)),
+			)
+			if err := errWinmm[ret]; err != nil {
+				return nil, err
+			}
+		}
+
+		a := wave.NewFloat32Interleaved(
+			wave.ChunkInfo{
+				Channels: p.ChannelCount,
+				Len:      (int(b.waveHdr.dwBytesRecorded) / 2) / p.ChannelCount,
+			},
+		)
+
+		j := 0
+		for i := 0; i < a.Size.Len; i++ {
+			for ch := 0; ch < a.Size.Channels; ch++ {
+				a.SetFloat32(i, ch, wave.Float32Sample(float32(b.data[j])/0x8000))
+				j++
+			}
+		}
+
+		return a, nil
 	})
 	return reader, nil
 }
