@@ -211,8 +211,7 @@ type mockAudioCodec struct {
 }
 
 func (m *mockAudioCodec) Read(b []byte) (int, error) {
-	buf := make([][2]float32, 100)
-	if _, err := m.r.Read(buf); err != nil {
+	if _, err := m.r.Read(); err != nil {
 		return 0, err
 	}
 	return len(b), nil
