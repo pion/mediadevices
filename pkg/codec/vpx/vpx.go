@@ -144,6 +144,7 @@ func newParams(codecIface *C.vpx_codec_iface_t) (Params, error) {
 		RateControlOvershootPercent:  uint(cfg.rc_overshoot_pct),
 		RateControlMinQuantizer:      uint(cfg.rc_min_quantizer),
 		RateControlMaxQuantizer:      uint(cfg.rc_max_quantizer),
+		ErrorResilient:               ErrorResilientMode(cfg.g_error_resilient),
 	}, nil
 }
 
@@ -166,6 +167,8 @@ func newEncoder(r video.Reader, p prop.Media, params Params, codecIface *C.vpx_c
 	cfg.rc_overshoot_pct = C.uint(params.RateControlOvershootPercent)
 	cfg.rc_min_quantizer = C.uint(params.RateControlMinQuantizer)
 	cfg.rc_max_quantizer = C.uint(params.RateControlMaxQuantizer)
+
+	cfg.g_error_resilient = C.uint32_t(params.ErrorResilient)
 
 	cfg.g_w = C.uint(p.Width)
 	cfg.g_h = C.uint(p.Height)
