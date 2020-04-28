@@ -16,6 +16,7 @@ type Params struct {
 	RateControlOvershootPercent  uint
 	RateControlMinQuantizer      uint
 	RateControlMaxQuantizer      uint
+	ErrorResilient               ErrorResilientMode
 }
 
 // RateControlMode represents rate control mode.
@@ -26,4 +27,13 @@ const (
 	RateControlVBR RateControlMode = iota
 	RateControlCBR
 	RateControlCQ
+)
+
+// ErrorResilientMode represents error resilient mode.
+type ErrorResilientMode int
+
+// ErrorResilientMode values.
+const (
+	ErrorResilientDefault    ErrorResilientMode = 0x01
+	ErrorResilientPartitions ErrorResilientMode = 0x02
 )
