@@ -87,11 +87,12 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 
 	samplesChan := make(chan []float32, 1)
 
-	handler := func(b []float32) {
+	handler := func(b []float32) (int, error) {
 		samplesChan <- b
+		return len(b), nil
 	}
 
-	stream, err := m.c.NewRecord(handler, options...)
+	stream, err := m.c.NewRecord(pulse.Float32Writer(handler), options...)
 	if err != nil {
 		return nil, err
 	}
