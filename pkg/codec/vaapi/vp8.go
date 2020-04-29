@@ -17,6 +17,9 @@ package vaapi
 //
 // #include "helper.h"
 //
+// void setRefreshEntropyProbsFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
+//   p->pic_flags.bits.refresh_entropy_probs = f;
+// }
 // void setShowFrameFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
 //   p->pic_flags.bits.show_frame = f;
 // }
@@ -40,6 +43,15 @@ package vaapi
 // }
 // void setCopyBufferToAlternateFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
 //   p->pic_flags.bits.copy_buffer_to_alternate = f;
+// }
+// void setNoRefLastFrameFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
+//   p->ref_flags.bits.no_ref_last= f;
+// }
+// void setNoRefGoldenFrameFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
+//   p->ref_flags.bits.no_ref_gf= f;
+// }
+// void setNoRefAlternateFrameFlagVP8(VAEncPictureParameterBufferVP8 *p, uint32_t f) {
+//   p->ref_flags.bits.no_ref_arf= f;
 // }
 import "C"
 
@@ -111,6 +123,11 @@ func newVP8Encoder(r video.Reader, p prop.Media, params ParamsVP8) (codec.ReadCl
 	params.RateControl.bitsPerSecond =
 		uint(float32(params.BitRate) / (0.01 * float32(params.RateControl.TargetPercentage)))
 
+	var error_resilient_value uint
+	if params.Sequence.ErrorResilient {
+		error_resilient_value = 1
+	}
+
 	// Parameters are from https://github.com/intel/libva-utils/blob/master/encode/vp8enc.c
 	e := &encoderVP8{
 		r:      video.ToI420(r),
@@ -120,6 +137,7 @@ func newVP8Encoder(r video.Reader, p prop.Media, params ParamsVP8) (codec.ReadCl
 		seqParam: C.VAEncSequenceParameterBufferVP8{
 			frame_width:     C.uint(p.Width),
 			frame_height:    C.uint(p.Height),
+			error_resilient: C.uint(error_resilient_value),
 			bits_per_second: C.uint(params.RateControl.bitsPerSecond),
 			intra_period:    C.uint(params.KeyFrameInterval),
 			kf_max_dist:     C.uint(params.KeyFrameInterval),
@@ -315,17 +333,39 @@ func (e *encoderVP8) Read(p []byte) (int, error) {
 		C.setCopyBufferToGoldenFlagVP8(&e.picParam, 0)
 		C.setRefreshAlternateFrameFlagVP8(&e.picParam, 0)
 		C.setCopyBufferToAlternateFlagVP8(&e.picParam, 0)
+
+		if e.params.Sequence.ErrorResilient {
+			C.setRefreshEntropyProbsFlagVP8(&e.picParam, 1)
+		} else {
+			C.setRefreshEntropyProbsFlagVP8(&e.picParam, 0)
+		}
+
+		if e.picParam.reconstructed_frame == C.VA_INVALID_SURFACE {
+			e.picParam.reconstructed_frame = e.surfs[surfaceVP8Ref0]
+			e.picParam.ref_last_frame = e.surfs[surfaceVP8Ref0]
+			e.picParam.ref_gf_frame = e.surfs[surfaceVP8Ref0]
+			e.picParam.ref_arf_frame = e.surfs[surfaceVP8Ref0]
+		}
 	} else {
+		// Select available surface
+		e.picParam.reconstructed_frame = C.VA_INVALID_SURFACE
+		for i := surfaceVP8Ref0; i <= surfaceVP8Ref3; i++ {
+			s := e.surfs[i]
+			if s != e.picParam.ref_last_frame && s != e.picParam.ref_gf_frame && s != e.picParam.ref_arf_frame {
+				e.picParam.reconstructed_frame = s
+				break
+			}
+		}
+		if e.picParam.reconstructed_frame == C.VA_INVALID_SURFACE {
+			return 0, errors.New("no available surface")
+		}
+
 		C.setForceKFFlagVP8(&e.picParam, 0)
 		C.setFrameTypeFlagVP8(&e.picParam, 1)
-		C.setRefreshLastFlagVP8(&e.picParam, 1)
-		C.setRefreshGoldenFrameFlagVP8(&e.picParam, 0)
-		C.setCopyBufferToGoldenFlagVP8(&e.picParam, 1)
-		C.setRefreshAlternateFrameFlagVP8(&e.picParam, 0)
-		C.setCopyBufferToAlternateFlagVP8(&e.picParam, 2)
-	}
-	if e.picParam.reconstructed_frame == C.VA_INVALID_SURFACE {
-		e.picParam.reconstructed_frame = e.surfs[surfaceVP8Ref0]
+		C.setNoRefLastFrameFlagVP8(&e.picParam, 0)
+		C.setNoRefGoldenFrameFlagVP8(&e.picParam, 0)
+		C.setNoRefAlternateFrameFlagVP8(&e.picParam, 1)
+		C.setRefreshEntropyProbsFlagVP8(&e.picParam, 0)
 	}
 
 	// Prepare buffers
@@ -441,19 +481,31 @@ func (e *encoderVP8) Read(p []byte) (int, error) {
 	}
 
 	// Load encoded data
-	if s := C.vaSyncSurface(e.display, e.picParam.reconstructed_frame); s != C.VA_STATUS_SUCCESS {
-		return 0, fmt.Errorf("failed to sync surface: %s", C.GoString(C.vaErrorStr(s)))
-	}
-	var surfStat C.VASurfaceStatus
-	if s := C.vaQuerySurfaceStatus(
-		e.display, e.picParam.reconstructed_frame, &surfStat,
-	); s != C.VA_STATUS_SUCCESS {
-		return 0, fmt.Errorf("failed to query surface status: %s", C.GoString(C.vaErrorStr(s)))
+	for retry := 3; retry >= 0; retry-- {
+		if s := C.vaSyncSurface(e.display, e.picParam.reconstructed_frame); s != C.VA_STATUS_SUCCESS {
+			return 0, fmt.Errorf("failed to sync surface: %s", C.GoString(C.vaErrorStr(s)))
+		}
+		var surfStat C.VASurfaceStatus
+		if s := C.vaQuerySurfaceStatus(
+			e.display, e.picParam.reconstructed_frame, &surfStat,
+		); s != C.VA_STATUS_SUCCESS {
+			return 0, fmt.Errorf("failed to query surface status: %s", C.GoString(C.vaErrorStr(s)))
+		}
+		if surfStat == C.VASurfaceReady {
+			break
+		}
+		if retry == 0 {
+			return 0, fmt.Errorf("failed to sync surface: %d", surfStat)
+		}
 	}
 	var seg *C.VACodedBufferSegment
 	if s := C.vaMapBufferSeg(e.display, buffs[0], &seg); s != C.VA_STATUS_SUCCESS {
 		return 0, fmt.Errorf("failed to map buffer: %s", C.GoString(C.vaErrorStr(s)))
 	}
+	if seg.status&C.VA_CODED_BUF_STATUS_SLICE_OVERFLOW_MASK != 0 {
+		return 0, errors.New("buffer size too small")
+	}
+
 	if cap(e.frame) < int(seg.size) {
 		e.frame = make([]byte, int(seg.size))
 	}
@@ -476,21 +528,22 @@ func (e *encoderVP8) Read(p []byte) (int, error) {
 
 	// vp8enc_update_reference_list
 	if kf {
-		e.picParam.ref_last_frame = e.picParam.reconstructed_frame
 		e.picParam.ref_gf_frame = e.picParam.reconstructed_frame
 		e.picParam.ref_arf_frame = e.picParam.reconstructed_frame
+		C.setRefreshGoldenFrameFlagVP8(&e.picParam, 1)
+		C.setCopyBufferToGoldenFlagVP8(&e.picParam, 0)
+		C.setRefreshAlternateFrameFlagVP8(&e.picParam, 1)
+		C.setCopyBufferToAlternateFlagVP8(&e.picParam, 0)
 	} else {
-		e.picParam.ref_last_frame, e.picParam.ref_gf_frame, e.picParam.ref_arf_frame =
-			e.picParam.reconstructed_frame, e.picParam.ref_last_frame, e.picParam.ref_gf_frame
+		C.setRefreshGoldenFrameFlagVP8(&e.picParam, 0)
+		C.setCopyBufferToGoldenFlagVP8(&e.picParam, 0)
+		C.setRefreshAlternateFrameFlagVP8(&e.picParam, 0)
+		C.setCopyBufferToAlternateFlagVP8(&e.picParam, 0)
+		// TODO: proper golden frame update
+		//       (ffmpeg vaapi_encode_vp8 also don't use golden frame)
 	}
-
-	// Select released surface for next frame
-	for i := surfaceVP8Ref0; i <= surfaceVP8Ref3; i++ {
-		s := e.surfs[i]
-		if s != e.picParam.ref_last_frame && s != e.picParam.ref_gf_frame && s != e.picParam.ref_arf_frame {
-			e.picParam.reconstructed_frame = s
-		}
-	}
+	e.picParam.ref_last_frame = e.picParam.reconstructed_frame
+	C.setRefreshLastFlagVP8(&e.picParam, 1)
 
 	n, err := mio.Copy(p, e.frame)
 	if err != nil {
