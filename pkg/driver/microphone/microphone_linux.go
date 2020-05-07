@@ -8,6 +8,7 @@ import (
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/pion/mediadevices/pkg/wave"
 )
 
 type microphone struct {
@@ -85,41 +86,33 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 	)
 
 	samplesChan := make(chan []float32, 1)
-	var buff []float32
-	var bi int
-	var more bool
 
-	handler := func(b []float32) {
+	handler := func(b []float32) (int, error) {
 		samplesChan <- b
+		return len(b), nil
 	}
 
-	stream, err := m.c.NewRecord(handler, options...)
+	stream, err := m.c.NewRecord(pulse.Float32Writer(handler), options...)
 	if err != nil {
 		return nil, err
 	}
 
-	reader := audio.ReaderFunc(func(samples [][2]float32) (n int, err error) {
-		for i := range samples {
-			// if we don't have anything left in buff, we'll wait until we receive
-			// more samples
-			if bi == len(buff) {
-				buff, more = <-samplesChan
-				if !more {
-					stream.Close()
-					return i, io.EOF
-				}
-				bi = 0
-			}
-
-			samples[i][0] = buff[bi]
-			if p.ChannelCount == 2 {
-				samples[i][1] = buff[bi+1]
-				bi++
-			}
-			bi++
+	reader := audio.ReaderFunc(func() (wave.Audio, error) {
+		buff, ok := <-samplesChan
+		if !ok {
+			stream.Close()
+			return nil, io.EOF
 		}
 
-		return len(samples), nil
+		a := wave.NewFloat32Interleaved(
+			wave.ChunkInfo{
+				Channels: p.ChannelCount,
+				Len:      len(buff) / p.ChannelCount,
+			},
+		)
+		copy(a.Data, buff)
+
+		return a, nil
 	})
 
 	stream.Start()

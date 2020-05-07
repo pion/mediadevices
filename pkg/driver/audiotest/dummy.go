@@ -10,6 +10,7 @@ import (
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/pion/mediadevices/pkg/wave"
 )
 
 func init() {
@@ -41,33 +42,43 @@ func (d *dummy) AudioRecord(p prop.Media) (audio.Reader, error) {
 		sin[i] = float32(math.Sin(2*math.Pi*float64(i)/100) * 0.25) // 480 Hz
 	}
 
+	if p.Latency == 0 {
+		p.Latency = 20 * time.Millisecond
+	}
+	nSample := int(uint64(p.SampleRate) * uint64(p.Latency) / uint64(time.Second))
+
 	nextReadTime := time.Now()
 	var phase int
 
 	closed := d.closed
 
-	reader := audio.ReaderFunc(func(samples [][2]float32) (int, error) {
+	reader := audio.ReaderFunc(func() (wave.Audio, error) {
 		select {
 		case <-closed:
-			return 0, io.EOF
+			return nil, io.EOF
 		default:
 		}
 
 		time.Sleep(nextReadTime.Sub(time.Now()))
-		dur := time.Second * time.Duration(len(samples)) / 48000
-		nextReadTime = nextReadTime.Add(dur)
+		nextReadTime = nextReadTime.Add(p.Latency)
 
-		for i := range samples {
+		a := wave.NewFloat32Interleaved(
+			wave.ChunkInfo{
+				Channels: p.ChannelCount,
+				Len:      nSample,
+			},
+		)
+
+		for i := 0; i < nSample; i++ {
 			phase++
 			if phase >= 100 {
 				phase = 0
 			}
-			samples[i][0] = sin[phase]
-			if p.ChannelCount == 2 {
-				samples[i][1] = sin[phase]
+			for ch := 0; ch < p.ChannelCount; ch++ {
+				a.SetFloat32(i, ch, wave.Float32Sample(sin[phase]))
 			}
 		}
-		return len(samples), nil
+		return a, nil
 	})
 	return reader, nil
 }
