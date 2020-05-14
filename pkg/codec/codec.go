@@ -3,33 +3,23 @@ package codec
 import (
 	"io"
 
-	"github.com/pion/mediadevices/pkg/io/audio"
-	"github.com/pion/mediadevices/pkg/io/video"
-	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/pion/mediadevices"
+	"github.com/pion/rtp"
+	"github.com/pion/webrtc/v2"
 )
 
-// AudioEncoderBuilder is the interface that wraps basic operations that are
-// necessary to build the audio encoder.
-//
-// This interface is for codec implementors to provide codec specific params,
-// but still giving generality for the users.
-type AudioEncoderBuilder interface {
-	// Name represents the codec name
-	Name() string
-	// BuildAudioEncoder builds audio encoder by given media params and audio input
-	BuildAudioEncoder(r audio.Reader, p prop.Media) (ReadCloser, error)
+type RTPReader interface {
+	Read() (*rtp.Packet, error)
 }
 
-// VideoEncoderBuilder is the interface that wraps basic operations that are
-// necessary to build the video encoder.
-//
-// This interface is for codec implementors to provide codec specific params,
-// but still giving generality for the users.
-type VideoEncoderBuilder interface {
-	// Name represents the codec name
-	Name() string
-	// BuildVideoEncoder builds video encoder by given media params and video input
-	BuildVideoEncoder(r video.Reader, p prop.Media) (ReadCloser, error)
+type RTPReadCloser interface {
+	RTPReader
+	Close()
+}
+
+type EncoderBuilder interface {
+	Codec() *webrtc.RTPCodec
+	BuildEncoder(mediadevices.Track) (RTPReadCloser, error)
 }
 
 // ReadCloser is an io.ReadCloser with methods for rate limiting: SetBitRate and ForceKeyFrame

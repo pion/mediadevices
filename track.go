@@ -23,6 +23,7 @@ const (
 // Reference: https://w3c.github.io/mediacapture-main/#mediastreamtrack
 type Track interface {
 	ID() string
+	GetConstraints() prop.Media
 	Kind() TrackKind
 	Stop()
 	// OnEnded registers a handler to receive an error from the media stream track.
@@ -60,7 +61,7 @@ func newVideoTrack(d driver.Driver, constraints prop.Media) (*VideoTrack, error)
 	}
 
 	return &VideoTrack{
-		baseTrack:   baseTrack{d: d},
+		baseTrack:   baseTrack{d: d, constraints: constraints},
 		src:         r,
 		transformed: r,
 	}, nil
@@ -129,7 +130,7 @@ func newAudioTrack(d driver.Driver, constraints prop.Media) (*AudioTrack, error)
 	}
 
 	return &AudioTrack{
-		baseTrack:   baseTrack{d: d},
+		baseTrack:   baseTrack{d: d, constraints: constraints},
 		src:         r,
 		transformed: r,
 	}, nil
@@ -170,7 +171,8 @@ func (track *AudioTrack) Transform(fns ...audio.TransformFunc) {
 }
 
 type baseTrack struct {
-	d driver.Driver
+	d           driver.Driver
+	constraints prop.Media
 
 	onErrorHandler func(error)
 	err            error
@@ -180,6 +182,10 @@ type baseTrack struct {
 
 func (t *baseTrack) ID() string {
 	return t.d.ID()
+}
+
+func (t *baseTrack) GetConstraints() prop.Media {
+	return t.constraints
 }
 
 // OnEnded sets an error handler. When a track has been created and started, if an
