@@ -1,9 +1,10 @@
 package openh264
 
 import (
+	"fmt"
+
+	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/pkg/codec"
-	"github.com/pion/mediadevices/pkg/io/video"
-	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -22,11 +23,25 @@ func NewParams() (Params, error) {
 }
 
 // Name represents the codec name
-func (p *Params) Name() string {
-	return webrtc.H264
+func (p *Params) Codec() *webrtc.RTPCodec {
+	return webrtc.NewRTPH264Codec(webrtc.DefaultPayloadTypeH264, 90000)
 }
 
 // BuildVideoEncoder builds openh264 encoder with given params
-func (p *Params) BuildVideoEncoder(r video.Reader, property prop.Media) (codec.ReadCloser, error) {
-	return newEncoder(r, property, *p)
+func (p *Params) BuildEncoder(track mediadevices.Track) (codec.RTPReadCloser, error) {
+	videoTrack, ok := track.(*mediadevices.VideoTrack)
+	if !ok {
+		return nil, fmt.Errorf("track is not a video track")
+	}
+
+	encoder, err := newEncoder(videoTrack, *p)
+	if err != nil {
+		return nil, err
+	}
+
+	return codec.NewRTPReadCloser(
+		p.Codec(),
+		encoder,
+		codec.NewVideoSampler(p.Codec().ClockRate),
+	)
 }

@@ -5,9 +5,12 @@ import (
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
-	"github.com/pion/mediadevices/pkg/codec/vpx"       // This is required to use VP8/VP9 video encoder
-	_ "github.com/pion/mediadevices/pkg/driver/screen" // This is required to register screen capture adapter
-	"github.com/pion/mediadevices/pkg/io/video"
+	"github.com/pion/mediadevices/pkg/codec/openh264"
+
+	// This is required to use VP8/VP9 video encoder
+	// _ "github.com/pion/mediadevices/pkg/driver/screen" // This is required to register screen capture adapter
+	_ "github.com/pion/mediadevices/pkg/driver/videotest" // This is required to register screen capture adapter
+	extwebrtc "github.com/pion/mediadevices/pkg/ext/webrtc"
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/webrtc/v2"
 )
@@ -25,12 +28,16 @@ func main() {
 	offer := webrtc.SessionDescription{}
 	signal.Decode(signal.MustReadStdin(), &offer)
 
-	// Create a new RTCPeerConnection
-	mediaEngine := webrtc.MediaEngine{}
-	if err := mediaEngine.PopulateFromSDP(offer); err != nil {
+	openh264Encoder, err := openh264.NewParams()
+	if err != nil {
 		panic(err)
 	}
-	api := webrtc.NewAPI(webrtc.WithMediaEngine(mediaEngine))
+	openh264Encoder.BitRate = 100000 // 100kbps
+
+	// Create a new RTCPeerConnection
+	mediaEngine := extwebrtc.MediaEngine{}
+	mediaEngine.AddEncoderBuilders(&openh264Encoder)
+	api := extwebrtc.NewAPI(extwebrtc.WithMediaEngine(mediaEngine))
 	peerConnection, err := api.NewPeerConnection(config)
 	if err != nil {
 		panic(err)
@@ -42,32 +49,15 @@ func main() {
 		fmt.Printf("Connection State has changed %s \n", connectionState.String())
 	})
 
-	vp8Params, err := vpx.NewVP8Params()
-	if err != nil {
-		panic(err)
-	}
-	vp8Params.BitRate = 100000 // 100kbps
-
-	md := mediadevices.NewMediaDevices(
-		peerConnection,
-		mediadevices.WithVideoEncoders(&vp8Params),
-		mediadevices.WithVideoTransformers(video.Scale(-1, 360, nil)),
-	)
-
-	s, err := md.GetDisplayMedia(mediadevices.MediaStreamConstraints{
+	s, err := mediadevices.GetDisplayMedia(mediadevices.MediaStreamConstraints{
 		Video: func(p *prop.Media) {},
 	})
 	if err != nil {
 		panic(err)
 	}
 
-	for _, tracker := range s.GetTracks() {
-		t := tracker.Track()
-		tracker.OnEnded(func(err error) {
-			fmt.Printf("Track (ID: %s, Label: %s) ended with error: %v\n",
-				t.ID(), t.Label(), err)
-		})
-		_, err = peerConnection.AddTransceiverFromTrack(t,
+	for _, track := range s.GetTracks() {
+		_, err = peerConnection.ExtAddTransceiverFromTrack(track,
 			webrtc.RtpTransceiverInit{
 				Direction: webrtc.RTPTransceiverDirectionSendonly,
 			},

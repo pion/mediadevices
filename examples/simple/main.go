@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/jpeg"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -29,7 +30,7 @@ func main() {
 	defer t.Stop()
 	videoTrack := t.(*mediadevices.VideoTrack)
 
-	http.HandleFunc("/video", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		videoReader := videoTrack.NewReader()
 		mimeWriter := multipart.NewWriter(w)
 
@@ -60,12 +61,5 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, `<html><img src="/video"></img></html>`)
-	})
-
-	err = http.ListenAndServe(":1313", nil)
-	if err != nil {
-		panic(err)
-	}
+	log.Println(http.ListenAndServe(":1313", nil))
 }
