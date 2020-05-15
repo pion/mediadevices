@@ -4,7 +4,7 @@ package io
 // InsufficientBufferError.
 func Copy(dst, src []byte) (n int, err error) {
 	if len(dst) < len(src) {
-		return 0, &InsufficientBufferError{len(dst)}
+		return 0, &InsufficientBufferError{len(src)}
 	}
 
 	return copy(dst, src), nil
