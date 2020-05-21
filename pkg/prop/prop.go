@@ -1,14 +1,17 @@
 package prop
 
 import (
-	"fmt"
-	"math"
 	"reflect"
-	"strconv"
 	"time"
 
 	"github.com/pion/mediadevices/pkg/frame"
 )
+
+type MediaConstraints struct {
+	DeviceID string
+	VideoConstraints
+	AudioConstraints
+}
 
 type Media struct {
 	DeviceID string
@@ -17,7 +20,7 @@ type Media struct {
 }
 
 // Merge merges all the field values from o to p, except zero values.
-func (p *Media) Merge(o Media) {
+func (p *Media) Merge(o MediaConstraints) {
 	rp := reflect.ValueOf(p).Elem()
 	ro := reflect.ValueOf(o)
 
@@ -29,9 +32,9 @@ func (p *Media) Merge(o Media) {
 			fieldA := a.Field(i)
 			fieldB := b.Field(i)
 
-			// if a is a struct, b is also a struct. Then,
+			// if b is a struct, a is also a struct. Then,
 			// we recursively merge them
-			if fieldA.Kind() == reflect.Struct {
+			if fieldB.Kind() == reflect.Struct {
 				merge(fieldA, fieldB)
 				continue
 			}
@@ -43,67 +46,122 @@ func (p *Media) Merge(o Media) {
 				continue
 			}
 
-			fieldA.Set(fieldB)
+			switch c := fieldB.Interface().(type) {
+			case IntConstraint:
+				if v, ok := c.Value(); ok {
+					fieldA.Set(reflect.ValueOf(v))
+				}
+			case FloatConstraint:
+				if v, ok := c.Value(); ok {
+					fieldA.Set(reflect.ValueOf(v))
+				}
+			case DurationConstraint:
+				if v, ok := c.Value(); ok {
+					fieldA.Set(reflect.ValueOf(v))
+				}
+			case FrameFormatConstraint:
+				if v, ok := c.Value(); ok {
+					fieldA.Set(reflect.ValueOf(v))
+				}
+			default:
+				panic("unsupported property type")
+			}
 		}
 	}
 
 	merge(rp, ro)
 }
 
-func (p *Media) FitnessDistance(o Media) float64 {
+func (p *MediaConstraints) FitnessDistance(o Media) (float64, bool) {
 	cmps := comparisons{}
 	cmps.add(p.Width, o.Width)
 	cmps.add(p.Height, o.Height)
 	cmps.add(p.FrameFormat, o.FrameFormat)
 	cmps.add(p.SampleRate, o.SampleRate)
 	cmps.add(p.Latency, o.Latency)
+
 	return cmps.fitnessDistance()
 }
 
-type comparisons map[string]string
+type comparisons []struct {
+	desired, actual interface{}
+}
 
-func (c comparisons) add(actual, ideal interface{}) {
-	c[fmt.Sprint(actual)] = fmt.Sprint(ideal)
+func (c *comparisons) add(desired, actual interface{}) {
+	if desired != nil {
+		*c = append(*c,
+			struct{ desired, actual interface{} }{
+				desired, actual,
+			},
+		)
+	}
 }
 
 // fitnessDistance is an implementation for https://w3c.github.io/mediacapture-main/#dfn-fitness-distance
-func (c comparisons) fitnessDistance() float64 {
+func (c *comparisons) fitnessDistance() (float64, bool) {
 	var dist float64
-
-	for actual, ideal := range c {
-		if actual == ideal {
-			continue
-		}
-
-		actualF, err1 := strconv.ParseFloat(actual, 64)
-		idealF, err2 := strconv.ParseFloat(ideal, 64)
-
-		switch {
-		// If both of the values are numeric, we need to normalize the values to get the distance
-		case err1 == nil && err2 == nil:
-			dist += math.Abs(actualF-idealF) / math.Max(math.Abs(actualF), math.Abs(idealF))
-		// If both of the values are not numeric, the only comparison value is either 0 (matched) or 1 (not matched)
-		case err1 != nil && err2 != nil:
-			if actual != ideal {
-				dist++
+	for _, field := range *c {
+		var d float64
+		var ok bool
+		switch c := field.desired.(type) {
+		case IntConstraint:
+			if actual, typeOK := field.actual.(int); typeOK {
+				d, ok = c.Compare(actual)
+			} else {
+				panic("wrong type of actual value")
 			}
-		// Comparing a numeric value with a non-numeric value is a an internal error, so panic.
+		case FloatConstraint:
+			if actual, typeOK := field.actual.(float32); typeOK {
+				d, ok = c.Compare(actual)
+			} else {
+				panic("wrong type of actual value")
+			}
+		case DurationConstraint:
+			if actual, typeOK := field.actual.(time.Duration); typeOK {
+				d, ok = c.Compare(actual)
+			} else {
+				panic("wrong type of actual value")
+			}
+		case FrameFormatConstraint:
+			if actual, typeOK := field.actual.(frame.Format); typeOK {
+				d, ok = c.Compare(actual)
+			} else {
+				panic("wrong type of actual value")
+			}
 		default:
-			panic("fitnessDistance can't mix comparisons.")
+			panic("unsupported constraint type")
+		}
+		dist += d
+		if !ok {
+			return 0, false
 		}
 	}
-
-	return dist
+	return dist, true
 }
 
-// Video represents a video's properties
+// VideoConstraints represents a video's constraints
+type VideoConstraints struct {
+	Width, Height IntConstraint
+	FrameRate     FloatConstraint
+	FrameFormat   FrameFormatConstraint
+}
+
+// Video represents a video's constraints
 type Video struct {
 	Width, Height int
 	FrameRate     float32
 	FrameFormat   frame.Format
 }
 
-// Audio represents an audio's properties
+// AudioConstraints represents an audio's constraints
+type AudioConstraints struct {
+	ChannelCount IntConstraint
+	Latency      DurationConstraint
+	SampleRate   IntConstraint
+	SampleSize   IntConstraint
+}
+
+// Audio represents an audio's constraints
 type Audio struct {
 	ChannelCount int
 	Latency      time.Duration

@@ -1,7 +1,7 @@
 package mediadevices
 
 import (
-	"fmt"
+	"errors"
 	"math/rand"
 	"sync"
 
@@ -62,11 +62,11 @@ func newTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrack
 	case driver.AudioRecorder:
 		rtpCodecs = opts.codecs[webrtc.RTPCodecTypeAudio]
 		buildSampler = func(t LocalTrack) samplerFunc {
-			return newAudioSampler(t, constraints.Latency)
+			return newAudioSampler(t, constraints.selectedMedia.Latency)
 		}
 		encoderBuilders, err = newAudioEncoderBuilders(r, constraints)
 	default:
-		err = fmt.Errorf("newTrack: invalid driver type")
+		err = errors.New("newTrack: invalid driver type")
 	}
 
 	if err != nil {
@@ -114,7 +114,7 @@ func newTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrack
 	}
 
 	d.Close()
-	return nil, fmt.Errorf("newTrack: failed to find a matching codec")
+	return nil, errors.New("newTrack: failed to find a matching codec")
 }
 
 // OnEnded sets an error handler. When a track has been created and started, if an
@@ -196,7 +196,7 @@ type encoderBuilder struct {
 // newVideoEncoderBuilders transforms video given by VideoRecorder with the video transformer that is passed through
 // constraints and create a list of generic encoder builders
 func newVideoEncoderBuilders(vr driver.VideoRecorder, constraints MediaTrackConstraints) ([]encoderBuilder, error) {
-	r, err := vr.VideoRecord(constraints.Media)
+	r, err := vr.VideoRecord(constraints.selectedMedia)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func newVideoEncoderBuilders(vr driver.VideoRecorder, constraints MediaTrackCons
 	for i, b := range constraints.VideoEncoderBuilders {
 		encoderBuilders[i].name = b.Name()
 		encoderBuilders[i].build = func() (codec.ReadCloser, error) {
-			return b.BuildVideoEncoder(r, constraints.Media)
+			return b.BuildVideoEncoder(r, constraints.selectedMedia)
 		}
 	}
 	return encoderBuilders, nil
@@ -218,7 +218,7 @@ func newVideoEncoderBuilders(vr driver.VideoRecorder, constraints MediaTrackCons
 // newAudioEncoderBuilders transforms audio given by AudioRecorder with the audio transformer that is passed through
 // constraints and create a list of generic encoder builders
 func newAudioEncoderBuilders(ar driver.AudioRecorder, constraints MediaTrackConstraints) ([]encoderBuilder, error) {
-	r, err := ar.AudioRecord(constraints.Media)
+	r, err := ar.AudioRecord(constraints.selectedMedia)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +231,7 @@ func newAudioEncoderBuilders(ar driver.AudioRecorder, constraints MediaTrackCons
 	for i, b := range constraints.AudioEncoderBuilders {
 		encoderBuilders[i].name = b.Name()
 		encoderBuilders[i].build = func() (codec.ReadCloser, error) {
-			return b.BuildAudioEncoder(r, constraints.Media)
+			return b.BuildAudioEncoder(r, constraints.selectedMedia)
 		}
 	}
 	return encoderBuilders, nil

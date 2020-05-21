@@ -50,8 +50,8 @@ func TestGetUserMedia(t *testing.T) {
 	constraints := MediaStreamConstraints{
 		Video: func(c *MediaTrackConstraints) {
 			c.Enabled = true
-			c.Width = 640
-			c.Height = 480
+			c.Width = prop.Int(640)
+			c.Height = prop.Int(480)
 			params := videoParams
 			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&params}
 		},
@@ -64,8 +64,8 @@ func TestGetUserMedia(t *testing.T) {
 	constraintsWrong := MediaStreamConstraints{
 		Video: func(c *MediaTrackConstraints) {
 			c.Enabled = true
-			c.Width = 640
-			c.Height = 480
+			c.Width = prop.Int(640)
+			c.Height = prop.Int(480)
 			params := videoParams
 			params.BitRate = 0
 			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&params}
