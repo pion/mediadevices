@@ -2,7 +2,137 @@ package prop
 
 import (
 	"testing"
+	"time"
+
+	"github.com/pion/mediadevices/pkg/frame"
 )
+
+func TestCompareMatch(t *testing.T) {
+	testDataSet := map[string]struct {
+		a     MediaConstraints
+		b     Media
+		match bool
+	}{
+		"IntIdealUnmatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				Width: Int(30),
+			}},
+			Media{Video: Video{
+				Width: 50,
+			}},
+			true,
+		},
+		"IntIdealMatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				Width: Int(30),
+			}},
+			Media{Video: Video{
+				Width: 30,
+			}},
+			true,
+		},
+		"IntExactUnmatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				Width: IntExact(30),
+			}},
+			Media{Video: Video{
+				Width: 50,
+			}},
+			false,
+		},
+		"IntExactMatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				Width: IntExact(30),
+			}},
+			Media{Video: Video{
+				Width: 30,
+			}},
+			true,
+		},
+		"IntRangeUnmatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				Width: IntRanged{Min: 30, Max: 40},
+			}},
+			Media{Video: Video{
+				Width: 50,
+			}},
+			false,
+		},
+		"IntRangeMatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				Width: IntRanged{Min: 30, Max: 40},
+			}},
+			Media{Video: Video{
+				Width: 35,
+			}},
+			true,
+		},
+		"FrameFormatOneOfUnmatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				FrameFormat: FrameFormatOneOf{frame.FormatYUYV, frame.FormatUYVY},
+			}},
+			Media{Video: Video{
+				FrameFormat: frame.FormatYUYV,
+			}},
+			true,
+		},
+		"FrameFormatOneOfMatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				FrameFormat: FrameFormatOneOf{frame.FormatYUYV, frame.FormatUYVY},
+			}},
+			Media{Video: Video{
+				FrameFormat: frame.FormatMJPEG,
+			}},
+			false,
+		},
+		"DurationExactUnmatch": {
+			MediaConstraints{AudioConstraints: AudioConstraints{
+				Latency: DurationExact(time.Second),
+			}},
+			Media{Audio: Audio{
+				Latency: time.Second + time.Millisecond,
+			}},
+			false,
+		},
+		"DurationExactMatch": {
+			MediaConstraints{AudioConstraints: AudioConstraints{
+				Latency: DurationExact(time.Second),
+			}},
+			Media{Audio: Audio{
+				Latency: time.Second,
+			}},
+			true,
+		},
+		"DurationRangedUnmatch": {
+			MediaConstraints{AudioConstraints: AudioConstraints{
+				Latency: DurationRanged{Max: time.Second},
+			}},
+			Media{Audio: Audio{
+				Latency: time.Second + time.Millisecond,
+			}},
+			false,
+		},
+		"DurationRangedMatch": {
+			MediaConstraints{AudioConstraints: AudioConstraints{
+				Latency: DurationRanged{Max: time.Second},
+			}},
+			Media{Audio: Audio{
+				Latency: time.Millisecond,
+			}},
+			true,
+		},
+	}
+
+	for name, testData := range testDataSet {
+		testData := testData
+		t.Run(name, func(t *testing.T) {
+			_, match := testData.a.FitnessDistance(testData.b)
+			if match != testData.match {
+				t.Errorf("matching flag differs, expected: %v, got: %v", testData.match, match)
+			}
+		})
+	}
+}
 
 func TestMergeWithZero(t *testing.T) {
 	a := Media{
@@ -11,9 +141,9 @@ func TestMergeWithZero(t *testing.T) {
 		},
 	}
 
-	b := Media{
-		Video: Video{
-			Height: 100,
+	b := MediaConstraints{
+		VideoConstraints: VideoConstraints{
+			Height: Int(100),
 		},
 	}
 
@@ -35,9 +165,9 @@ func TestMergeWithSameField(t *testing.T) {
 		},
 	}
 
-	b := Media{
-		Video: Video{
-			Width: 100,
+	b := MediaConstraints{
+		VideoConstraints: VideoConstraints{
+			Width: Int(100),
 		},
 	}
 
@@ -61,9 +191,9 @@ func TestMergeNested(t *testing.T) {
 		},
 	}
 
-	b := Media{
-		Video: Video{
-			Width: 100,
+	b := MediaConstraints{
+		VideoConstraints: VideoConstraints{
+			Width: Int(100),
 		},
 	}
 

@@ -14,7 +14,7 @@ type MediaStreamConstraints struct {
 
 // MediaTrackConstraints represents https://w3c.github.io/mediacapture-main/#dom-mediatrackconstraints
 type MediaTrackConstraints struct {
-	prop.Media
+	prop.MediaConstraints
 	Enabled bool
 	// VideoEncoderBuilders are codec builders that are used for encoding the video
 	// and later being used for sending the appropriate RTP payload type.
@@ -34,6 +34,8 @@ type MediaTrackConstraints struct {
 	// AudioTransform will be used to transform the audio that's coming from the driver.
 	// So, basically it'll look like following: driver -> AudioTransform -> code
 	AudioTransform audio.TransformFunc
+
+	selectedMedia prop.Media
 }
 
 type MediaOption func(*MediaTrackConstraints)

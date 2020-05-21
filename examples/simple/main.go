@@ -7,6 +7,7 @@ import (
 	"github.com/pion/mediadevices/examples/internal/signal"
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/frame"
+	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/webrtc/v2"
 
 	// This is required to use opus audio encoder
@@ -80,10 +81,10 @@ func main() {
 			c.AudioEncoderBuilders = []codec.AudioEncoderBuilder{&opusParams}
 		},
 		Video: func(c *mediadevices.MediaTrackConstraints) {
-			c.FrameFormat = frame.FormatYUY2
+			c.FrameFormat = prop.FrameFormat(frame.FormatYUY2)
 			c.Enabled = true
-			c.Width = 640
-			c.Height = 480
+			c.Width = prop.Int(640)
+			c.Height = prop.Int(480)
 			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&vp8Params}
 		},
 	})

@@ -11,6 +11,7 @@ import (
 	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
+	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -66,10 +67,10 @@ func main() {
 
 	s, err := md.GetUserMedia(mediadevices.MediaStreamConstraints{
 		Video: func(c *mediadevices.MediaTrackConstraints) {
-			c.FrameFormat = frame.FormatI420 // most of the encoder accepts I420
+			c.FrameFormat = prop.FrameFormatExact(frame.FormatI420) // most of the encoder accepts I420
 			c.Enabled = true
-			c.Width = 640
-			c.Height = 480
+			c.Width = prop.Int(640)
+			c.Height = prop.Int(480)
 			c.VideoTransform = markFacesTransformer
 			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&vp8Params}
 		},

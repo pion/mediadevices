@@ -10,6 +10,7 @@ import (
 	"github.com/pion/mediadevices/pkg/codec/vpx"       // This is required to use VP8/VP9 video encoder
 	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
 	"github.com/pion/mediadevices/pkg/frame"
+	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
@@ -48,10 +49,10 @@ func main() {
 
 	_, err = md.GetUserMedia(mediadevices.MediaStreamConstraints{
 		Video: func(c *mediadevices.MediaTrackConstraints) {
-			c.FrameFormat = frame.FormatYUY2
+			c.FrameFormat = prop.FrameFormat(frame.FormatYUY2)
 			c.Enabled = true
-			c.Width = 640
-			c.Height = 480
+			c.Width = prop.Int(640)
+			c.Height = prop.Int(480)
 			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&vp8Params}
 		},
 	})
