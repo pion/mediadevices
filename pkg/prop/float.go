@@ -4,21 +4,28 @@ import (
 	"math"
 )
 
+// FloatConstraint is an interface to represent float value constraint.
 type FloatConstraint interface {
 	Compare(float32) (float64, bool)
 	Value() (float32, bool)
 }
 
+// Float specifies ideal float value.
+// Any value may be selected, but closest value takes priority.
 type Float float32
 
+// Compare implements FloatConstraint.
 func (f Float) Compare(a float32) (float64, bool) {
 	return math.Abs(float64(a-float32(f))) / math.Max(math.Abs(float64(a)), math.Abs(float64(f))), true
 }
 
+// Value implements FloatConstraint.
 func (f Float) Value() (float32, bool) { return float32(f), true }
 
+// FloatExact specifies exact float value.
 type FloatExact float32
 
+// Compare implements FloatConstraint.
 func (f FloatExact) Compare(a float32) (float64, bool) {
 	if float32(f) == a {
 		return 0.0, true
@@ -26,10 +33,13 @@ func (f FloatExact) Compare(a float32) (float64, bool) {
 	return 1.0, false
 }
 
+// Value implements FloatConstraint.
 func (f FloatExact) Value() (float32, bool) { return float32(f), true }
 
+// FloatOneOf specifies list of expected float values.
 type FloatOneOf []float32
 
+// Compare implements FloatConstraint.
 func (f FloatOneOf) Compare(a float32) (float64, bool) {
 	for _, ff := range f {
 		if ff == a {
@@ -39,14 +49,18 @@ func (f FloatOneOf) Compare(a float32) (float64, bool) {
 	return 1.0, false
 }
 
+// Value implements FloatConstraint.
 func (FloatOneOf) Value() (float32, bool) { return 0, false }
 
+// FloatRanged specifies range of expected float value.
+// If Ideal is non-zero, closest value to Ideal takes priority.
 type FloatRanged struct {
 	Min   float32
 	Max   float32
 	Ideal float32
 }
 
+// Compare implements FloatConstraint.
 func (f FloatRanged) Compare(a float32) (float64, bool) {
 	if f.Min != 0 && f.Min > a {
 		// Out of range
@@ -79,4 +93,5 @@ func (f FloatRanged) Compare(a float32) (float64, bool) {
 	}
 }
 
+// Value implements FloatConstraint.
 func (FloatRanged) Value() (float32, bool) { return 0, false }
