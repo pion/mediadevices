@@ -7,12 +7,15 @@ import (
 	"github.com/pion/mediadevices/pkg/frame"
 )
 
+// MediaConstraints represents set of media propaty constraints.
+// Each field constrains property by min/ideal/max range, exact match, or oneof match.
 type MediaConstraints struct {
 	DeviceID string
 	VideoConstraints
 	AudioConstraints
 }
 
+// Media stores single set of media propaties.
 type Media struct {
 	DeviceID string
 	Video
@@ -72,6 +75,8 @@ func (p *Media) Merge(o MediaConstraints) {
 	merge(rp, ro)
 }
 
+// FitnessDistance calculates fitness of media property and media constraints.
+// If no media satisfies given constraints, second return value will be false.
 func (p *MediaConstraints) FitnessDistance(o Media) (float64, bool) {
 	cmps := comparisons{}
 	cmps.add(p.Width, o.Width)

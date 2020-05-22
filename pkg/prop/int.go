@@ -4,21 +4,28 @@ import (
 	"math"
 )
 
+// IntConstraint is an interface to represent integer value constraint.
 type IntConstraint interface {
 	Compare(int) (float64, bool)
 	Value() (int, bool)
 }
 
+// Int specifies ideal int value.
+// Any value may be selected, but closest value takes priority.
 type Int int
 
+// Compare implements IntConstraint.
 func (i Int) Compare(a int) (float64, bool) {
 	return math.Abs(float64(a-int(i))) / math.Max(math.Abs(float64(a)), math.Abs(float64(i))), true
 }
 
+// Value implements IntConstraint.
 func (i Int) Value() (int, bool) { return int(i), true }
 
+// IntExact specifies exact int value.
 type IntExact int
 
+// Compare implements IntConstraint.
 func (i IntExact) Compare(a int) (float64, bool) {
 	if int(i) == a {
 		return 0.0, true
@@ -26,10 +33,13 @@ func (i IntExact) Compare(a int) (float64, bool) {
 	return 1.0, false
 }
 
+// Value implements IntConstraint.
 func (i IntExact) Value() (int, bool) { return int(i), true }
 
+// IntOneOf specifies list of expected float values.
 type IntOneOf []int
 
+// Compare implements IntConstraint.
 func (i IntOneOf) Compare(a int) (float64, bool) {
 	for _, ii := range i {
 		if ii == a {
@@ -39,14 +49,18 @@ func (i IntOneOf) Compare(a int) (float64, bool) {
 	return 1.0, false
 }
 
+// Value implements IntConstraint.
 func (IntOneOf) Value() (int, bool) { return 0, false }
 
+// IntRanged specifies range of expected int value.
+// If Ideal is non-zero, closest value to Ideal takes priority.
 type IntRanged struct {
 	Min   int
 	Max   int
 	Ideal int
 }
 
+// Compare implements IntConstraint.
 func (i IntRanged) Compare(a int) (float64, bool) {
 	if i.Min != 0 && i.Min > a {
 		// Out of range
@@ -79,4 +93,5 @@ func (i IntRanged) Compare(a int) (float64, bool) {
 	}
 }
 
+// Value implements IntConstraint.
 func (IntRanged) Value() (int, bool) { return 0, false }
