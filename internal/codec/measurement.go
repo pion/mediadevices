@@ -11,12 +11,15 @@ import (
 func MeasureBitRate(r io.Reader, dur time.Duration) (float64, error) {
 	var n, totalBytes int
 	var err error
+
 	buf := make([]byte, 1024)
 	start := time.Now()
 	now := start
 	end := now.Add(dur)
-	for now.Before(end) {
+	for {
 		n, err = r.Read(buf)
+		now = time.Now()
+
 		if err != nil {
 			if e, ok := err.(*mio.InsufficientBufferError); ok {
 				buf = make([]byte, 2*e.RequiredSize)
@@ -24,6 +27,7 @@ func MeasureBitRate(r io.Reader, dur time.Duration) (float64, error) {
 			}
 
 			if err == io.EOF {
+				dur = now.Sub(start)
 				totalBytes += n
 				break
 			}
@@ -31,11 +35,12 @@ func MeasureBitRate(r io.Reader, dur time.Duration) (float64, error) {
 			return 0, err
 		}
 
-		totalBytes += n
-		now = time.Now()
+		if now.After(end) {
+			break
+		}
+		totalBytes += n // count bytes if the data arrived within the period
 	}
 
-	elapsed := time.Now().Sub(start).Seconds()
-	avg := float64(totalBytes*8) / elapsed
+	avg := float64(totalBytes*8) / dur.Seconds()
 	return avg, nil
 }

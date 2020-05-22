@@ -9,18 +9,25 @@ import (
 
 func TestMeasureBitRateStatic(t *testing.T) {
 	r, w := io.Pipe()
-	dur := time.Second * 5
-	dataSize := 1000
-	var precision float64 = 8 // 1 byte
+	const (
+		dataSize       = 1000
+		dur            = 5 * time.Second
+		packetInterval = time.Second
+		precision      = 8.0 // 1 byte
+	)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	done := make(chan struct{})
 
 	go func() {
 		data := make([]byte, dataSize)
+		ticker := time.NewTicker(packetInterval)
+
+		// Wait half interval
+		time.Sleep(packetInterval / 2)
+
 		// Make sure that this goroutine is synchronized with main goroutine
 		wg.Done()
-		ticker := time.NewTicker(time.Second)
 
 		for {
 			select {
@@ -48,30 +55,34 @@ func TestMeasureBitRateStatic(t *testing.T) {
 
 func TestMeasureBitRateDynamic(t *testing.T) {
 	r, w := io.Pipe()
-	dur := time.Second * 5
-	dataSize := 1000
-	var precision float64 = 8 // 1 byte
+	const (
+		dataSize       = 1000
+		dur            = 5 * time.Second
+		packetInterval = time.Millisecond * 250
+		precision      = 8.0 // 1 byte
+	)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	done := make(chan struct{})
 
 	go func() {
 		data := make([]byte, dataSize)
-		wg.Done()
-		ticker := time.NewTicker(time.Millisecond * 500)
-		var count int
+		ticker := time.NewTicker(packetInterval)
 
+		// Wait half interval
+		time.Sleep(packetInterval / 2)
+
+		wg.Done()
+
+		var count int
 		for {
 			select {
 			case <-ticker.C:
-				w.Write(data)
-				count++
-				// Wait until 4 slow ticks, which is also equal to 2 seconds
-				if count == 4 {
-					ticker.Stop()
-					// Speed up the tick by 2 times for the rest
-					ticker = time.NewTicker(time.Millisecond * 250)
+				// 4 x 500ms ticks and 250ms ticks
+				if count%2 == 1 || count >= 8 {
+					w.Write(data)
 				}
+				count++
 			case <-done:
 				w.Close()
 				return
