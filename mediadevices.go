@@ -224,13 +224,8 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 
 func (m *mediaDevices) selectAudio(constraints MediaTrackConstraints) (Tracker, error) {
 	typeFilter := driver.FilterAudioRecorder()
-	filter := typeFilter
-	if constraints.DeviceID != "" {
-		idFilter := driver.FilterID(constraints.DeviceID)
-		filter = driver.FilterAnd(typeFilter, idFilter)
-	}
 
-	d, c, err := selectBestDriver(filter, constraints)
+	d, c, err := selectBestDriver(typeFilter, constraints)
 	if err != nil {
 		return nil, err
 	}
@@ -241,10 +236,6 @@ func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, 
 	typeFilter := driver.FilterVideoRecorder()
 	notScreenFilter := driver.FilterNot(driver.FilterDeviceType(driver.Screen))
 	filter := driver.FilterAnd(typeFilter, notScreenFilter)
-	if constraints.DeviceID != "" {
-		idFilter := driver.FilterID(constraints.DeviceID)
-		filter = driver.FilterAnd(typeFilter, notScreenFilter, idFilter)
-	}
 
 	d, c, err := selectBestDriver(filter, constraints)
 	if err != nil {
@@ -258,10 +249,6 @@ func (m *mediaDevices) selectScreen(constraints MediaTrackConstraints) (Tracker,
 	typeFilter := driver.FilterVideoRecorder()
 	screenFilter := driver.FilterDeviceType(driver.Screen)
 	filter := driver.FilterAnd(typeFilter, screenFilter)
-	if constraints.DeviceID != "" {
-		idFilter := driver.FilterID(constraints.DeviceID)
-		filter = driver.FilterAnd(typeFilter, screenFilter, idFilter)
-	}
 
 	d, c, err := selectBestDriver(filter, constraints)
 	if err != nil {
