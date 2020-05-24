@@ -10,7 +10,7 @@ import (
 // MediaConstraints represents set of media propaty constraints.
 // Each field constrains property by min/ideal/max range, exact match, or oneof match.
 type MediaConstraints struct {
-	DeviceID string
+	DeviceID StringConstraint
 	VideoConstraints
 	AudioConstraints
 }
@@ -66,6 +66,10 @@ func (p *Media) Merge(o MediaConstraints) {
 				if v, ok := c.Value(); ok {
 					fieldA.Set(reflect.ValueOf(v))
 				}
+			case StringConstraint:
+				if v, ok := c.Value(); ok {
+					fieldA.Set(reflect.ValueOf(v))
+				}
 			default:
 				panic("unsupported property type")
 			}
@@ -79,6 +83,7 @@ func (p *Media) Merge(o MediaConstraints) {
 // If no media satisfies given constraints, second return value will be false.
 func (p *MediaConstraints) FitnessDistance(o Media) (float64, bool) {
 	cmps := comparisons{}
+	cmps.add(p.DeviceID, o.DeviceID)
 	cmps.add(p.Width, o.Width)
 	cmps.add(p.Height, o.Height)
 	cmps.add(p.FrameFormat, o.FrameFormat)
@@ -129,6 +134,12 @@ func (c *comparisons) fitnessDistance() (float64, bool) {
 			}
 		case FrameFormatConstraint:
 			if actual, typeOK := field.actual.(frame.Format); typeOK {
+				d, ok = c.Compare(actual)
+			} else {
+				panic("wrong type of actual value")
+			}
+		case StringConstraint:
+			if actual, typeOK := field.actual.(string); typeOK {
 				d, ok = c.Compare(actual)
 			} else {
 				panic("wrong type of actual value")

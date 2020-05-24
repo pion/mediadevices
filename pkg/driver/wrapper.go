@@ -71,7 +71,11 @@ func (w *adapterWrapper) Properties() []prop.Media {
 		return nil
 	}
 
-	return w.Adapter.Properties()
+	p := w.Adapter.Properties()
+	for i := range p {
+		p[i].DeviceID = w.id
+	}
+	return p
 }
 
 func (w *adapterWrapper) VideoRecord(p prop.Media) (r video.Reader, err error) {

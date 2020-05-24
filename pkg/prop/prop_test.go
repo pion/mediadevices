@@ -13,6 +13,24 @@ func TestCompareMatch(t *testing.T) {
 		b     Media
 		match bool
 	}{
+		"DeviceIDExactUnmatch": {
+			MediaConstraints{
+				DeviceID: StringExact("abc"),
+			},
+			Media{
+				DeviceID: "cde",
+			},
+			false,
+		},
+		"DeviceIDExactMatch": {
+			MediaConstraints{
+				DeviceID: StringExact("abc"),
+			},
+			Media{
+				DeviceID: "abc",
+			},
+			true,
+		},
 		"IntIdealUnmatch": {
 			MediaConstraints{VideoConstraints: VideoConstraints{
 				Width: Int(30),
