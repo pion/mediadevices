@@ -8,7 +8,7 @@ Go implementation of the [MediaDevices](https://developer.mozilla.org/en-US/docs
 
 | Interface  | Linux | Mac | Windows |
 | :--------: | :---: | :-: | :-----: |
-|   Camera   |  ✔️   | ✖️  |   ✔️    |
+|   Camera   |  ✔️   | ✔️  |   ✔️    |
 | Microphone |  ✔️   | ✖️  |   ✔️    |
 |   Screen   |  ✔️   | ✖️  |   ✖️    |
 
@@ -17,15 +17,15 @@ Go implementation of the [MediaDevices](https://developer.mozilla.org/en-US/docs
 |   OS    |                           Library/Interface                             |
 | :-----: | :---------------------------------------------------------------------: |
 |  Linux  |        [Video4Linux](https://en.wikipedia.org/wiki/Video4Linux)         |
-|   Mac   |                                  N/A                                    |
+|   Mac   |       [AVFoundation](https://developer.apple.com/av-foundation/)        |
 | Windows | [DirectShow](https://docs.microsoft.com/en-us/windows/win32/directshow) |
 
 |                     Pixel Format                      | Linux | Mac | Windows |
 | :---------------------------------------------------: | :---: | :-: | :-----: |
 | [YUY2](https://www.fourcc.org/pixel-format/yuv-yuy2/) |  ✔️   | ✖️  |   ✔️    |
-| [UYVY](https://www.fourcc.org/pixel-format/yuv-uyvy/) |  ✔️   | ✖️  |   ✖️    |
+| [UYVY](https://www.fourcc.org/pixel-format/yuv-uyvy/) |  ✔️   | ✔️  |   ✖️    |
 | [I420](https://www.fourcc.org/pixel-format/yuv-i420/) |  ✔️   | ✖️  |   ✖️    |
-| [NV21](https://www.fourcc.org/pixel-format/yuv-nv21/) |  ✔️   | ✖️  |   ✖️    |
+| [NV21](https://www.fourcc.org/pixel-format/yuv-nv21/) |  ✔️   | ✔️  |   ✖️    |
 |         [MJPEG](https://www.fourcc.org/mjpg/)         |  ✔️   | ✖️  |   ✖️    |
 
 ### Microphone
