@@ -180,6 +180,12 @@ func newEncoder(r video.Reader, p prop.Media, params Params, codecIface *C.vpx_c
 	cfg.rc_resize_allowed = 0
 	cfg.g_pass = C.VPX_RC_ONE_PASS
 
+	cfg.ts_number_layers = C.uint(len(params.TemporalLayers))
+	for i := range params.TemporalLayers {
+		cfg.ts_target_bitrate[i] = C.uint(params.TemporalLayers[i].TargetBitrate)
+		cfg.ts_rate_decimator[i] = C.uint(params.TemporalLayers[i].RateDecimator)
+	}
+
 	raw := &C.vpx_image_t{}
 	if C.vpx_img_alloc(raw, C.VPX_IMG_FMT_I420, cfg.g_w, cfg.g_h, 1) == nil {
 		return nil, errors.New("vpx_img_alloc failed")

@@ -17,6 +17,13 @@ type Params struct {
 	RateControlMinQuantizer      uint
 	RateControlMaxQuantizer      uint
 	ErrorResilient               ErrorResilientMode
+	TemporalLayers               []TemporalLayer
+}
+
+// TemporalLayer represents temporal layer config.
+type TemporalLayer struct {
+	TargetBitrate uint // in kbps
+	RateDecimator uint
 }
 
 // RateControlMode represents rate control mode.
