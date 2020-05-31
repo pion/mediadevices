@@ -22,8 +22,12 @@ type Media struct {
 	Audio
 }
 
-// Merge merges all the field values from o to p, except zero values.
-func (p *Media) Merge(o MediaConstraints) {
+// setterFn is a callback function to set value from fieldB to fieldA
+type setterFn func(fieldA, fieldB reflect.Value)
+
+// merge merges all the field values from o to p, except zero values. It's guaranteed that setterFn will be called
+// when fieldA and fieldB are not struct.
+func (p *Media) merge(o interface{}, set setterFn) {
 	rp := reflect.ValueOf(p).Elem()
 	ro := reflect.ValueOf(o)
 
@@ -49,34 +53,46 @@ func (p *Media) Merge(o MediaConstraints) {
 				continue
 			}
 
-			switch c := fieldB.Interface().(type) {
-			case IntConstraint:
-				if v, ok := c.Value(); ok {
-					fieldA.Set(reflect.ValueOf(v))
-				}
-			case FloatConstraint:
-				if v, ok := c.Value(); ok {
-					fieldA.Set(reflect.ValueOf(v))
-				}
-			case DurationConstraint:
-				if v, ok := c.Value(); ok {
-					fieldA.Set(reflect.ValueOf(v))
-				}
-			case FrameFormatConstraint:
-				if v, ok := c.Value(); ok {
-					fieldA.Set(reflect.ValueOf(v))
-				}
-			case StringConstraint:
-				if v, ok := c.Value(); ok {
-					fieldA.Set(reflect.ValueOf(v))
-				}
-			default:
-				panic("unsupported property type")
-			}
+			set(fieldA, fieldB)
 		}
 	}
 
 	merge(rp, ro)
+}
+
+func (p *Media) Merge(o Media) {
+	p.merge(o, func(fieldA, fieldB reflect.Value) {
+		fieldA.Set(fieldB)
+	})
+}
+
+func (p *Media) MergeConstraints(o MediaConstraints) {
+	p.merge(o, func(fieldA, fieldB reflect.Value) {
+		switch c := fieldB.Interface().(type) {
+		case IntConstraint:
+			if v, ok := c.Value(); ok {
+				fieldA.Set(reflect.ValueOf(v))
+			}
+		case FloatConstraint:
+			if v, ok := c.Value(); ok {
+				fieldA.Set(reflect.ValueOf(v))
+			}
+		case DurationConstraint:
+			if v, ok := c.Value(); ok {
+				fieldA.Set(reflect.ValueOf(v))
+			}
+		case FrameFormatConstraint:
+			if v, ok := c.Value(); ok {
+				fieldA.Set(reflect.ValueOf(v))
+			}
+		case StringConstraint:
+			if v, ok := c.Value(); ok {
+				fieldA.Set(reflect.ValueOf(v))
+			}
+		default:
+			panic("unsupported property type")
+		}
+	})
 }
 
 // FitnessDistance calculates fitness of media property and media constraints.

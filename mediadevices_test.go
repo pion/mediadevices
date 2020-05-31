@@ -10,6 +10,7 @@ import (
 	"github.com/pion/webrtc/v2/pkg/media"
 
 	"github.com/pion/mediadevices/pkg/codec"
+	"github.com/pion/mediadevices/pkg/driver"
 	_ "github.com/pion/mediadevices/pkg/driver/audiotest"
 	_ "github.com/pion/mediadevices/pkg/driver/videotest"
 	"github.com/pion/mediadevices/pkg/io/audio"
@@ -32,11 +33,11 @@ func TestGetUserMedia(t *testing.T) {
 	}
 	md := NewMediaDevicesFromCodecs(
 		map[webrtc.RTPCodecType][]*webrtc.RTPCodec{
-			webrtc.RTPCodecTypeVideo: []*webrtc.RTPCodec{
-				&webrtc.RTPCodec{Type: webrtc.RTPCodecTypeVideo, Name: "MockVideo", PayloadType: 1},
+			webrtc.RTPCodecTypeVideo: {
+				{Type: webrtc.RTPCodecTypeVideo, Name: "MockVideo", PayloadType: 1},
 			},
-			webrtc.RTPCodecTypeAudio: []*webrtc.RTPCodec{
-				&webrtc.RTPCodec{Type: webrtc.RTPCodecTypeAudio, Name: "MockAudio", PayloadType: 2},
+			webrtc.RTPCodecTypeAudio: {
+				{Type: webrtc.RTPCodecTypeAudio, Name: "MockAudio", PayloadType: 2},
 			},
 		},
 		WithTrackGenerator(
@@ -122,6 +123,9 @@ func TestGetUserMedia(t *testing.T) {
 		})
 	}
 	time.Sleep(50 * time.Millisecond)
+	for _, track := range tracks {
+		track.Stop()
+	}
 }
 
 type mockTrack struct {
@@ -217,3 +221,56 @@ func (m *mockAudioCodec) Read(b []byte) (int, error) {
 	return len(b), nil
 }
 func (m *mockAudioCodec) Close() error { return nil }
+
+func TestSelectBestDriverConstraintsResultIsSetProperly(t *testing.T) {
+	filterFn := driver.FilterVideoRecorder()
+	drivers := driver.GetManager().Query(filterFn)
+	if len(drivers) == 0 {
+		t.Fatal("expect to get at least 1 driver")
+	}
+
+	driver := drivers[0]
+	err := driver.Open()
+	if err != nil {
+		t.Fatal("expect to open driver successfully")
+	}
+	defer driver.Close()
+
+	if len(driver.Properties()) == 0 {
+		t.Fatal("expect to get at least 1 property")
+	}
+	expectedProp := driver.Properties()[0]
+	// Since this is a continuous value, bestConstraints should be set with the value that user specified
+	expectedProp.FrameRate = 30.0
+
+	wantConstraints := MediaTrackConstraints{
+		MediaConstraints: prop.MediaConstraints{
+			VideoConstraints: prop.VideoConstraints{
+				// By reducing the width from the driver by a tiny amount, this property should be chosen.
+				// At the same time, we'll be able to find out if the return constraints will be properly set
+				// to the best constraints.
+				Width:       prop.Int(expectedProp.Width - 1),
+				Height:      prop.Int(expectedProp.Width),
+				FrameFormat: prop.FrameFormat(expectedProp.FrameFormat),
+				FrameRate:   prop.Float(30.0),
+			},
+		},
+	}
+
+	bestDriver, bestConstraints, err := selectBestDriver(filterFn, wantConstraints)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if driver != bestDriver {
+		t.Fatal("best driver is not expected")
+	}
+
+	s := bestConstraints.selectedMedia
+	if s.Width != expectedProp.Width ||
+		s.Height != expectedProp.Height ||
+		s.FrameFormat != expectedProp.FrameFormat ||
+		s.FrameRate != expectedProp.FrameRate {
+		t.Fatalf("failed to return best constraints\nexpected:\n%v\n\ngot:\n%v", expectedProp, bestConstraints.selectedMedia)
+	}
+}
