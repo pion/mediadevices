@@ -1,6 +1,8 @@
 package driver
 
 import (
+	"fmt"
+
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -78,8 +80,21 @@ func (w *adapterWrapper) Properties() []prop.Media {
 	return p
 }
 
+func isPropertySupported(haveProps []prop.Media, wantProp prop.Media) error {
+	for _, haveProp := range haveProps {
+		if haveProp == wantProp {
+			return nil
+		}
+	}
+	return fmt.Errorf("Want %v but have: %v", wantProp, haveProps)
+}
+
 func (w *adapterWrapper) VideoRecord(p prop.Media) (r video.Reader, err error) {
 	err = w.state.Update(StateRunning, func() error {
+		err = isPropertySupported(w.Properties(), p)
+		if err != nil {
+			return err
+		}
 		r, err = w.VideoRecorder.VideoRecord(p)
 		return err
 	})
@@ -91,6 +106,10 @@ func (w *adapterWrapper) VideoRecord(p prop.Media) (r video.Reader, err error) {
 
 func (w *adapterWrapper) AudioRecord(p prop.Media) (r audio.Reader, err error) {
 	err = w.state.Update(StateRunning, func() error {
+		err = isPropertySupported(w.Properties(), p)
+		if err != nil {
+			return err
+		}
 		r, err = w.AudioRecorder.AudioRecord(p)
 		return err
 	})
