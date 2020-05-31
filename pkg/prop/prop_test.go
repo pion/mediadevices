@@ -159,9 +159,9 @@ func TestMergeWithZero(t *testing.T) {
 		},
 	}
 
-	b := MediaConstraints{
-		VideoConstraints: VideoConstraints{
-			Height: Int(100),
+	b := Media{
+		Video: Video{
+			Height: 100,
 		},
 	}
 
@@ -183,9 +183,9 @@ func TestMergeWithSameField(t *testing.T) {
 		},
 	}
 
-	b := MediaConstraints{
-		VideoConstraints: VideoConstraints{
-			Width: Int(100),
+	b := Media{
+		Video: Video{
+			Width: 100,
 		},
 	}
 
@@ -209,13 +209,83 @@ func TestMergeNested(t *testing.T) {
 		},
 	}
 
+	b := Media{
+		Video: Video{
+			Width: 100,
+		},
+	}
+
+	a.Merge(b)
+
+	if a.Width != 100 {
+		t.Error("expected a.Width to be 100, but got 0")
+	}
+}
+
+func TestMergeConstraintsWithZero(t *testing.T) {
+	a := Media{
+		Video: Video{
+			Width: 30,
+		},
+	}
+
+	b := MediaConstraints{
+		VideoConstraints: VideoConstraints{
+			Height: Int(100),
+		},
+	}
+
+	a.MergeConstraints(b)
+
+	if a.Width == 0 {
+		t.Error("expected a.Width to be 30, but got 0")
+	}
+
+	if a.Height == 0 {
+		t.Error("expected a.Height to be 100, but got 0")
+	}
+}
+
+func TestMergeConstraintsWithSameField(t *testing.T) {
+	a := Media{
+		Video: Video{
+			Width: 30,
+		},
+	}
+
 	b := MediaConstraints{
 		VideoConstraints: VideoConstraints{
 			Width: Int(100),
 		},
 	}
 
-	a.Merge(b)
+	a.MergeConstraints(b)
+
+	if a.Width != 100 {
+		t.Error("expected a.Width to be 100, but got 0")
+	}
+}
+
+func TestMergeConstraintsNested(t *testing.T) {
+	type constraints struct {
+		Media
+	}
+
+	a := constraints{
+		Media{
+			Video: Video{
+				Width: 30,
+			},
+		},
+	}
+
+	b := MediaConstraints{
+		VideoConstraints: VideoConstraints{
+			Width: Int(100),
+		},
+	}
+
+	a.MergeConstraints(b)
 
 	if a.Width != 100 {
 		t.Error("expected a.Width to be 100, but got 0")

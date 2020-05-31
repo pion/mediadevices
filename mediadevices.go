@@ -217,8 +217,9 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 		return nil, MediaTrackConstraints{}, errNotFound
 	}
 
-	constraints.selectedMedia = bestProp
-	constraints.selectedMedia.Merge(constraints.MediaConstraints)
+	constraints.selectedMedia = prop.Media{}
+	constraints.selectedMedia.MergeConstraints(constraints.MediaConstraints)
+	constraints.selectedMedia.Merge(bestProp)
 	return bestDriver, constraints, nil
 }
 
