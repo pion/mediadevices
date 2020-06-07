@@ -124,16 +124,18 @@ func decodeInt16NonInterleaved(endian binary.ByteOrder, chunk []byte, channels i
 	}
 
 	container := NewInt16NonInterleaved(chunkInfo)
+	chunkLen := len(chunk) / channels
 
 	if endian == hostEndian {
-		n := len(chunk)
-		h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[0][0])), Len: n, Cap: n}
-		dst := *(*[]byte)(unsafe.Pointer(&h))
-		copy(dst, chunk)
+		for ch := 0; ch < channels; ch++ {
+			offset := ch * chunkLen
+			h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[ch][0])), Len: chunkLen, Cap: chunkLen}
+			dst := *(*[]byte)(unsafe.Pointer(&h))
+			copy(dst, chunk[offset:offset+chunkLen])
+		}
 		return container, nil
 	}
 
-	chunkLen := len(chunk) / channels
 	for ch := 0; ch < channels; ch++ {
 		offset := ch * chunkLen
 		for i := 0; i < chunkInfo.Len; i++ {
@@ -186,16 +188,18 @@ func decodeFloat32NonInterleaved(endian binary.ByteOrder, chunk []byte, channels
 	}
 
 	container := NewFloat32NonInterleaved(chunkInfo)
+	chunkLen := len(chunk) / channels
 
 	if endian == hostEndian {
-		n := len(chunk)
-		h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[0][0])), Len: n, Cap: n}
-		dst := *(*[]byte)(unsafe.Pointer(&h))
-		copy(dst, chunk)
+		for ch := 0; ch < channels; ch++ {
+			offset := ch * chunkLen
+			h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[ch][0])), Len: chunkLen, Cap: chunkLen}
+			dst := *(*[]byte)(unsafe.Pointer(&h))
+			copy(dst, chunk[offset:offset+chunkLen])
+		}
 		return container, nil
 	}
 
-	chunkLen := len(chunk) / channels
 	for ch := 0; ch < channels; ch++ {
 		offset := ch * chunkLen
 		for i := 0; i < chunkInfo.Len; i++ {
