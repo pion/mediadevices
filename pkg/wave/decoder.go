@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"reflect"
+	"unsafe"
 )
 
 // Format represents how audio is formatted in memory
@@ -15,6 +17,19 @@ const (
 	FormatFloat32Interleaved           = "Float32Interleaved"
 	FormatFloat32NonInterleaved        = "Float32NonInterleaved"
 )
+
+var hostEndian binary.ByteOrder
+
+func init() {
+	switch v := *(*uint16)(unsafe.Pointer(&([]byte{0x12, 0x34}[0]))); v {
+	case 0x1234:
+		hostEndian = binary.BigEndian
+	case 0x3412:
+		hostEndian = binary.LittleEndian
+	default:
+		panic(fmt.Sprintf("failed to determine host endianness: %x", v))
+	}
+}
 
 // Decoder decodes raw chunk to Audio
 type Decoder interface {
@@ -78,6 +93,15 @@ func decodeInt16Interleaved(endian binary.ByteOrder, chunk []byte, channels int)
 	}
 
 	container := NewInt16Interleaved(chunkInfo)
+
+	if endian == hostEndian {
+		n := len(chunk)
+		h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[0])), Len: n, Cap: n}
+		dst := *(*[]byte)(unsafe.Pointer(&h))
+		copy(dst, chunk)
+		return container, nil
+	}
+
 	sampleLen := sampleSize * channels
 	var i int
 	for offset := 0; offset+sampleLen <= len(chunk); offset += sampleLen {
@@ -100,6 +124,15 @@ func decodeInt16NonInterleaved(endian binary.ByteOrder, chunk []byte, channels i
 	}
 
 	container := NewInt16NonInterleaved(chunkInfo)
+
+	if endian == hostEndian {
+		n := len(chunk)
+		h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[0][0])), Len: n, Cap: n}
+		dst := *(*[]byte)(unsafe.Pointer(&h))
+		copy(dst, chunk)
+		return container, nil
+	}
+
 	chunkLen := len(chunk) / channels
 	for ch := 0; ch < channels; ch++ {
 		offset := ch * chunkLen
@@ -121,6 +154,15 @@ func decodeFloat32Interleaved(endian binary.ByteOrder, chunk []byte, channels in
 	}
 
 	container := NewFloat32Interleaved(chunkInfo)
+
+	if endian == hostEndian {
+		n := len(chunk)
+		h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[0])), Len: n, Cap: n}
+		dst := *(*[]byte)(unsafe.Pointer(&h))
+		copy(dst, chunk)
+		return container, nil
+	}
+
 	sampleLen := sampleSize * channels
 	var i int
 	for offset := 0; offset+sampleLen <= len(chunk); offset += sampleLen {
@@ -144,6 +186,15 @@ func decodeFloat32NonInterleaved(endian binary.ByteOrder, chunk []byte, channels
 	}
 
 	container := NewFloat32NonInterleaved(chunkInfo)
+
+	if endian == hostEndian {
+		n := len(chunk)
+		h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[0][0])), Len: n, Cap: n}
+		dst := *(*[]byte)(unsafe.Pointer(&h))
+		copy(dst, chunk)
+		return container, nil
+	}
+
 	chunkLen := len(chunk) / channels
 	for ch := 0; ch < channels; ch++ {
 		offset := ch * chunkLen
