@@ -51,3 +51,44 @@ func TestFloat32(t *testing.T) {
 		})
 	}
 }
+
+func TestFloat32SubAudio(t *testing.T) {
+	t.Run("Interleaved", func(t *testing.T) {
+		in := &Float32Interleaved{
+			Data: []float32{
+				0.1, -0.5, 0.2, -0.6, 0.3, -0.7, 0.4, -0.8, 0.5, -0.9, 0.6, -1.0, 0.7, -1.1, 0.8, -1.2,
+			},
+			Size: ChunkInfo{8, 2, 48000},
+		}
+		expected := &Float32Interleaved{
+			Data: []float32{
+				0.3, -0.7, 0.4, -0.8, 0.5, -0.9,
+			},
+			Size: ChunkInfo{3, 2, 48000},
+		}
+		out := in.SubAudio(2, 3)
+		if !reflect.DeepEqual(expected, out) {
+			t.Errorf("SubAudio differs, expected: %v, got: %v", expected, out)
+		}
+	})
+	t.Run("NonInterleaved", func(t *testing.T) {
+		in := &Float32NonInterleaved{
+			Data: [][]float32{
+				{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
+				{-0.5, -0.6, -0.7, -0.8, -0.9, -1.0, -1.1, -1.2},
+			},
+			Size: ChunkInfo{8, 2, 48000},
+		}
+		expected := &Float32NonInterleaved{
+			Data: [][]float32{
+				{0.3, 0.4, 0.5},
+				{-0.7, -0.8, -0.9},
+			},
+			Size: ChunkInfo{3, 2, 48000},
+		}
+		out := in.SubAudio(2, 3)
+		if !reflect.DeepEqual(expected, out) {
+			t.Errorf("SubAudio differs, expected: %v, got: %v", expected, out)
+		}
+	})
+}
