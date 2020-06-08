@@ -14,7 +14,7 @@ import (
 type microphone struct {
 	c           *pulse.Client
 	id          string
-	samplesChan chan<- []float32
+	samplesChan chan<- []int16
 }
 
 func init() {
@@ -85,14 +85,14 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 		pulse.RecordSource(src),
 	)
 
-	samplesChan := make(chan []float32, 1)
+	samplesChan := make(chan []int16, 1)
 
-	handler := func(b []float32) (int, error) {
+	handler := func(b []int16) (int, error) {
 		samplesChan <- b
 		return len(b), nil
 	}
 
-	stream, err := m.c.NewRecord(pulse.Float32Writer(handler), options...)
+	stream, err := m.c.NewRecord(pulse.Int16Writer(handler), options...)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 			return nil, io.EOF
 		}
 
-		a := wave.NewFloat32Interleaved(
+		a := wave.NewInt16Interleaved(
 			wave.ChunkInfo{
 				Channels: p.ChannelCount,
 				Len:      len(buff) / p.ChannelCount,
