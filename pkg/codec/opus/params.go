@@ -4,12 +4,15 @@ import (
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/pion/mediadevices/pkg/wave/mixer"
 	"github.com/pion/webrtc/v2"
 )
 
 // Params stores opus specific encoding parameters.
 type Params struct {
 	codec.BaseParams
+	// ChannelMixer is a mixer to be used if number of given and expected channels differ.
+	ChannelMixer mixer.ChannelMixer
 }
 
 // NewParams returns default opus codec specific parameters.

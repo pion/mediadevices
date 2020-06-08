@@ -1,6 +1,7 @@
 package opus
 
 import (
+	"errors"
 	"fmt"
 	"math"
 
@@ -9,11 +10,12 @@ import (
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/mediadevices/pkg/wave"
+	"github.com/pion/mediadevices/pkg/wave/mixer"
 )
 
 type encoder struct {
 	engine *opus.Encoder
-	inBuff *wave.Float32Interleaved
+	inBuff wave.Audio
 	reader audio.Reader
 }
 
@@ -32,6 +34,10 @@ func newEncoder(r audio.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 		params.BitRate = 32000
 	}
 
+	if params.ChannelMixer == nil {
+		params.ChannelMixer = &mixer.MonoMixer{}
+	}
+
 	// Select the nearest supported latency
 	var targetLatency float64
 	// TODO: use p.Latency.Milliseconds() after Go 1.12 EOL
@@ -47,8 +53,7 @@ func newEncoder(r audio.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 		targetLatency = latency
 	}
 
-	// Since audio.Reader only supports stereo mode, channels is always 2
-	channels := 2
+	channels := p.ChannelCount
 
 	engine, err := opus.NewEncoder(p.SampleRate, channels, opus.AppVoIP)
 	if err != nil {
@@ -58,47 +63,37 @@ func newEncoder(r audio.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 		return nil, err
 	}
 
-	inBuffSize := int(targetLatency * float64(p.SampleRate) / 1000)
-	inBuff := wave.NewFloat32Interleaved(
-		wave.ChunkInfo{Channels: channels, Len: inBuffSize},
-	)
-	inBuff.Data = inBuff.Data[:0]
-	e := encoder{engine, inBuff, r}
+	rMix := audio.NewChannelMixer(channels, params.ChannelMixer)
+	rBuf := audio.NewBuffer(int(targetLatency * float64(p.SampleRate) / 1000))
+	e := encoder{
+		engine: engine,
+		reader: rMix(rBuf(r)),
+	}
 	return &e, nil
 }
 
-func (e *encoder) Read(p []byte) (n int, err error) {
-	// While the buffer is not full, keep reading so that we meet the latency requirement
-	nLatency := e.inBuff.ChunkInfo().Len * e.inBuff.ChunkInfo().Channels
-	for len(e.inBuff.Data) < nLatency {
-		buff, err := e.reader.Read()
-		if err != nil {
-			return 0, err
-		}
-		// TODO: convert audio format
-		b, ok := buff.(*wave.Float32Interleaved)
-		if !ok {
-			panic("unsupported audio format")
-		}
-		switch {
-		case b.Size.Channels == 1 && e.inBuff.ChunkInfo().Channels != 1:
-			for _, d := range b.Data {
-				for ch := 0; ch < e.inBuff.ChunkInfo().Channels; ch++ {
-					e.inBuff.Data = append(e.inBuff.Data, d)
-				}
-			}
-		case b.Size.Channels == e.inBuff.ChunkInfo().Channels:
-			e.inBuff.Data = append(e.inBuff.Data, b.Data...)
-		}
-	}
-
-	n, err = e.engine.EncodeFloat32(e.inBuff.Data[:nLatency], p)
+func (e *encoder) Read(p []byte) (int, error) {
+	buff, err := e.reader.Read()
 	if err != nil {
-		return n, err
+		return 0, err
 	}
-	e.inBuff.Data = e.inBuff.Data[nLatency:]
 
-	return n, nil
+	switch b := buff.(type) {
+	case *wave.Int16Interleaved:
+		n, err := e.engine.Encode(b.Data, p)
+		if err != nil {
+			return n, err
+		}
+		return n, nil
+	case *wave.Float32Interleaved:
+		n, err := e.engine.EncodeFloat32(b.Data, p)
+		if err != nil {
+			return n, err
+		}
+		return n, nil
+	default:
+		return 0, errors.New("unknown type of audio buffer")
+	}
 }
 
 func (e *encoder) SetBitRate(b int) error {
