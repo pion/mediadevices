@@ -8,6 +8,12 @@ type Audio interface {
 	At(i, ch int) Sample
 }
 
+// EditableAudio is an editable finite series of audio Sample values.
+type EditableAudio interface {
+	Audio
+	Set(i, ch int, s Sample)
+}
+
 // ChunkInfo contains size of the audio chunk.
 type ChunkInfo struct {
 	Len          int
