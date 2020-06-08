@@ -51,3 +51,44 @@ func TestInt16(t *testing.T) {
 		})
 	}
 }
+
+func TestInt32SubAudio(t *testing.T) {
+	t.Run("Interleaved", func(t *testing.T) {
+		in := &Int16Interleaved{
+			Data: []int16{
+				1, -5, 2, -6, 3, -7, 4, -8, 5, -9, 6, -10, 7, -11, 8, -12,
+			},
+			Size: ChunkInfo{8, 2, 48000},
+		}
+		expected := &Int16Interleaved{
+			Data: []int16{
+				3, -7, 4, -8, 5, -9,
+			},
+			Size: ChunkInfo{3, 2, 48000},
+		}
+		out := in.SubAudio(2, 3)
+		if !reflect.DeepEqual(expected, out) {
+			t.Errorf("SubAudio differs, expected: %v, got: %v", expected, out)
+		}
+	})
+	t.Run("NonInterleaved", func(t *testing.T) {
+		in := &Int16NonInterleaved{
+			Data: [][]int16{
+				{1, 2, 3, 4, 5, 6, 7, 8},
+				{-5, -6, -7, -8, -9, -10, -11, -12},
+			},
+			Size: ChunkInfo{8, 2, 48000},
+		}
+		expected := &Int16NonInterleaved{
+			Data: [][]int16{
+				{3, 4, 5},
+				{-7, -8, -9},
+			},
+			Size: ChunkInfo{3, 2, 48000},
+		}
+		out := in.SubAudio(2, 3)
+		if !reflect.DeepEqual(expected, out) {
+			t.Errorf("SubAudio differs, expected: %v, got: %v", expected, out)
+		}
+	})
+}

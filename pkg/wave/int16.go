@@ -34,6 +34,16 @@ func (a *Int16Interleaved) SetInt16(i, ch int, s Int16Sample) {
 	a.Data[i*a.Size.Channels+ch] = int16(s)
 }
 
+// SubAudio returns part of the original audio sharing the buffer.
+func (a *Int16Interleaved) SubAudio(offsetSamples, nSamples int) *Int16Interleaved {
+	ret := *a
+	offset := offsetSamples * a.Size.Channels
+	n := nSamples * a.Size.Channels
+	ret.Data = ret.Data[offset : offset+n]
+	ret.Size.Len = nSamples
+	return &ret
+}
+
 func NewInt16Interleaved(size ChunkInfo) *Int16Interleaved {
 	return &Int16Interleaved{
 		Data: make([]int16, size.Channels*size.Len),
@@ -66,6 +76,16 @@ func (a *Int16NonInterleaved) Set(i, ch int, s Sample) {
 
 func (a *Int16NonInterleaved) SetInt16(i, ch int, s Int16Sample) {
 	a.Data[ch][i] = int16(s)
+}
+
+// SubAudio returns part of the original audio sharing the buffer.
+func (a *Int16NonInterleaved) SubAudio(offsetSamples, nSamples int) *Int16NonInterleaved {
+	ret := *a
+	for i := range a.Data {
+		ret.Data[i] = ret.Data[i][offsetSamples : offsetSamples+nSamples]
+	}
+	ret.Size.Len = nSamples
+	return &ret
 }
 
 func NewInt16NonInterleaved(size ChunkInfo) *Int16NonInterleaved {
