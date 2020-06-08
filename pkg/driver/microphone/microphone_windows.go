@@ -214,7 +214,7 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 			}
 		}
 
-		a := wave.NewFloat32Interleaved(
+		a := wave.NewInt16Interleaved(
 			wave.ChunkInfo{
 				Channels: p.ChannelCount,
 				Len:      (int(b.waveHdr.dwBytesRecorded) / 2) / p.ChannelCount,
@@ -224,7 +224,7 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 		j := 0
 		for i := 0; i < a.Size.Len; i++ {
 			for ch := 0; ch < a.Size.Channels; ch++ {
-				a.SetFloat32(i, ch, wave.Float32Sample(float32(b.data[j])/0x8000))
+				a.SetInt16(i, ch, wave.Int16Sample(b.data[j]))
 				j++
 			}
 		}
