@@ -17,24 +17,19 @@ func NewChannelMixer(channels int, mixer mixer.ChannelMixer) TransformFunc {
 			if ci.Channels == channels {
 				return buff, nil
 			}
+
+			ci.Channels = channels
+
 			var mixed wave.Audio
 			switch buff.(type) {
 			case *wave.Int16Interleaved:
-				mixed = wave.NewInt16Interleaved(
-					wave.ChunkInfo{Channels: channels, Len: ci.Len},
-				)
+				mixed = wave.NewInt16Interleaved(ci)
 			case *wave.Int16NonInterleaved:
-				mixed = wave.NewInt16NonInterleaved(
-					wave.ChunkInfo{Channels: channels, Len: ci.Len},
-				)
+				mixed = wave.NewInt16NonInterleaved(ci)
 			case *wave.Float32Interleaved:
-				mixed = wave.NewFloat32Interleaved(
-					wave.ChunkInfo{Channels: channels, Len: ci.Len},
-				)
+				mixed = wave.NewFloat32Interleaved(ci)
 			case *wave.Float32NonInterleaved:
-				mixed = wave.NewFloat32NonInterleaved(
-					wave.ChunkInfo{Channels: channels, Len: ci.Len},
-				)
+				mixed = wave.NewFloat32NonInterleaved(ci)
 			}
 			if err := mixer.Mix(mixed, buff); err != nil {
 				return nil, err
