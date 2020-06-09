@@ -93,12 +93,45 @@ func TestCalculateChunkInfo(t *testing.T) {
 	}
 }
 
+func TestNewDecoder(t *testing.T) {
+	rawFormats := []RawFormat{
+		{
+			SampleSize:  2,
+			IsFloat:     false,
+			Interleaved: false,
+		},
+		{
+			SampleSize:  4,
+			IsFloat:     true,
+			Interleaved: false,
+		},
+		{
+			SampleSize:  2,
+			IsFloat:     false,
+			Interleaved: true,
+		},
+		{
+			SampleSize:  4,
+			IsFloat:     true,
+			Interleaved: true,
+		},
+	}
+
+	for _, rawFormat := range rawFormats {
+		_, err := NewDecoder(&rawFormat)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestDecodeInt16Interleaved(t *testing.T) {
 	raw := []byte{
 		// 16 bits per channel
 		0x01, 0x02, 0x03, 0x04,
 		0x05, 0x06, 0x07, 0x08,
 	}
+	decoder, _ := newInt16InterleavedDecoder()
 
 	t.Run("BigEndian", func(t *testing.T) {
 		expected := &Int16Interleaved{
@@ -113,7 +146,7 @@ func TestDecodeInt16Interleaved(t *testing.T) {
 				Channels: 2,
 			},
 		}
-		actual, err := decodeInt16Interleaved(binary.BigEndian, raw, 2)
+		actual, err := decoder.Decode(binary.BigEndian, raw, 2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -136,7 +169,7 @@ func TestDecodeInt16Interleaved(t *testing.T) {
 				Channels: 2,
 			},
 		}
-		actual, err := decodeInt16Interleaved(binary.LittleEndian, raw, 2)
+		actual, err := decoder.Decode(binary.LittleEndian, raw, 2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -154,6 +187,8 @@ func TestDecodeInt16NonInterleaved(t *testing.T) {
 		0x05, 0x06, 0x07, 0x08,
 	}
 
+	decoder, _ := newInt16NonInterleavedDecoder()
+
 	t.Run("BigEndian", func(t *testing.T) {
 		expected := &Int16NonInterleaved{
 			Data: [][]int16{
@@ -165,7 +200,7 @@ func TestDecodeInt16NonInterleaved(t *testing.T) {
 				Channels: 2,
 			},
 		}
-		actual, err := decodeInt16NonInterleaved(binary.BigEndian, raw, 2)
+		actual, err := decoder.Decode(binary.BigEndian, raw, 2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -186,7 +221,7 @@ func TestDecodeInt16NonInterleaved(t *testing.T) {
 				Channels: 2,
 			},
 		}
-		actual, err := decodeInt16NonInterleaved(binary.LittleEndian, raw, 2)
+		actual, err := decoder.Decode(binary.LittleEndian, raw, 2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -204,6 +239,8 @@ func TestDecodeFloat32Interleaved(t *testing.T) {
 		0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
 	}
 
+	decoder, _ := newFloat32InterleavedDecoder()
+
 	t.Run("BigEndian", func(t *testing.T) {
 		expected := &Float32Interleaved{
 			Data: []float32{
@@ -217,7 +254,7 @@ func TestDecodeFloat32Interleaved(t *testing.T) {
 				Channels: 2,
 			},
 		}
-		actual, err := decodeFloat32Interleaved(binary.BigEndian, raw, 2)
+		actual, err := decoder.Decode(binary.BigEndian, raw, 2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -240,7 +277,7 @@ func TestDecodeFloat32Interleaved(t *testing.T) {
 				Channels: 2,
 			},
 		}
-		actual, err := decodeFloat32Interleaved(binary.LittleEndian, raw, 2)
+		actual, err := decoder.Decode(binary.LittleEndian, raw, 2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -257,6 +294,8 @@ func TestDecodeFloat32NonInterleaved(t *testing.T) {
 		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
 		0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
 	}
+
+	decoder, _ := newFloat32NonInterleavedDecoder()
 
 	t.Run("BigEndian", func(t *testing.T) {
 		expected := &Float32NonInterleaved{
@@ -275,7 +314,7 @@ func TestDecodeFloat32NonInterleaved(t *testing.T) {
 				Channels: 2,
 			},
 		}
-		actual, err := decodeFloat32NonInterleaved(binary.BigEndian, raw, 2)
+		actual, err := decoder.Decode(binary.BigEndian, raw, 2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -302,7 +341,7 @@ func TestDecodeFloat32NonInterleaved(t *testing.T) {
 				Channels: 2,
 			},
 		}
-		actual, err := decodeFloat32NonInterleaved(binary.LittleEndian, raw, 2)
+		actual, err := decoder.Decode(binary.LittleEndian, raw, 2)
 		if err != nil {
 			t.Fatal(err)
 		}

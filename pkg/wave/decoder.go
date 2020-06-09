@@ -9,16 +9,30 @@ import (
 )
 
 // Format represents how audio is formatted in memory
-type Format string
+type Format fmt.Stringer
 
-const (
-	FormatInt16Interleaved      Format = "Int16Interleaved"
-	FormatInt16NonInterleaved          = "Int16NonInterleaved"
-	FormatFloat32Interleaved           = "Float32Interleaved"
-	FormatFloat32NonInterleaved        = "Float32NonInterleaved"
-)
+type RawFormat struct {
+	SampleSize  int
+	IsFloat     bool
+	Interleaved bool
+}
+
+func (f *RawFormat) String() string {
+	sampleSizeInBits := f.SampleSize * 8
+	dataTypeStr := "Int"
+	if f.IsFloat {
+		dataTypeStr = "Float"
+	}
+	interleavedStr := "NonInterleaved"
+	if f.Interleaved {
+		interleavedStr = "Interleaved"
+	}
+
+	return fmt.Sprintf("%s%d%s", dataTypeStr, sampleSizeInBits, interleavedStr)
+}
 
 var hostEndian binary.ByteOrder
+var registeredDecoders = map[string]Decoder{}
 
 func init() {
 	switch v := *(*uint16)(unsafe.Pointer(&([]byte{0x12, 0x34}[0]))); v {
@@ -28,6 +42,20 @@ func init() {
 		hostEndian = binary.LittleEndian
 	default:
 		panic(fmt.Sprintf("failed to determine host endianness: %x", v))
+	}
+
+	decoderBuilders := []DecoderBuilderFunc{
+		newInt16InterleavedDecoder,
+		newInt16NonInterleavedDecoder,
+		newFloat32InterleavedDecoder,
+		newFloat32NonInterleavedDecoder,
+	}
+
+	for _, decoderBuilder := range decoderBuilders {
+		err := RegisterDecoder(decoderBuilder)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -44,21 +72,35 @@ func (f DecoderFunc) Decode(endian binary.ByteOrder, chunk []byte, channels int)
 	return f(endian, chunk, channels)
 }
 
-// NewDecoder creates a decoder to decode raw audio data in the given format
-func NewDecoder(f Format) (Decoder, error) {
-	var decoder DecoderFunc
+// DecoderBuilder builds raw audio decoder
+type DecoderBuilder interface {
+	// NewDecoder creates a new decoder for specified format
+	NewDecoder() (Decoder, Format)
+}
 
-	switch f {
-	case FormatInt16Interleaved:
-		decoder = decodeInt16Interleaved
-	case FormatInt16NonInterleaved:
-		decoder = decodeInt16NonInterleaved
-	case FormatFloat32Interleaved:
-		decoder = decodeFloat32Interleaved
-	case FormatFloat32NonInterleaved:
-		decoder = decodeFloat32NonInterleaved
-	default:
-		return nil, fmt.Errorf("%s is not supported", f)
+// DecoderBuilderFunc is a proxy type for DecoderBuilder
+type DecoderBuilderFunc func() (Decoder, Format)
+
+func (builderFunc DecoderBuilderFunc) NewDecoder() (Decoder, Format) {
+	return builderFunc()
+}
+
+func RegisterDecoder(builder DecoderBuilder) error {
+	decoder, format := builder.NewDecoder()
+	formatStr := format.String()
+	if _, ok := registeredDecoders[formatStr]; ok {
+		return fmt.Errorf("%v has already been registered", format)
+	}
+
+	registeredDecoders[formatStr] = decoder
+	return nil
+}
+
+// NewDecoder creates a decoder to decode raw audio data in the given format
+func NewDecoder(format Format) (Decoder, error) {
+	decoder, ok := registeredDecoders[format.String()]
+	if !ok {
+		return nil, fmt.Errorf("%s format is not supported", format)
 	}
 
 	return decoder, nil
@@ -85,130 +127,171 @@ func calculateChunkInfo(chunk []byte, channels int, sampleSize int) (ChunkInfo, 
 	}, nil
 }
 
-func decodeInt16Interleaved(endian binary.ByteOrder, chunk []byte, channels int) (Audio, error) {
-	sampleSize := 2
-	chunkInfo, err := calculateChunkInfo(chunk, channels, sampleSize)
-	if err != nil {
-		return nil, err
+func newInt16InterleavedDecoder() (Decoder, Format) {
+	format := &RawFormat{
+		SampleSize:  2,
+		IsFloat:     false,
+		Interleaved: true,
 	}
 
-	container := NewInt16Interleaved(chunkInfo)
-
-	if endian == hostEndian {
-		n := len(chunk)
-		h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[0])), Len: n, Cap: n}
-		dst := *(*[]byte)(unsafe.Pointer(&h))
-		copy(dst, chunk)
-		return container, nil
-	}
-
-	sampleLen := sampleSize * channels
-	var i int
-	for offset := 0; offset+sampleLen <= len(chunk); offset += sampleLen {
-		for ch := 0; ch < channels; ch++ {
-			flatOffset := offset + ch*sampleSize
-			sample := endian.Uint16(chunk[flatOffset : flatOffset+sampleSize])
-			container.SetInt16(i, ch, Int16Sample(sample))
+	decoder := DecoderFunc(func(endian binary.ByteOrder, chunk []byte, channels int) (Audio, error) {
+		sampleSize := format.SampleSize
+		chunkInfo, err := calculateChunkInfo(chunk, channels, sampleSize)
+		if err != nil {
+			return nil, err
 		}
-		i++
-	}
 
-	return container, nil
+		container := NewInt16Interleaved(chunkInfo)
+
+		if endian == hostEndian {
+			n := len(chunk)
+			h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[0])), Len: n, Cap: n}
+			dst := *(*[]byte)(unsafe.Pointer(&h))
+			copy(dst, chunk)
+			return container, nil
+		}
+
+		sampleLen := sampleSize * channels
+		var i int
+		for offset := 0; offset+sampleLen <= len(chunk); offset += sampleLen {
+			for ch := 0; ch < channels; ch++ {
+				flatOffset := offset + ch*sampleSize
+				sample := endian.Uint16(chunk[flatOffset : flatOffset+sampleSize])
+				container.SetInt16(i, ch, Int16Sample(sample))
+			}
+			i++
+		}
+
+		return container, nil
+
+	})
+
+	return decoder, format
 }
 
-func decodeInt16NonInterleaved(endian binary.ByteOrder, chunk []byte, channels int) (Audio, error) {
-	sampleSize := 2
-	chunkInfo, err := calculateChunkInfo(chunk, channels, sampleSize)
-	if err != nil {
-		return nil, err
+func newInt16NonInterleavedDecoder() (Decoder, Format) {
+	format := &RawFormat{
+		SampleSize:  2,
+		IsFloat:     false,
+		Interleaved: false,
 	}
 
-	container := NewInt16NonInterleaved(chunkInfo)
-	chunkLen := len(chunk) / channels
+	decoder := DecoderFunc(func(endian binary.ByteOrder, chunk []byte, channels int) (Audio, error) {
+		sampleSize := format.SampleSize
+		chunkInfo, err := calculateChunkInfo(chunk, channels, sampleSize)
+		if err != nil {
+			return nil, err
+		}
 
-	if endian == hostEndian {
+		container := NewInt16NonInterleaved(chunkInfo)
+		chunkLen := len(chunk) / channels
+
+		if endian == hostEndian {
+			for ch := 0; ch < channels; ch++ {
+				offset := ch * chunkLen
+				h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[ch][0])), Len: chunkLen, Cap: chunkLen}
+				dst := *(*[]byte)(unsafe.Pointer(&h))
+				copy(dst, chunk[offset:offset+chunkLen])
+			}
+			return container, nil
+		}
+
 		for ch := 0; ch < channels; ch++ {
 			offset := ch * chunkLen
-			h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[ch][0])), Len: chunkLen, Cap: chunkLen}
+			for i := 0; i < chunkInfo.Len; i++ {
+				flatOffset := offset + i*sampleSize
+				sample := endian.Uint16(chunk[flatOffset : flatOffset+sampleSize])
+				container.SetInt16(i, ch, Int16Sample(sample))
+			}
+		}
+
+		return container, nil
+	})
+
+	return decoder, format
+}
+
+func newFloat32InterleavedDecoder() (Decoder, Format) {
+	format := &RawFormat{
+		SampleSize:  4,
+		IsFloat:     true,
+		Interleaved: true,
+	}
+
+	decoder := DecoderFunc(func(endian binary.ByteOrder, chunk []byte, channels int) (Audio, error) {
+		sampleSize := format.SampleSize
+		chunkInfo, err := calculateChunkInfo(chunk, channels, sampleSize)
+		if err != nil {
+			return nil, err
+		}
+
+		container := NewFloat32Interleaved(chunkInfo)
+
+		if endian == hostEndian {
+			n := len(chunk)
+			h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[0])), Len: n, Cap: n}
 			dst := *(*[]byte)(unsafe.Pointer(&h))
-			copy(dst, chunk[offset:offset+chunkLen])
+			copy(dst, chunk)
+			return container, nil
 		}
+
+		sampleLen := sampleSize * channels
+		var i int
+		for offset := 0; offset+sampleLen <= len(chunk); offset += sampleLen {
+			for ch := 0; ch < channels; ch++ {
+				flatOffset := offset + ch*sampleSize
+				sample := endian.Uint32(chunk[flatOffset : flatOffset+sampleSize])
+				sampleF := math.Float32frombits(sample)
+				container.SetFloat32(i, ch, Float32Sample(sampleF))
+			}
+			i++
+		}
+
 		return container, nil
-	}
+	})
 
-	for ch := 0; ch < channels; ch++ {
-		offset := ch * chunkLen
-		for i := 0; i < chunkInfo.Len; i++ {
-			flatOffset := offset + i*sampleSize
-			sample := endian.Uint16(chunk[flatOffset : flatOffset+sampleSize])
-			container.SetInt16(i, ch, Int16Sample(sample))
-		}
-	}
-
-	return container, nil
+	return decoder, format
 }
 
-func decodeFloat32Interleaved(endian binary.ByteOrder, chunk []byte, channels int) (Audio, error) {
-	sampleSize := 4
-	chunkInfo, err := calculateChunkInfo(chunk, channels, sampleSize)
-	if err != nil {
-		return nil, err
+func newFloat32NonInterleavedDecoder() (Decoder, Format) {
+	format := &RawFormat{
+		SampleSize:  4,
+		IsFloat:     true,
+		Interleaved: false,
 	}
 
-	container := NewFloat32Interleaved(chunkInfo)
-
-	if endian == hostEndian {
-		n := len(chunk)
-		h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[0])), Len: n, Cap: n}
-		dst := *(*[]byte)(unsafe.Pointer(&h))
-		copy(dst, chunk)
-		return container, nil
-	}
-
-	sampleLen := sampleSize * channels
-	var i int
-	for offset := 0; offset+sampleLen <= len(chunk); offset += sampleLen {
-		for ch := 0; ch < channels; ch++ {
-			flatOffset := offset + ch*sampleSize
-			sample := endian.Uint32(chunk[flatOffset : flatOffset+sampleSize])
-			sampleF := math.Float32frombits(sample)
-			container.SetFloat32(i, ch, Float32Sample(sampleF))
+	decoder := DecoderFunc(func(endian binary.ByteOrder, chunk []byte, channels int) (Audio, error) {
+		sampleSize := format.SampleSize
+		chunkInfo, err := calculateChunkInfo(chunk, channels, sampleSize)
+		if err != nil {
+			return nil, err
 		}
-		i++
-	}
 
-	return container, nil
-}
+		container := NewFloat32NonInterleaved(chunkInfo)
+		chunkLen := len(chunk) / channels
 
-func decodeFloat32NonInterleaved(endian binary.ByteOrder, chunk []byte, channels int) (Audio, error) {
-	sampleSize := 4
-	chunkInfo, err := calculateChunkInfo(chunk, channels, sampleSize)
-	if err != nil {
-		return nil, err
-	}
+		if endian == hostEndian {
+			for ch := 0; ch < channels; ch++ {
+				offset := ch * chunkLen
+				h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[ch][0])), Len: chunkLen, Cap: chunkLen}
+				dst := *(*[]byte)(unsafe.Pointer(&h))
+				copy(dst, chunk[offset:offset+chunkLen])
+			}
+			return container, nil
+		}
 
-	container := NewFloat32NonInterleaved(chunkInfo)
-	chunkLen := len(chunk) / channels
-
-	if endian == hostEndian {
 		for ch := 0; ch < channels; ch++ {
 			offset := ch * chunkLen
-			h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[ch][0])), Len: chunkLen, Cap: chunkLen}
-			dst := *(*[]byte)(unsafe.Pointer(&h))
-			copy(dst, chunk[offset:offset+chunkLen])
+			for i := 0; i < chunkInfo.Len; i++ {
+				flatOffset := offset + i*sampleSize
+				sample := endian.Uint32(chunk[flatOffset : flatOffset+sampleSize])
+				sampleF := math.Float32frombits(sample)
+				container.SetFloat32(i, ch, Float32Sample(sampleF))
+			}
 		}
+
 		return container, nil
-	}
+	})
 
-	for ch := 0; ch < channels; ch++ {
-		offset := ch * chunkLen
-		for i := 0; i < chunkInfo.Len; i++ {
-			flatOffset := offset + i*sampleSize
-			sample := endian.Uint32(chunk[flatOffset : flatOffset+sampleSize])
-			sampleF := math.Float32frombits(sample)
-			container.SetFloat32(i, ch, Float32Sample(sampleF))
-		}
-	}
-
-	return container, nil
+	return decoder, format
 }
