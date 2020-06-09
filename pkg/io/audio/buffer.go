@@ -28,7 +28,11 @@ func NewBuffer(nSamples int) TransformFunc {
 					ib, ok := inBuff.(*wave.Float32Interleaved)
 					if !ok || ib.Size.Channels != b.Size.Channels {
 						ib = wave.NewFloat32Interleaved(
-							wave.ChunkInfo{Channels: b.Size.Channels, Len: nSamples},
+							wave.ChunkInfo{
+								SamplingRate: b.Size.SamplingRate,
+								Channels:     b.Size.Channels,
+								Len:          nSamples,
+							},
 						)
 						ib.Data = ib.Data[:0]
 						ib.Size.Len = 0
@@ -41,7 +45,11 @@ func NewBuffer(nSamples int) TransformFunc {
 					ib, ok := inBuff.(*wave.Int16Interleaved)
 					if !ok || ib.Size.Channels != b.Size.Channels {
 						ib = wave.NewInt16Interleaved(
-							wave.ChunkInfo{Channels: b.Size.Channels, Len: nSamples},
+							wave.ChunkInfo{
+								SamplingRate: b.Size.SamplingRate,
+								Channels:     b.Size.Channels,
+								Len:          nSamples,
+							},
 						)
 						ib.Data = ib.Data[:0]
 						ib.Size.Len = 0
@@ -57,6 +65,7 @@ func NewBuffer(nSamples int) TransformFunc {
 			switch ib := inBuff.(type) {
 			case *wave.Int16Interleaved:
 				ibCopy := *ib
+				ibCopy.Size.Len = nSamples
 				n := nSamples * ib.Size.Channels
 				ibCopy.Data = make([]int16, n)
 				copy(ibCopy.Data, ib.Data)
@@ -66,6 +75,7 @@ func NewBuffer(nSamples int) TransformFunc {
 
 			case *wave.Float32Interleaved:
 				ibCopy := *ib
+				ibCopy.Size.Len = nSamples
 				n := nSamples * ib.Size.Channels
 				ibCopy.Data = make([]float32, n)
 				copy(ibCopy.Data, ib.Data)
