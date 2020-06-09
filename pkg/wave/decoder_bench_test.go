@@ -7,13 +7,6 @@ import (
 )
 
 func BenchmarkDecoder(b *testing.B) {
-	formats := []Format{
-		FormatInt16Interleaved,
-		FormatInt16NonInterleaved,
-		FormatFloat32Interleaved,
-		FormatFloat32NonInterleaved,
-	}
-
 	var nonHostEndian binary.ByteOrder
 	if hostEndian == binary.BigEndian {
 		nonHostEndian = binary.LittleEndian
@@ -21,12 +14,9 @@ func BenchmarkDecoder(b *testing.B) {
 		nonHostEndian = binary.BigEndian
 	}
 
-	for _, format := range formats {
+	for format, decoder := range registeredDecoders {
 		format := format
-		decoder, err := NewDecoder(format)
-		if err != nil {
-			b.Fatal(err)
-		}
+		decoder := decoder
 
 		b.Run(fmt.Sprintf("%sHostEndian", format), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
