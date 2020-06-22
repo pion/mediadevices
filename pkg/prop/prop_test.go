@@ -139,6 +139,24 @@ func TestCompareMatch(t *testing.T) {
 			}},
 			true,
 		},
+		"BoolExactUnmatch": {
+			MediaConstraints{AudioConstraints: AudioConstraints{
+				IsFloat: BoolExact(true),
+			}},
+			Media{Audio: Audio{
+				IsFloat: false,
+			}},
+			false,
+		},
+		"BoolExactMatch": {
+			MediaConstraints{AudioConstraints: AudioConstraints{
+				IsFloat: BoolExact(true),
+			}},
+			Media{Audio: Audio{
+				IsFloat: true,
+			}},
+			true,
+		},
 	}
 
 	for name, testData := range testDataSet {

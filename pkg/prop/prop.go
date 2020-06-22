@@ -89,6 +89,8 @@ func (p *Media) MergeConstraints(o MediaConstraints) {
 			if v, ok := c.Value(); ok {
 				fieldA.Set(reflect.ValueOf(v))
 			}
+		case BoolConstraint:
+			fieldA.Set(reflect.ValueOf(c.Value()))
 		default:
 			panic("unsupported property type")
 		}
@@ -106,6 +108,9 @@ func (p *MediaConstraints) FitnessDistance(o Media) (float64, bool) {
 	cmps.add(p.SampleRate, o.SampleRate)
 	cmps.add(p.Latency, o.Latency)
 	cmps.add(p.ChannelCount, o.ChannelCount)
+	cmps.add(p.IsBigEndian, o.IsBigEndian)
+	cmps.add(p.IsFloat, o.IsFloat)
+	cmps.add(p.IsInterleaved, o.IsInterleaved)
 
 	return cmps.fitnessDistance()
 }
@@ -161,6 +166,12 @@ func (c *comparisons) fitnessDistance() (float64, bool) {
 			} else {
 				panic("wrong type of actual value")
 			}
+		case BoolConstraint:
+			if actual, typeOK := field.actual.(bool); typeOK {
+				d, ok = c.Compare(actual)
+			} else {
+				panic("wrong type of actual value")
+			}
 		default:
 			panic("unsupported constraint type")
 		}
@@ -188,16 +199,22 @@ type Video struct {
 
 // AudioConstraints represents an audio's constraints
 type AudioConstraints struct {
-	ChannelCount IntConstraint
-	Latency      DurationConstraint
-	SampleRate   IntConstraint
-	SampleSize   IntConstraint
+	ChannelCount  IntConstraint
+	Latency       DurationConstraint
+	SampleRate    IntConstraint
+	SampleSize    IntConstraint
+	IsBigEndian   BoolConstraint
+	IsFloat       BoolConstraint
+	IsInterleaved BoolConstraint
 }
 
 // Audio represents an audio's constraints
 type Audio struct {
-	ChannelCount int
-	Latency      time.Duration
-	SampleRate   int
-	SampleSize   int
+	ChannelCount  int
+	Latency       time.Duration
+	SampleRate    int
+	SampleSize    int
+	IsBigEndian   bool
+	IsFloat       bool
+	IsInterleaved bool
 }
