@@ -6,106 +6,37 @@ import (
 
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/prop"
-	"github.com/pion/webrtc/v2"
 )
 
 var errNotFound = fmt.Errorf("failed to find the best driver that fits the constraints")
 
-// MediaDevices is an interface that's defined on https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices
-type MediaDevices interface {
-	GetDisplayMedia(constraints MediaStreamConstraints) (MediaStream, error)
-	GetUserMedia(constraints MediaStreamConstraints) (MediaStream, error)
-	EnumerateDevices() []MediaDeviceInfo
-}
-
-// NewMediaDevices creates MediaDevices interface that provides access to connected media input devices
-// like cameras and microphones, as well as screen sharing.
-// In essence, it lets you obtain access to any hardware source of media data.
-func NewMediaDevices(pc *webrtc.PeerConnection, opts ...MediaDevicesOption) MediaDevices {
-	codecs := make(map[webrtc.RTPCodecType][]*webrtc.RTPCodec)
-	for _, kind := range []webrtc.RTPCodecType{
-		webrtc.RTPCodecTypeAudio,
-		webrtc.RTPCodecTypeVideo,
-	} {
-		codecs[kind] = pc.GetRegisteredRTPCodecs(kind)
-	}
-	return NewMediaDevicesFromCodecs(codecs, opts...)
-}
-
-// NewMediaDevicesFromCodecs creates MediaDevices interface from lists of the available codecs
-// that provides access to connected media input devices like cameras and microphones,
-// as well as screen sharing.
-// In essence, it lets you obtain access to any hardware source of media data.
-func NewMediaDevicesFromCodecs(codecs map[webrtc.RTPCodecType][]*webrtc.RTPCodec, opts ...MediaDevicesOption) MediaDevices {
-	mdo := MediaDevicesOptions{
-		codecs:         codecs,
-		trackGenerator: defaultTrackGenerator,
-	}
-	for _, o := range opts {
-		o(&mdo)
-	}
-	return &mediaDevices{
-		MediaDevicesOptions: mdo,
-	}
-}
-
-// TrackGenerator is a function to create new track.
-type TrackGenerator func(payloadType uint8, ssrc uint32, id, label string, codec *webrtc.RTPCodec) (LocalTrack, error)
-
-var defaultTrackGenerator = TrackGenerator(func(pt uint8, ssrc uint32, id, label string, codec *webrtc.RTPCodec) (LocalTrack, error) {
-	return webrtc.NewTrack(pt, ssrc, id, label, codec)
-})
-
-type mediaDevices struct {
-	MediaDevicesOptions
-}
-
-// MediaDevicesOptions stores parameters used by MediaDevices.
-type MediaDevicesOptions struct {
-	codecs         map[webrtc.RTPCodecType][]*webrtc.RTPCodec
-	trackGenerator TrackGenerator
-}
-
-// MediaDevicesOption is a type of MediaDevices functional option.
-type MediaDevicesOption func(*MediaDevicesOptions)
-
-// WithTrackGenerator specifies a TrackGenerator to use customized track.
-func WithTrackGenerator(gen TrackGenerator) MediaDevicesOption {
-	return func(o *MediaDevicesOptions) {
-		o.trackGenerator = gen
-	}
-}
-
 // GetDisplayMedia prompts the user to select and grant permission to capture the contents
 // of a display or portion thereof (such as a window) as a MediaStream.
 // Reference: https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia
-func (m *mediaDevices) GetDisplayMedia(constraints MediaStreamConstraints) (MediaStream, error) {
-	trackers := make([]Tracker, 0)
+func GetDisplayMedia(constraints MediaStreamConstraints) (MediaStream, error) {
+	tracks := make([]Track, 0)
 
-	cleanTrackers := func() {
-		for _, t := range trackers {
+	cleanTracks := func() {
+		for _, t := range tracks {
 			t.Stop()
 		}
 	}
 
-	var videoConstraints MediaTrackConstraints
 	if constraints.Video != nil {
-		constraints.Video(&videoConstraints)
-	}
-
-	if videoConstraints.Enabled {
-		tracker, err := m.selectScreen(videoConstraints)
+		var p MediaTrackConstraints
+		constraints.Video(&p)
+		track, err := selectScreen(p)
 		if err != nil {
-			cleanTrackers()
+			cleanTracks()
 			return nil, err
 		}
 
-		trackers = append(trackers, tracker)
+		tracks = append(tracks, track)
 	}
 
-	s, err := NewMediaStream(trackers...)
+	s, err := NewMediaStream(tracks...)
 	if err != nil {
-		cleanTrackers()
+		cleanTracks()
 		return nil, err
 	}
 
@@ -115,48 +46,42 @@ func (m *mediaDevices) GetDisplayMedia(constraints MediaStreamConstraints) (Medi
 // GetUserMedia prompts the user for permission to use a media input which produces a MediaStream
 // with tracks containing the requested types of media.
 // Reference: https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
-func (m *mediaDevices) GetUserMedia(constraints MediaStreamConstraints) (MediaStream, error) {
-	// TODO: It should return media stream based on constraints
-	trackers := make([]Tracker, 0)
+func GetUserMedia(constraints MediaStreamConstraints) (MediaStream, error) {
+	tracks := make([]Track, 0)
 
-	cleanTrackers := func() {
-		for _, t := range trackers {
+	cleanTracks := func() {
+		for _, t := range tracks {
 			t.Stop()
 		}
 	}
 
-	var videoConstraints, audioConstraints MediaTrackConstraints
 	if constraints.Video != nil {
-		constraints.Video(&videoConstraints)
+		var p MediaTrackConstraints
+		constraints.Video(&p)
+		track, err := selectVideo(p)
+		if err != nil {
+			cleanTracks()
+			return nil, err
+		}
+
+		tracks = append(tracks, track)
 	}
 
 	if constraints.Audio != nil {
-		constraints.Audio(&audioConstraints)
-	}
-
-	if videoConstraints.Enabled {
-		tracker, err := m.selectVideo(videoConstraints)
+		var p MediaTrackConstraints
+		constraints.Audio(&p)
+		track, err := selectAudio(p)
 		if err != nil {
-			cleanTrackers()
+			cleanTracks()
 			return nil, err
 		}
 
-		trackers = append(trackers, tracker)
+		tracks = append(tracks, track)
 	}
 
-	if audioConstraints.Enabled {
-		tracker, err := m.selectAudio(audioConstraints)
-		if err != nil {
-			cleanTrackers()
-			return nil, err
-		}
-
-		trackers = append(trackers, tracker)
-	}
-
-	s, err := NewMediaStream(trackers...)
+	s, err := NewMediaStream(tracks...)
 	if err != nil {
-		cleanTrackers()
+		cleanTracks()
 		return nil, err
 	}
 
@@ -223,7 +148,7 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 	return bestDriver, constraints, nil
 }
 
-func (m *mediaDevices) selectAudio(constraints MediaTrackConstraints) (Tracker, error) {
+func selectAudio(constraints MediaTrackConstraints) (Track, error) {
 	typeFilter := driver.FilterAudioRecorder()
 
 	d, c, err := selectBestDriver(typeFilter, constraints)
@@ -231,9 +156,10 @@ func (m *mediaDevices) selectAudio(constraints MediaTrackConstraints) (Tracker, 
 		return nil, err
 	}
 
-	return newTrack(&m.MediaDevicesOptions, d, c)
+	return newAudioTrack(d, c)
 }
-func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, error) {
+
+func selectVideo(constraints MediaTrackConstraints) (Track, error) {
 	typeFilter := driver.FilterVideoRecorder()
 	notScreenFilter := driver.FilterNot(driver.FilterDeviceType(driver.Screen))
 	filter := driver.FilterAnd(typeFilter, notScreenFilter)
@@ -243,10 +169,10 @@ func (m *mediaDevices) selectVideo(constraints MediaTrackConstraints) (Tracker, 
 		return nil, err
 	}
 
-	return newTrack(&m.MediaDevicesOptions, d, c)
+	return newVideoTrack(d, c)
 }
 
-func (m *mediaDevices) selectScreen(constraints MediaTrackConstraints) (Tracker, error) {
+func selectScreen(constraints MediaTrackConstraints) (Track, error) {
 	typeFilter := driver.FilterVideoRecorder()
 	screenFilter := driver.FilterDeviceType(driver.Screen)
 	filter := driver.FilterAnd(typeFilter, screenFilter)
@@ -256,10 +182,10 @@ func (m *mediaDevices) selectScreen(constraints MediaTrackConstraints) (Tracker,
 		return nil, err
 	}
 
-	return newTrack(&m.MediaDevicesOptions, d, c)
+	return newVideoTrack(d, c)
 }
 
-func (m *mediaDevices) EnumerateDevices() []MediaDeviceInfo {
+func EnumerateDevices() []MediaDeviceInfo {
 	drivers := driver.GetManager().Query(
 		driver.FilterFn(func(driver.Driver) bool { return true }))
 	info := make([]MediaDeviceInfo, 0, len(drivers))

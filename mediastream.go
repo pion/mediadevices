@@ -9,82 +9,82 @@ import (
 // MediaStream is an interface that represents a collection of existing tracks.
 type MediaStream interface {
 	// GetAudioTracks implements https://w3c.github.io/mediacapture-main/#dom-mediastream-getaudiotracks
-	GetAudioTracks() []Tracker
+	GetAudioTracks() []Track
 	// GetVideoTracks implements https://w3c.github.io/mediacapture-main/#dom-mediastream-getvideotracks
-	GetVideoTracks() []Tracker
+	GetVideoTracks() []Track
 	// GetTracks implements https://w3c.github.io/mediacapture-main/#dom-mediastream-gettracks
-	GetTracks() []Tracker
+	GetTracks() []Track
 	// AddTrack implements https://w3c.github.io/mediacapture-main/#dom-mediastream-addtrack
-	AddTrack(t Tracker)
+	AddTrack(t Track)
 	// RemoveTrack implements https://w3c.github.io/mediacapture-main/#dom-mediastream-removetrack
-	RemoveTrack(t Tracker)
+	RemoveTrack(t Track)
 }
 
 type mediaStream struct {
-	trackers map[string]Tracker
-	l        sync.RWMutex
+	tracks map[string]Track
+	l      sync.RWMutex
 }
 
 const rtpCodecTypeDefault webrtc.RTPCodecType = 0
 
 // NewMediaStream creates a MediaStream interface that's defined in
 // https://w3c.github.io/mediacapture-main/#dom-mediastream
-func NewMediaStream(trackers ...Tracker) (MediaStream, error) {
-	m := mediaStream{trackers: make(map[string]Tracker)}
+func NewMediaStream(tracks ...Track) (MediaStream, error) {
+	m := mediaStream{tracks: make(map[string]Track)}
 
-	for _, tracker := range trackers {
-		id := tracker.LocalTrack().ID()
-		if _, ok := m.trackers[id]; !ok {
-			m.trackers[id] = tracker
+	for _, track := range tracks {
+		id := track.ID()
+		if _, ok := m.tracks[id]; !ok {
+			m.tracks[id] = track
 		}
 	}
 
 	return &m, nil
 }
 
-func (m *mediaStream) GetAudioTracks() []Tracker {
-	return m.queryTracks(webrtc.RTPCodecTypeAudio)
+func (m *mediaStream) GetAudioTracks() []Track {
+	return m.queryTracks(func(t Track) bool { return t.Kind() == TrackKindAudio })
 }
 
-func (m *mediaStream) GetVideoTracks() []Tracker {
-	return m.queryTracks(webrtc.RTPCodecTypeVideo)
+func (m *mediaStream) GetVideoTracks() []Track {
+	return m.queryTracks(func(t Track) bool { return t.Kind() == TrackKindVideo })
 }
 
-func (m *mediaStream) GetTracks() []Tracker {
-	return m.queryTracks(rtpCodecTypeDefault)
+func (m *mediaStream) GetTracks() []Track {
+	return m.queryTracks(func(t Track) bool { return true })
 }
 
 // queryTracks returns all tracks that are the same kind as t.
 // If t is 0, which is the default, queryTracks will return all the tracks.
-func (m *mediaStream) queryTracks(t webrtc.RTPCodecType) []Tracker {
+func (m *mediaStream) queryTracks(filter func(track Track) bool) []Track {
 	m.l.RLock()
 	defer m.l.RUnlock()
 
-	result := make([]Tracker, 0)
-	for _, tracker := range m.trackers {
-		if tracker.LocalTrack().Kind() == t || t == rtpCodecTypeDefault {
-			result = append(result, tracker)
+	result := make([]Track, 0)
+	for _, track := range m.tracks {
+		if filter(track) {
+			result = append(result, track)
 		}
 	}
 
 	return result
 }
 
-func (m *mediaStream) AddTrack(t Tracker) {
+func (m *mediaStream) AddTrack(t Track) {
 	m.l.Lock()
 	defer m.l.Unlock()
 
-	id := t.LocalTrack().ID()
-	if _, ok := m.trackers[id]; ok {
+	id := t.ID()
+	if _, ok := m.tracks[id]; ok {
 		return
 	}
 
-	m.trackers[id] = t
+	m.tracks[id] = t
 }
 
-func (m *mediaStream) RemoveTrack(t Tracker) {
+func (m *mediaStream) RemoveTrack(t Track) {
 	m.l.Lock()
 	defer m.l.Unlock()
 
-	delete(m.trackers, t.LocalTrack().ID())
+	delete(m.tracks, t.ID())
 }
