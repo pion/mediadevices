@@ -3,6 +3,7 @@ package video
 import (
 	"fmt"
 	"image"
+	"runtime"
 	"testing"
 	"time"
 
@@ -123,6 +124,11 @@ func TestDetectChanges(t *testing.T) {
 	})
 
 	t.Run("FrameRateAccuracy", func(t *testing.T) {
+		// https://github.com/pion/mediadevices/issues/198
+		if runtime.GOOS == "darwin" {
+			t.Skip("Skipping because Darwin CI is not reliable for timing related tests.")
+		}
+
 		var expected prop.Media
 		var actual prop.Media
 		var count int

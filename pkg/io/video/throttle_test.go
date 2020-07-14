@@ -2,11 +2,16 @@ package video
 
 import (
 	"image"
+	"runtime"
 	"testing"
 	"time"
 )
 
 func TestThrottle(t *testing.T) {
+	// https://github.com/pion/mediadevices/issues/198
+	if runtime.GOOS == "darwin" {
+		t.Skip("Skipping because Darwin CI is not reliable for timing related tests.")
+	}
 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
 
 	ticker := time.NewTicker(20 * time.Millisecond)
