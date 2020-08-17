@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/blackjack/webcam v0.0.0-20200313125108-10ed912a8539
-	github.com/jfreymuth/pulse v0.0.0-20200804114219-7d61c4938214
+	github.com/jfreymuth/pulse v0.0.0-20200817093420-a82ccdb5e8aa
 	github.com/lherman-cs/opus v0.0.0-20200223204610-6a4b98199ea4
 	github.com/pion/webrtc/v2 v2.2.23
 	github.com/satori/go.uuid v1.2.0
