@@ -3,7 +3,6 @@ package mediadevices
 import (
 	"fmt"
 	"image"
-	"math/rand"
 	"sync"
 
 	"github.com/pion/mediadevices/pkg/driver"
@@ -24,7 +23,6 @@ const (
 // Reference: https://w3c.github.io/mediacapture-main/#mediastreamtrack
 type Track interface {
 	ID() string
-	SSRC() uint32
 	Kind() TrackKind
 	Stop()
 	// OnEnded registers a handler to receive an error from the media stream track.
@@ -197,7 +195,6 @@ func (track *AudioTrack) Transform(fns ...audio.TransformFunc) {
 type baseTrack struct {
 	d           driver.Driver
 	constraints MediaTrackConstraints
-	ssrc        uint32
 
 	onErrorHandler func(error)
 	err            error
@@ -206,15 +203,11 @@ type baseTrack struct {
 }
 
 func newBaseTrack(d driver.Driver, constraints MediaTrackConstraints) baseTrack {
-	return baseTrack{d: d, constraints: constraints, ssrc: rand.Uint32()}
+	return baseTrack{d: d, constraints: constraints}
 }
 
 func (t *baseTrack) ID() string {
 	return t.d.ID()
-}
-
-func (t *baseTrack) SSRC() uint32 {
-	return t.ssrc
 }
 
 // OnEnded sets an error handler. When a track has been created and started, if an

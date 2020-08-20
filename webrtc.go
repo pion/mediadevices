@@ -1,43 +1,45 @@
 package mediadevices
 
 import (
-	"github.com/pion/mediadevices/pkg/codec"
+	"github.com/pion/rtcp"
+	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v2"
 )
 
-// PeerConnection is an extension of webrtc.PeerConnection which allows to operate with raw video/audio
-type PeerConnection struct {
-	*webrtc.PeerConnection
-	audioEncoders []codec.AudioEncoderBuilder
-	videoEncoders []codec.VideoEncoderBuilder
+// == WebRTC v3 design ==
+
+// Reader is an interface to handle incoming RTP stream.
+type Reader interface {
+	ReadRTP() (*rtp.Packet, error)
+	WriteRTCP(rtcp.Packet) error
 }
 
-// PeerConnectionOption is a function that configures the underlying PeerConnection
-type PeerConnectionOption func(*PeerConnection)
-
-func WithVideoEncoders(encoders ...codec.VideoEncoderBuilder) PeerConnectionOption {
-	return PeerConnectionOption(func(pc *PeerConnection) {
-		pc.videoEncoders = encoders
-	})
+// TrackBase represents common MediaStreamTrack functionality of LocalTrack and RemoteTrack.
+type TrackBase interface {
+	ID() string
 }
 
-func WithAudioEncoders(encoders ...codec.AudioEncoderBuilder) PeerConnectionOption {
-	return PeerConnectionOption(func(pc *PeerConnection) {
-		pc.audioEncoders = encoders
-	})
+type LocalRTPTrack interface {
+	TrackBase
+	Reader
+
+	// SetParameters sets information about how the data is to be encoded.
+	// This will be called by PeerConnection according to the result of
+	// SDP based negotiation.
+	// It will be called via RTPSender.Parameters() by PeerConnection to
+	// tell the negotiated media codec information.
+	//
+	// This is pion's extension to process data without having encoder/decoder
+	// in webrtc package.
+	SetParameters(RTPParameters) error
 }
 
-func ExtendPeerConnection(pc *webrtc.PeerConnection, opts ...PeerConnectionOption) (*PeerConnection, error) {
-	extPC := PeerConnection{
-		PeerConnection: pc,
-	}
-
-	for _, opt := range opts {
-		opt(&extPC)
-	}
-
-	return &extPC, nil
-}
-
-func (pc *PeerConnection) ExtAddTransceiverFromTrack(track Track, init ...webrtc.RtpTransceiverInit) (*webrtc.RTPTransceiver, error) {
+// RTPParameters represents RTCRtpParameters which contains information about
+// how the RTC data is to be encoded/decoded.
+//
+// ref: https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpSendParameters
+type RTPParameters struct {
+	SSRC          uint32
+	SelectedCodec *webrtc.RTPCodec
+	Codecs        []*webrtc.RTPCodec
 }
