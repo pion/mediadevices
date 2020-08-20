@@ -57,10 +57,11 @@ func init() {
 
 func newCamera(path string) *camera {
 	formats := map[webcam.PixelFormat]frame.Format{
-		webcam.PixelFormat(C.V4L2_PIX_FMT_YUYV):  frame.FormatYUYV,
-		webcam.PixelFormat(C.V4L2_PIX_FMT_UYVY):  frame.FormatUYVY,
-		webcam.PixelFormat(C.V4L2_PIX_FMT_NV12):  frame.FormatNV21,
-		webcam.PixelFormat(C.V4L2_PIX_FMT_MJPEG): frame.FormatMJPEG,
+		webcam.PixelFormat(C.V4L2_PIX_FMT_YUV420): frame.FormatI420,
+		webcam.PixelFormat(C.V4L2_PIX_FMT_YUYV):   frame.FormatYUYV,
+		webcam.PixelFormat(C.V4L2_PIX_FMT_UYVY):   frame.FormatUYVY,
+		webcam.PixelFormat(C.V4L2_PIX_FMT_NV12):   frame.FormatNV21,
+		webcam.PixelFormat(C.V4L2_PIX_FMT_MJPEG):  frame.FormatMJPEG,
 	}
 
 	reversedFormats := make(map[frame.Format]webcam.PixelFormat)
