@@ -18,6 +18,12 @@ import (
 	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
 )
 
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 func main() {
 	s, err := mediadevices.GetUserMedia(mediadevices.MediaStreamConstraints{
 		Video: func(constraint *mediadevices.MediaTrackConstraints) {
@@ -25,16 +31,14 @@ func main() {
 			constraint.Height = prop.Int(400)
 		},
 	})
-	if err != nil {
-		panic(err)
-	}
+	must(err)
 
 	t := s.GetVideoTracks()[0]
 	defer t.Stop()
 	videoTrack := t.(*mediadevices.VideoTrack)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		videoReader := videoTrack.NewReader()
+		videoReader := videoTrack.NewReader(false)
 		mimeWriter := multipart.NewWriter(w)
 
 		contentType := fmt.Sprintf("multipart/x-mixed-replace;boundary=%s", mimeWriter.Boundary())
@@ -45,22 +49,15 @@ func main() {
 
 		for {
 			frame, err := videoReader.Read()
-			if err != nil {
-				if err == io.EOF {
-					return
-				}
-				panic(err)
+			if err == io.EOF {
+				return
 			}
+			must(err)
 
 			partWriter, err := mimeWriter.CreatePart(partHeader)
-			if err != nil {
-				panic(err)
-			}
+			must(err)
 
-			err = jpeg.Encode(partWriter, frame, nil)
-			if err != nil {
-				panic(err)
-			}
+			must(jpeg.Encode(partWriter, frame, nil))
 		}
 	})
 

@@ -2,7 +2,6 @@ package mediadevices
 
 import (
 	"fmt"
-	"image"
 	"math/rand"
 	"sync"
 
@@ -36,12 +35,7 @@ type Track interface {
 // VideoTrack is a specialized track for video
 type VideoTrack struct {
 	baseTrack
-	src         video.Reader
-	transformed video.Reader
-	mux         sync.Mutex
-	frameCount  int
-	lastFrame   image.Image
-	lastErr     error
+	*video.Broadcaster
 }
 
 func newVideoTrack(d driver.Driver, constraints MediaTrackConstraints) (*VideoTrack, error) {
@@ -64,54 +58,13 @@ func newVideoTrack(d driver.Driver, constraints MediaTrackConstraints) (*VideoTr
 
 	return &VideoTrack{
 		baseTrack:   newBaseTrack(d, constraints),
-		src:         r,
-		transformed: r,
+		Broadcaster: video.NewBroadcaster(r),
 	}, nil
 }
 
 // Kind returns track's kind
 func (track *VideoTrack) Kind() TrackKind {
 	return TrackKindVideo
-}
-
-// NewReader returns a reader to read frames from the source. You may create multiple
-// readers and read from them in different goroutines.
-//
-// In the case of multiple readers, reading from the source will only get triggered
-// when the reader has the latest frame from the source
-func (track *VideoTrack) NewReader() video.Reader {
-	var curFrameCount int
-	return video.ReaderFunc(func() (img image.Image, err error) {
-		track.mux.Lock()
-		defer track.mux.Unlock()
-
-		if curFrameCount != track.frameCount {
-			img = copyFrame(img, track.lastFrame)
-			err = track.lastErr
-		} else {
-			img, err = track.transformed.Read()
-			track.lastFrame = img
-			track.lastErr = err
-			track.frameCount++
-			if err != nil {
-				track.onErrorHandler(err)
-			}
-		}
-
-		curFrameCount = track.frameCount
-		return
-	})
-}
-
-// TODO: implement copy in place
-func copyFrame(dst, src image.Image) image.Image { return src }
-
-// Transform transforms the underlying source. The transformation will reflect to
-// all readers
-func (track *VideoTrack) Transform(fns ...video.TransformFunc) {
-	track.mux.Lock()
-	defer track.mux.Unlock()
-	track.transformed = video.Merge(fns...)(track.src)
 }
 
 // AudioTrack is a specialized track for audio
