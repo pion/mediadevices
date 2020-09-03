@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"image/jpeg"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"net/textproto"
 
 	"github.com/pion/mediadevices"
+	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/prop"
 
 	// Note: If you don't have a camera or microphone or your adapters are not supported,
@@ -36,9 +38,21 @@ func main() {
 	t := s.GetVideoTracks()[0]
 	defer t.Stop()
 	videoTrack := t.(*mediadevices.VideoTrack)
+	videoSource := videoTrack.Source()
+	jpegBroadcaster := mio.NewBroadcaster(mio.ReaderFunc(func() (interface{}, error) {
+		var buf bytes.Buffer
+
+		img, err := videoSource.Read()
+		if err != nil {
+			return nil, err
+		}
+
+		err = jpeg.Encode(&buf, img, nil)
+		return buf.Bytes(), err
+	}))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		videoReader := videoTrack.NewReader(false)
+		videoReader := jpegBroadcaster.NewReader(func(src interface{}) interface{} { return src })
 		mimeWriter := multipart.NewWriter(w)
 
 		contentType := fmt.Sprintf("multipart/x-mixed-replace;boundary=%s", mimeWriter.Boundary())
@@ -57,7 +71,8 @@ func main() {
 			partWriter, err := mimeWriter.CreatePart(partHeader)
 			must(err)
 
-			must(jpeg.Encode(partWriter, frame, nil))
+			data, _ := frame.([]byte)
+			partWriter.Write(data)
 		}
 	})
 
