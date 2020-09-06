@@ -3,8 +3,6 @@ package frame
 type Format string
 
 const (
-	// YUV Formats
-
 	// FormatI420 https://www.fourcc.org/pixel-format/yuv-i420/
 	FormatI420 Format = "I420"
 	// FormatI444 is a YUV format without sub-sampling
@@ -16,18 +14,11 @@ const (
 	// FormatUYVY https://www.fourcc.org/pixel-format/yuv-uyvy/
 	FormatUYVY = "UYVY"
 
-	// RGB Formats
-
 	// FormatRGBA https://www.fourcc.org/pixel-format/rgb-rgba/
 	FormatRGBA Format = "RGBA"
-
-	// Compressed Formats
 
 	// FormatMJPEG https://www.fourcc.org/mjpg/
 	FormatMJPEG = "MJPEG"
 )
 
-// YUV aliases
-
-// FormatYUYV is an alias of FormatYUY2
 const FormatYUYV = FormatYUY2
