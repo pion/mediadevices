@@ -5,7 +5,7 @@ import (
 )
 
 func NewDecoder(f Format) (Decoder, error) {
-	var decoder DecoderFunc
+	var decoder decoderFunc
 
 	switch f {
 	case FormatI420:
