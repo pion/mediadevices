@@ -80,13 +80,13 @@ func (e *encoder) Read(p []byte) (int, error) {
 
 	switch b := buff.(type) {
 	case *wave.Int16Interleaved:
-		n, err := e.engine.Encode(b.Data, p)
+		n, err := e.engine.EncodeBytes(b.Data, p, false)
 		if err != nil {
 			return n, err
 		}
 		return n, nil
 	case *wave.Float32Interleaved:
-		n, err := e.engine.EncodeFloat32(b.Data, p)
+		n, err := e.engine.EncodeBytes(b.Data, p, true)
 		if err != nil {
 			return n, err
 		}
