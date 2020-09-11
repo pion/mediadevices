@@ -1,5 +1,10 @@
 package prop
 
+import (
+	"fmt"
+	"strings"
+)
+
 // StringConstraint is an interface to represent string constraint.
 type StringConstraint interface {
 	Compare(string) (float64, bool)
@@ -21,6 +26,11 @@ func (f String) Compare(a string) (float64, bool) {
 // Value implements StringConstraint.
 func (f String) Value() (string, bool) { return string(f), true }
 
+// String implements Stringify
+func (f String) String() string {
+	return fmt.Sprintf("%s (ideal)", string(f))
+}
+
 // StringExact specifies exact string.
 type StringExact string
 
@@ -34,6 +44,11 @@ func (f StringExact) Compare(a string) (float64, bool) {
 
 // Value implements StringConstraint.
 func (f StringExact) Value() (string, bool) { return string(f), true }
+
+// String implements Stringify
+func (f StringExact) String() string {
+	return fmt.Sprintf("%s (exact)", string(f))
+}
 
 // StringOneOf specifies list of expected string.
 type StringOneOf []string
@@ -50,3 +65,8 @@ func (f StringOneOf) Compare(a string) (float64, bool) {
 
 // Value implements StringConstraint.
 func (StringOneOf) Value() (string, bool) { return "", false }
+
+// String implements Stringify
+func (f StringOneOf) String() string {
+	return fmt.Sprintf("%s (one of values)", strings.Join([]string(f), ","))
+}

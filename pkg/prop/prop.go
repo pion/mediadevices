@@ -1,7 +1,9 @@
 package prop
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/pion/mediadevices/pkg/frame"
@@ -15,11 +17,42 @@ type MediaConstraints struct {
 	AudioConstraints
 }
 
+func (m *MediaConstraints) String() string {
+	return prettifyStruct(m)
+}
+
 // Media stores single set of media propaties.
 type Media struct {
 	DeviceID string
 	Video
 	Audio
+}
+
+func (m *Media) String() string {
+	return prettifyStruct(m)
+}
+
+func prettifyStruct(i interface{}) string {
+	var rows []string
+	var addRows func(int, reflect.Value)
+	addRows = func(level int, obj reflect.Value) {
+		typeOf := obj.Type()
+		for i := 0; i < obj.NumField(); i++ {
+			field := typeOf.Field(i)
+			value := obj.Field(i)
+
+			padding := strings.Repeat("  ", level)
+			if value.Kind() == reflect.Struct {
+				rows = append(rows, fmt.Sprintf("%s%v:", padding, field.Name))
+				addRows(level+1, value)
+			} else {
+				rows = append(rows, fmt.Sprintf("%s%v: %v", padding, field.Name, value))
+			}
+		}
+	}
+
+	addRows(0, reflect.ValueOf(i).Elem())
+	return strings.Join(rows, "\n")
 }
 
 // setterFn is a callback function to set value from fieldB to fieldA

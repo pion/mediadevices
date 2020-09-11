@@ -1,7 +1,9 @@
 package prop
 
 import (
+	"fmt"
 	"math"
+	"strings"
 )
 
 // FloatConstraint is an interface to represent float value constraint.
@@ -22,6 +24,11 @@ func (f Float) Compare(a float32) (float64, bool) {
 // Value implements FloatConstraint.
 func (f Float) Value() (float32, bool) { return float32(f), true }
 
+// String implements Stringify
+func (f Float) String() string {
+	return fmt.Sprintf("%.2f (ideal)", f)
+}
+
 // FloatExact specifies exact float value.
 type FloatExact float32
 
@@ -35,6 +42,11 @@ func (f FloatExact) Compare(a float32) (float64, bool) {
 
 // Value implements FloatConstraint.
 func (f FloatExact) Value() (float32, bool) { return float32(f), true }
+
+// String implements Stringify
+func (f FloatExact) String() string {
+	return fmt.Sprintf("%.2f (exact)", f)
+}
 
 // FloatOneOf specifies list of expected float values.
 type FloatOneOf []float32
@@ -51,6 +63,16 @@ func (f FloatOneOf) Compare(a float32) (float64, bool) {
 
 // Value implements FloatConstraint.
 func (FloatOneOf) Value() (float32, bool) { return 0, false }
+
+// String implements Stringify
+func (f FloatOneOf) String() string {
+	var opts []string
+	for _, v := range f {
+		opts = append(opts, fmt.Sprintf("%.2f", v))
+	}
+
+	return fmt.Sprintf("%s (one of values)", strings.Join(opts, ","))
+}
 
 // FloatRanged specifies range of expected float value.
 // If Ideal is non-zero, closest value to Ideal takes priority.
@@ -95,3 +117,8 @@ func (f FloatRanged) Compare(a float32) (float64, bool) {
 
 // Value implements FloatConstraint.
 func (FloatRanged) Value() (float32, bool) { return 0, false }
+
+// String implements Stringify
+func (f FloatRanged) String() string {
+	return fmt.Sprintf("%.2f - %.2f (range), %.2f (ideal)", f.Min, f.Max, f.Ideal)
+}

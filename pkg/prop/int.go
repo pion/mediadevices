@@ -1,7 +1,9 @@
 package prop
 
 import (
+	"fmt"
 	"math"
+	"strings"
 )
 
 // IntConstraint is an interface to represent integer value constraint.
@@ -22,6 +24,11 @@ func (i Int) Compare(a int) (float64, bool) {
 // Value implements IntConstraint.
 func (i Int) Value() (int, bool) { return int(i), true }
 
+// String implements Stringify
+func (i Int) String() string {
+	return fmt.Sprintf("%d (ideal)", i)
+}
+
 // IntExact specifies exact int value.
 type IntExact int
 
@@ -31,6 +38,11 @@ func (i IntExact) Compare(a int) (float64, bool) {
 		return 0.0, true
 	}
 	return 1.0, false
+}
+
+// String implements Stringify
+func (i IntExact) String() string {
+	return fmt.Sprintf("%d (exact)", i)
 }
 
 // Value implements IntConstraint.
@@ -51,6 +63,16 @@ func (i IntOneOf) Compare(a int) (float64, bool) {
 
 // Value implements IntConstraint.
 func (IntOneOf) Value() (int, bool) { return 0, false }
+
+// String implements Stringify
+func (i IntOneOf) String() string {
+	var opts []string
+	for _, v := range i {
+		opts = append(opts, fmt.Sprint(v))
+	}
+
+	return fmt.Sprintf("%s (one of values)", strings.Join(opts, ","))
+}
 
 // IntRanged specifies range of expected int value.
 // If Ideal is non-zero, closest value to Ideal takes priority.
@@ -95,3 +117,8 @@ func (i IntRanged) Compare(a int) (float64, bool) {
 
 // Value implements IntConstraint.
 func (IntRanged) Value() (int, bool) { return 0, false }
+
+// String implements Stringify
+func (i IntRanged) String() string {
+	return fmt.Sprintf("%d - %d (range), %d (ideal)", i.Min, i.Max, i.Ideal)
+}
