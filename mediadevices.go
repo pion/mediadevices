@@ -3,6 +3,7 @@ package mediadevices
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -214,7 +215,23 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 	}
 
 	if bestDriver == nil {
-		return nil, MediaTrackConstraints{}, errNotFound
+		var foundProperties []string
+		for _, props := range driverProperties {
+			for _, p := range props {
+				foundProperties = append(foundProperties, fmt.Sprint(&p))
+			}
+		}
+
+		err := fmt.Errorf(`%w:
+============ Found Properties ============
+
+%s
+
+=============== Constraints ==============
+
+%s
+`, errNotFound, strings.Join(foundProperties, "\n\n"), &constraints)
+		return nil, MediaTrackConstraints{}, err
 	}
 
 	constraints.selectedMedia = prop.Media{}
