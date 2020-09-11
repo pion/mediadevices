@@ -1,5 +1,7 @@
 package prop
 
+import "fmt"
+
 // BoolConstraint is an interface to represent bool value constraint.
 type BoolConstraint interface {
 	Compare(bool) (float64, bool)
@@ -19,6 +21,11 @@ func (b BoolExact) Compare(o bool) (float64, bool) {
 
 // Value implements BoolConstraint.
 func (b BoolExact) Value() bool { return bool(b) }
+
+// String implements Stringify
+func (b BoolExact) String() string {
+	return fmt.Sprintf("%t (exact)", b)
+}
 
 // Bool specifies ideal bool value.
 type Bool BoolExact

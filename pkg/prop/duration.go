@@ -1,7 +1,9 @@
 package prop
 
 import (
+	"fmt"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -23,6 +25,11 @@ func (d Duration) Compare(a time.Duration) (float64, bool) {
 // Value implements DurationConstraint.
 func (d Duration) Value() (time.Duration, bool) { return time.Duration(d), true }
 
+// String implements Stringify
+func (d Duration) String() string {
+	return fmt.Sprintf("%v (ideal)", time.Duration(d))
+}
+
 // DurationExact specifies exact duration value.
 type DurationExact time.Duration
 
@@ -36,6 +43,11 @@ func (d DurationExact) Compare(a time.Duration) (float64, bool) {
 
 // Value implements DurationConstraint.
 func (d DurationExact) Value() (time.Duration, bool) { return time.Duration(d), true }
+
+// String implements Stringify
+func (d DurationExact) String() string {
+	return fmt.Sprintf("%v (exact)", time.Duration(d))
+}
 
 // DurationOneOf specifies list of expected duration values.
 type DurationOneOf []time.Duration
@@ -52,6 +64,16 @@ func (d DurationOneOf) Compare(a time.Duration) (float64, bool) {
 
 // Value implements DurationConstraint.
 func (DurationOneOf) Value() (time.Duration, bool) { return 0, false }
+
+// String implements Stringify
+func (d DurationOneOf) String() string {
+	var opts []string
+	for _, v := range d {
+		opts = append(opts, fmt.Sprint(v))
+	}
+
+	return fmt.Sprintf("%s (one of values)", strings.Join(opts, ","))
+}
 
 // DurationRanged specifies range of expected duration value.
 // If Ideal is non-zero, closest value to Ideal takes priority.
@@ -96,3 +118,8 @@ func (d DurationRanged) Compare(a time.Duration) (float64, bool) {
 
 // Value implements DurationConstraint.
 func (DurationRanged) Value() (time.Duration, bool) { return 0, false }
+
+// String implements Stringify
+func (d DurationRanged) String() string {
+	return fmt.Sprintf("%s - %s (range), %s (ideal)", d.Min, d.Max, d.Ideal)
+}

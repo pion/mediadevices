@@ -309,3 +309,60 @@ func TestMergeConstraintsNested(t *testing.T) {
 		t.Error("expected a.Width to be 100, but got 0")
 	}
 }
+
+func TestString(t *testing.T) {
+	t.Run("IdealValues", func(t *testing.T) {
+		t.Log("\n", &MediaConstraints{
+			DeviceID: String("one"),
+			VideoConstraints: VideoConstraints{
+				Width:       Int(1920),
+				FrameRate:   Float(30.0),
+				FrameFormat: FrameFormat(frame.FormatI420),
+			},
+			AudioConstraints: AudioConstraints{
+				Latency: Duration(time.Millisecond * 20),
+			},
+		})
+	})
+
+	t.Run("ExactValues", func(t *testing.T) {
+		t.Log("\n", &MediaConstraints{
+			DeviceID: StringExact("one"),
+			VideoConstraints: VideoConstraints{
+				Width:       IntExact(1920),
+				FrameRate:   FloatExact(30.0),
+				FrameFormat: FrameFormatExact(frame.FormatI420),
+			},
+			AudioConstraints: AudioConstraints{
+				Latency:     DurationExact(time.Millisecond * 20),
+				IsBigEndian: BoolExact(true),
+			},
+		})
+	})
+
+	t.Run("OneOfValues", func(t *testing.T) {
+		t.Log("\n", &MediaConstraints{
+			DeviceID: StringOneOf{"one", "two"},
+			VideoConstraints: VideoConstraints{
+				Width:       IntOneOf{1920, 1080},
+				FrameRate:   FloatOneOf{30.0, 60.1234},
+				FrameFormat: FrameFormatOneOf{frame.FormatI420, frame.FormatI444},
+			},
+			AudioConstraints: AudioConstraints{
+				Latency: DurationOneOf{time.Millisecond * 20, time.Millisecond * 40},
+			},
+		})
+	})
+
+	t.Run("RangedValues", func(t *testing.T) {
+		t.Log("\n", &MediaConstraints{
+			VideoConstraints: VideoConstraints{
+				Width:     &IntRanged{Min: 1080, Max: 1920, Ideal: 1500},
+				FrameRate: &FloatRanged{Min: 30.123, Max: 60.12321312, Ideal: 45.12312312},
+			},
+			AudioConstraints: AudioConstraints{
+				Latency: &DurationRanged{Min: time.Millisecond * 20, Max: time.Millisecond * 40, Ideal: time.Millisecond * 30},
+			},
+		})
+	})
+}
