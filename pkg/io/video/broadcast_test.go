@@ -52,84 +52,121 @@ func TestBroadcast(t *testing.T) {
 		frames[i] = rgba
 	}
 
-	for n := 1; n <= 256; n *= 16 {
-		n := n
+	routinePauseConds := []struct {
+		src         bool
+		dst         bool
+		expectedFPS float64
+	}{
+		{
+			src:         false,
+			dst:         false,
+			expectedFPS: 30,
+		},
+		{
+			src:         true,
+			dst:         false,
+			expectedFPS: 20,
+		},
+		{
+			src:         false,
+			dst:         true,
+			expectedFPS: 20,
+		},
+	}
 
-		t.Run(fmt.Sprintf("Readers-%d", n), func(t *testing.T) {
-			var src Reader
-			interval := time.NewTicker(time.Millisecond * 33) // 30 fps
-			defer interval.Stop()
-			frameCount := 0
-			src = ReaderFunc(func() (image.Image, error) {
-				<-interval.C
-				frame := frames[frameCount]
-				frameCount++
-				return frame, nil
-			})
-			broadcaster := NewBroadcaster(src)
-			var done uint32
-			duration := time.Second * 3
-			fpsChan := make(chan []float64)
+	for _, pauseCond := range routinePauseConds {
+		pauseCond := pauseCond
+		t.Run(fmt.Sprintf("SrcPause-%v/DstPause-%v", pauseCond.src, pauseCond.dst), func(t *testing.T) {
+			for n := 1; n <= 256; n *= 16 {
+				n := n
 
-			var wg sync.WaitGroup
-			wg.Add(n)
-			for i := 0; i < n; i++ {
-				go func() {
-					reader := broadcaster.NewReader(false)
-					count := 0
-					lastFrameCount := -1
-					droppedFrames := 0
-					wg.Done()
-					wg.Wait()
-					for atomic.LoadUint32(&done) == 0 {
-						frame, err := reader.Read()
-						if err != nil {
-							t.Error(err)
+				t.Run(fmt.Sprintf("Readers-%d", n), func(t *testing.T) {
+					var src Reader
+					interval := time.NewTicker(time.Millisecond * 33) // 30 fps
+					defer interval.Stop()
+					frameCount := 0
+					src = ReaderFunc(func() (image.Image, error) {
+						if pauseCond.src && frameCount == 30 {
+							time.Sleep(time.Second)
 						}
-						rgba := frame.(*image.RGBA)
-						var frameCount int
-						frameCount |= int(rgba.Pix[0]) << 24
-						frameCount |= int(rgba.Pix[1]) << 16
-						frameCount |= int(rgba.Pix[2]) << 8
-						frameCount |= int(rgba.Pix[3])
+						<-interval.C
+						frame := frames[frameCount]
+						frameCount++
+						return frame, nil
+					})
+					broadcaster := NewBroadcaster(src)
+					var done uint32
+					duration := time.Second * 3
+					fpsChan := make(chan []float64)
 
-						droppedFrames += (frameCount - lastFrameCount - 1)
-						lastFrameCount = frameCount
+					var wg sync.WaitGroup
+					wg.Add(n)
+					for i := 0; i < n; i++ {
+						go func() {
+							reader := broadcaster.NewReader(false)
+							count := 0
+							lastFrameCount := -1
+							droppedFrames := 0
+							wg.Done()
+							wg.Wait()
+							for atomic.LoadUint32(&done) == 0 {
+								if pauseCond.dst && count == 30 {
+									time.Sleep(time.Second)
+								}
+								frame, err := reader.Read()
+								if err != nil {
+									t.Error(err)
+								}
+								rgba := frame.(*image.RGBA)
+								var frameCount int
+								frameCount |= int(rgba.Pix[0]) << 24
+								frameCount |= int(rgba.Pix[1]) << 16
+								frameCount |= int(rgba.Pix[2]) << 8
+								frameCount |= int(rgba.Pix[3])
+
+								droppedFrames += (frameCount - lastFrameCount - 1)
+								lastFrameCount = frameCount
+								count++
+							}
+
+							fps := float64(count) / duration.Seconds()
+							if fps < pauseCond.expectedFPS-2 || fps > pauseCond.expectedFPS+2 {
+								t.Fail()
+							}
+
+							droppedFramesPerSecond := float64(droppedFrames) / duration.Seconds()
+							if droppedFramesPerSecond > 0 {
+								t.Fail()
+							}
+
+							fpsChan <- []float64{fps, droppedFramesPerSecond, float64(lastFrameCount)}
+						}()
+					}
+
+					time.Sleep(duration)
+					atomic.StoreUint32(&done, 1)
+
+					var fpsAvg float64
+					var droppedFramesPerSecondAvg float64
+					var lastFrameCountAvg float64
+					var count int
+					for metric := range fpsChan {
+						fps, droppedFramesPerSecond, lastFrameCount := metric[0], metric[1], metric[2]
+						fpsAvg += fps
+						droppedFramesPerSecondAvg += droppedFramesPerSecond
+						lastFrameCountAvg += lastFrameCount
 						count++
+						if count == n {
+							break
+						}
 					}
 
-					fps := float64(count) / duration.Seconds()
-					if fps < 28 || fps > 32 {
-						t.Fail()
-					}
-
-					droppedFramesPerSecond := float64(droppedFrames) / duration.Seconds()
-					if droppedFramesPerSecond > 0 {
-						t.Fail()
-					}
-
-					fpsChan <- []float64{fps, droppedFramesPerSecond}
-				}()
+					t.Log("Average FPS                      :", fpsAvg/float64(n))
+					t.Log("Average dropped frames per second:", droppedFramesPerSecondAvg/float64(n))
+					t.Log("Last frame count (src)           :", frameCount)
+					t.Log("Average last frame count (dst)   :", lastFrameCountAvg/float64(n))
+				})
 			}
-
-			time.Sleep(duration)
-			atomic.StoreUint32(&done, 1)
-
-			var fpsAvg float64
-			var droppedFramesPerSecondAvg float64
-			var count int
-			for metric := range fpsChan {
-				fps, droppedFramesPerSecond := metric[0], metric[1]
-				fpsAvg += fps
-				droppedFramesPerSecondAvg += droppedFramesPerSecond
-				count++
-				if count == n {
-					break
-				}
-			}
-
-			t.Log("Average FPS                      :", fpsAvg/float64(n))
-			t.Log("Average dropped frames per second:", droppedFramesPerSecondAvg/float64(n))
 		})
 	}
 }
