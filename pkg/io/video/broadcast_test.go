@@ -53,9 +53,10 @@ func TestBroadcast(t *testing.T) {
 	}
 
 	routinePauseConds := []struct {
-		src         bool
-		dst         bool
-		expectedFPS float64
+		src          bool
+		dst          bool
+		expectedFPS  float64
+		expectedDrop float64
 	}{
 		{
 			src:         false,
@@ -63,14 +64,16 @@ func TestBroadcast(t *testing.T) {
 			expectedFPS: 30,
 		},
 		{
-			src:         true,
-			dst:         false,
-			expectedFPS: 20,
+			src:          true,
+			dst:          false,
+			expectedFPS:  20,
+			expectedDrop: 10,
 		},
 		{
-			src:         false,
-			dst:         true,
-			expectedFPS: 20,
+			src:          false,
+			dst:          true,
+			expectedFPS:  20,
+			expectedDrop: 10,
 		},
 	}
 
@@ -85,13 +88,25 @@ func TestBroadcast(t *testing.T) {
 					interval := time.NewTicker(time.Millisecond * 33) // 30 fps
 					defer interval.Stop()
 					frameCount := 0
+					frameSent := 0
+					lastSend := time.Now()
 					src = ReaderFunc(func() (image.Image, error) {
-						if pauseCond.src && frameCount == 30 {
+						if pauseCond.src && frameSent == 30 {
 							time.Sleep(time.Second)
 						}
 						<-interval.C
+
+						now := time.Now()
+						if interval := now.Sub(lastSend); interval > time.Millisecond*33*3/2 {
+							// Source reader should drop frames to catch up the latest frame.
+							drop := int(interval/(time.Millisecond*33)) - 1
+							frameCount += drop
+							t.Logf("Skipped %d frames", drop)
+						}
+						lastSend = now
 						frame := frames[frameCount]
 						frameCount++
+						frameSent++
 						return frame, nil
 					})
 					broadcaster := NewBroadcaster(src)
@@ -131,12 +146,12 @@ func TestBroadcast(t *testing.T) {
 
 							fps := float64(count) / duration.Seconds()
 							if fps < pauseCond.expectedFPS-2 || fps > pauseCond.expectedFPS+2 {
-								t.Fail()
+								t.Fatal("Unexpected average FPS")
 							}
 
 							droppedFramesPerSecond := float64(droppedFrames) / duration.Seconds()
-							if droppedFramesPerSecond > 0 {
-								t.Fail()
+							if droppedFramesPerSecond < pauseCond.expectedDrop-2 || droppedFramesPerSecond > pauseCond.expectedDrop+2 {
+								t.Fatal("Unexpected drop count")
 							}
 
 							fpsChan <- []float64{fps, droppedFramesPerSecond, float64(lastFrameCount)}
