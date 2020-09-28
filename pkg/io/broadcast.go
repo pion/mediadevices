@@ -23,9 +23,11 @@ type broadcasterData struct {
 }
 
 type broadcasterRing struct {
-	buffer []atomic.Value
 	// reading (1 bit) + reserved (31 bits) + data count (32 bits)
+	// IMPORTANT: state has to be the first element in struct, otherwise LoadUint64 will panic in 32 bits systems
+	//            due to unallignment
 	state        uint64
+	buffer       []atomic.Value
 	pollDuration time.Duration
 }
 
