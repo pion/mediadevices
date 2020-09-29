@@ -22,8 +22,8 @@ github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORN
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
-github.com/lherman-cs/opus v0.0.0-20200223204610-6a4b98199ea4 h1:2ydMA2KbxRkYmIw3R8Me8dn90bejxBR4MKYXJ5THK3I=
-github.com/lherman-cs/opus v0.0.0-20200223204610-6a4b98199ea4/go.mod h1:v9KQvlDYMuvlwniumBVMlrB0VHQvyTgxNvaXjPmTmps=
+github.com/lherman-cs/opus v0.0.0-20200925065115-26ea9d322d39 h1:WEYmSwg/uoPVmfmpXWPYplb1UUx/Jr4TXGNrPaI8Cj4=
+github.com/lherman-cs/opus v0.0.0-20200925065115-26ea9d322d39/go.mod h1:v9KQvlDYMuvlwniumBVMlrB0VHQvyTgxNvaXjPmTmps=
 github.com/lucas-clemente/quic-go v0.7.1-0.20190401152353-907071221cf9 h1:tbuodUh2vuhOVZAdW3NEUvosFHUMJwUNl7jk/VSEiwc=
 github.com/lucas-clemente/quic-go v0.7.1-0.20190401152353-907071221cf9/go.mod h1:PpMmPfPKO9nKJ/psF49ESTAGQSdfXxlg1otPbEB2nOw=
 github.com/marten-seemann/qtls v0.2.3 h1:0yWJ43C62LsZt08vuQJDK1uC1czUc3FJeCLPoNAI4vA=
