@@ -19,10 +19,10 @@ func TestMonoMixer(t *testing.T) {
 					Len:      3,
 					Channels: 3,
 				},
-				Data: []int16{
-					0, 2, 4,
-					1, -2, 1,
-					3, 3, 6,
+				Data: []uint8{
+					0x00, 0x01, 0x00, 0x02, 0x00, 0x04,
+					0x00, 0x01, 0x00, 0x02, 0x00, 0x01,
+					0x00, 0x03, 0x00, 0x03, 0x00, 0x06,
 				},
 			},
 			dst: &wave.Int16Interleaved{
@@ -30,14 +30,14 @@ func TestMonoMixer(t *testing.T) {
 					Len:      3,
 					Channels: 1,
 				},
-				Data: make([]int16, 3),
+				Data: make([]uint8, 3*2),
 			},
 			expected: &wave.Int16Interleaved{
 				Size: wave.ChunkInfo{
 					Len:      3,
 					Channels: 1,
 				},
-				Data: []int16{2, 0, 4},
+				Data: []uint8{0x00, 0x02, 0x00, 0x01, 0x00, 0x04},
 			},
 		},
 		"MonoToStereo": {
@@ -46,21 +46,21 @@ func TestMonoMixer(t *testing.T) {
 					Len:      3,
 					Channels: 1,
 				},
-				Data: []int16{0, 2, 4},
+				Data: []uint8{0x00, 0x00, 0x00, 0x02, 0x00, 0x04},
 			},
 			dst: &wave.Int16Interleaved{
 				Size: wave.ChunkInfo{
 					Len:      3,
 					Channels: 2,
 				},
-				Data: make([]int16, 6),
+				Data: make([]uint8, 6*2),
 			},
 			expected: &wave.Int16Interleaved{
 				Size: wave.ChunkInfo{
 					Len:      3,
 					Channels: 2,
 				},
-				Data: []int16{0, 0, 2, 2, 4, 4},
+				Data: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x02, 0x00, 0x04, 0x00, 0x04},
 			},
 		},
 	}

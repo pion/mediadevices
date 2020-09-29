@@ -1,39 +1,51 @@
 package wave
 
 import (
+	"math"
 	"reflect"
 	"testing"
 )
 
+func float32ToUint8(vs ...float32) []uint8 {
+	var b []uint8
+
+	for _, v := range vs {
+		s := math.Float32bits(v)
+		b = append(b, uint8(s>>24), uint8(s>>16), uint8(s>>8), uint8(s))
+	}
+
+	return b
+}
+
 func TestFloat32(t *testing.T) {
+	expected := [][]float32{
+		{0.0, 1.0, 2.0, 3.0},
+		{4.0, 5.0, 6.0, 7.0},
+	}
+
 	cases := map[string]struct {
 		in       Audio
 		expected [][]float32
 	}{
 		"Interleaved": {
 			in: &Float32Interleaved{
-				Data: []float32{
-					0.1, -0.5, 0.2, -0.6, 0.3, -0.7, 0.4, -0.8, 0.5, -0.9, 0.6, -1.0, 0.7, -1.1, 0.8, -1.2,
-				},
-				Size: ChunkInfo{8, 2, 48000},
+				Data: float32ToUint8(
+					0.0, 4.0, 1.0, 5.0,
+					2.0, 6.0, 3.0, 7.0,
+				),
+				Size: ChunkInfo{4, 2, 48000},
 			},
-			expected: [][]float32{
-				{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-				{-0.5, -0.6, -0.7, -0.8, -0.9, -1.0, -1.1, -1.2},
-			},
+			expected: expected,
 		},
 		"NonInterleaved": {
 			in: &Float32NonInterleaved{
-				Data: [][]float32{
-					{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-					{-0.5, -0.6, -0.7, -0.8, -0.9, -1.0, -1.1, -1.2},
+				Data: [][]uint8{
+					float32ToUint8(expected[0]...),
+					float32ToUint8(expected[1]...),
 				},
-				Size: ChunkInfo{8, 2, 48000},
+				Size: ChunkInfo{4, 2, 48000},
 			},
-			expected: [][]float32{
-				{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-				{-0.5, -0.6, -0.7, -0.8, -0.9, -1.0, -1.1, -1.2},
-			},
+			expected: expected,
 		},
 	}
 	for name, c := range cases {
@@ -55,38 +67,43 @@ func TestFloat32(t *testing.T) {
 func TestFloat32SubAudio(t *testing.T) {
 	t.Run("Interleaved", func(t *testing.T) {
 		in := &Float32Interleaved{
-			Data: []float32{
-				0.1, -0.5, 0.2, -0.6, 0.3, -0.7, 0.4, -0.8, 0.5, -0.9, 0.6, -1.0, 0.7, -1.1, 0.8, -1.2,
-			},
-			Size: ChunkInfo{8, 2, 48000},
+			// Data: []uint8{
+			// 	1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0,
+			// 	9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
+			// },
+			Data: float32ToUint8(
+				1.0, 2.0, 3.0, 4.0,
+				5.0, 6.0, 7.0, 8.0,
+			),
+			Size: ChunkInfo{4, 2, 48000},
 		}
 		expected := &Float32Interleaved{
-			Data: []float32{
-				0.3, -0.7, 0.4, -0.8, 0.5, -0.9,
-			},
-			Size: ChunkInfo{3, 2, 48000},
+			Data: float32ToUint8(
+				5.0, 6.0, 7.0, 8.0,
+			),
+			Size: ChunkInfo{2, 2, 48000},
 		}
-		out := in.SubAudio(2, 3)
+		out := in.SubAudio(2, 2)
 		if !reflect.DeepEqual(expected, out) {
 			t.Errorf("SubAudio differs, expected: %v, got: %v", expected, out)
 		}
 	})
 	t.Run("NonInterleaved", func(t *testing.T) {
 		in := &Float32NonInterleaved{
-			Data: [][]float32{
-				{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-				{-0.5, -0.6, -0.7, -0.8, -0.9, -1.0, -1.1, -1.2},
+			Data: [][]uint8{
+				float32ToUint8(1.0, 2.0, 3.0, 4.0),
+				float32ToUint8(5.0, 6.0, 7.0, 8.0),
 			},
-			Size: ChunkInfo{8, 2, 48000},
+			Size: ChunkInfo{4, 2, 48000},
 		}
 		expected := &Float32NonInterleaved{
-			Data: [][]float32{
-				{0.3, 0.4, 0.5},
-				{-0.7, -0.8, -0.9},
+			Data: [][]uint8{
+				float32ToUint8(3.0, 4.0),
+				float32ToUint8(7.0, 8.0),
 			},
-			Size: ChunkInfo{3, 2, 48000},
+			Size: ChunkInfo{2, 2, 48000},
 		}
-		out := in.SubAudio(2, 3)
+		out := in.SubAudio(2, 2)
 		if !reflect.DeepEqual(expected, out) {
 			t.Errorf("SubAudio differs, expected: %v, got: %v", expected, out)
 		}

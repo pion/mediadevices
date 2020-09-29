@@ -66,8 +66,8 @@ func NewBuffer(nSamples int) TransformFunc {
 			case *wave.Int16Interleaved:
 				ibCopy := *ib
 				ibCopy.Size.Len = nSamples
-				n := nSamples * ib.Size.Channels
-				ibCopy.Data = make([]int16, n)
+				n := nSamples * ib.Size.Channels * 2
+				ibCopy.Data = make([]uint8, n)
 				copy(ibCopy.Data, ib.Data)
 				ib.Data = ib.Data[n:]
 				ib.Size.Len -= nSamples
@@ -76,8 +76,8 @@ func NewBuffer(nSamples int) TransformFunc {
 			case *wave.Float32Interleaved:
 				ibCopy := *ib
 				ibCopy.Size.Len = nSamples
-				n := nSamples * ib.Size.Channels
-				ibCopy.Data = make([]float32, n)
+				n := nSamples * ib.Size.Channels * 4
+				ibCopy.Data = make([]uint8, n)
 				copy(ibCopy.Data, ib.Data)
 				ib.Data = ib.Data[n:]
 				ib.Size.Len -= nSamples
