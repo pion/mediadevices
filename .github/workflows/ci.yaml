@@ -38,7 +38,9 @@ jobs:
         env:
           CGO_ENABLED: 0
       - name: go test
-        run: go test -tags nolibopusfile ./... -v -race
+        run: go test -tags nolibopusfile ./... -v -race -coverprofile=coverage.txt -covermode=atomic
+      - uses: codecov/codecov-action@v1
+        if: matrix.go == '1.15'
       - name: go test without CGO
         run: go test . pkg/... -v
         env:
