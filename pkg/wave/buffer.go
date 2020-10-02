@@ -51,6 +51,7 @@ func (buff *Buffer) StoreCopy(src Audio) {
 		}
 
 		copy(buff.bufferFloat32Interleaved, src.Data)
+		clone.Data = buff.bufferFloat32Interleaved
 		buff.tmp = clone
 
 	case *Float32NonInterleaved:
@@ -83,6 +84,7 @@ func (buff *Buffer) StoreCopy(src Audio) {
 
 			copy(buff.bufferFloat32NonInterleaved[i], src.Data[i])
 		}
+		clone.Data = buff.bufferFloat32NonInterleaved
 		buff.tmp = clone
 
 	case *Int16Interleaved:
@@ -104,6 +106,7 @@ func (buff *Buffer) StoreCopy(src Audio) {
 		}
 
 		copy(buff.bufferInt16Interleaved, src.Data)
+		clone.Data = buff.bufferInt16Interleaved
 		buff.tmp = clone
 
 	case *Int16NonInterleaved:
@@ -136,6 +139,7 @@ func (buff *Buffer) StoreCopy(src Audio) {
 
 			copy(buff.bufferInt16NonInterleaved[i], src.Data[i])
 		}
+		clone.Data = buff.bufferInt16NonInterleaved
 		buff.tmp = clone
 
 	default:
