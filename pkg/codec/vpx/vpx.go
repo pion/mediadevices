@@ -59,7 +59,6 @@ import (
 	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
-	"github.com/pion/webrtc/v2"
 )
 
 type encoder struct {
@@ -96,8 +95,8 @@ func NewVP8Params() (VP8Params, error) {
 }
 
 // Name represents the codec name
-func (p *VP8Params) Name() string {
-	return webrtc.VP8
+func (p *VP8Params) Name() codec.Name {
+	return codec.NameVP8
 }
 
 // BuildVideoEncoder builds VP8 encoder with given params
@@ -123,8 +122,8 @@ func NewVP9Params() (VP9Params, error) {
 }
 
 // Name represents the codec name
-func (p *VP9Params) Name() string {
-	return webrtc.VP9
+func (p *VP9Params) Name() codec.Name {
+	return codec.NameVP9
 }
 
 // BuildVideoEncoder builds VP9 encoder with given params

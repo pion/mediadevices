@@ -5,7 +5,6 @@ import (
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/mediadevices/pkg/wave/mixer"
-	"github.com/pion/webrtc/v2"
 )
 
 // Params stores opus specific encoding parameters.
@@ -21,8 +20,8 @@ func NewParams() (Params, error) {
 }
 
 // Name represents the codec name
-func (p *Params) Name() string {
-	return webrtc.Opus
+func (p *Params) Name() codec.Name {
+	return codec.NameOpus
 }
 
 // BuildAudioEncoder builds opus encoder with given params

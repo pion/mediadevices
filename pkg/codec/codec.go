@@ -8,6 +8,17 @@ import (
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
+// Name represents codec official name. It's possible to have more than 1 implementations
+// for the same codec name, e.g. openh264 vs x264.
+type Name string
+
+const (
+	NameOpus Name = "opus"
+	NameH264 Name = "H264"
+	NameVP8  Name = "VP8"
+	NameVP9  Name = "VP9"
+)
+
 // AudioEncoderBuilder is the interface that wraps basic operations that are
 // necessary to build the audio encoder.
 //
@@ -15,7 +26,7 @@ import (
 // but still giving generality for the users.
 type AudioEncoderBuilder interface {
 	// Name represents the codec name
-	Name() string
+	Name() Name
 	// BuildAudioEncoder builds audio encoder by given media params and audio input
 	BuildAudioEncoder(r audio.Reader, p prop.Media) (ReadCloser, error)
 }
@@ -27,7 +38,7 @@ type AudioEncoderBuilder interface {
 // but still giving generality for the users.
 type VideoEncoderBuilder interface {
 	// Name represents the codec name
-	Name() string
+	Name() Name
 	// BuildVideoEncoder builds video encoder by given media params and video input
 	BuildVideoEncoder(r video.Reader, p prop.Media) (ReadCloser, error)
 }
