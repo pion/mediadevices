@@ -4,7 +4,6 @@ import (
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
-	"github.com/pion/webrtc/v2"
 )
 
 // Params stores libopenh264 specific encoding parameters.
@@ -22,8 +21,8 @@ func NewParams() (Params, error) {
 }
 
 // Name represents the codec name
-func (p *Params) Name() string {
-	return webrtc.H264
+func (p *Params) Name() codec.Name {
+	return codec.NameH264
 }
 
 // BuildVideoEncoder builds openh264 encoder with given params

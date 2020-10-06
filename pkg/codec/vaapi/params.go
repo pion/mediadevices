@@ -4,7 +4,6 @@ import (
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
-	"github.com/pion/webrtc/v2"
 )
 
 // ParamsVP8 stores VP8 encoding parameters.
@@ -45,8 +44,8 @@ func NewVP8Params() (ParamsVP8, error) {
 }
 
 // Name represents the codec name
-func (p *ParamsVP8) Name() string {
-	return webrtc.VP8
+func (p *ParamsVP8) Name() codec.Name {
+	return codec.NameVP8
 }
 
 // BuildVideoEncoder builds VP8 encoder with given params
@@ -114,8 +113,8 @@ func NewVP9Params() (ParamsVP9, error) {
 }
 
 // Name represents the codec name
-func (p *ParamsVP9) Name() string {
-	return webrtc.VP9
+func (p *ParamsVP9) Name() codec.Name {
+	return codec.NameVP9
 }
 
 // BuildVideoEncoder builds VP9 encoder with given params

@@ -161,8 +161,8 @@ type mockParams struct {
 	name string
 }
 
-func (params *mockParams) Name() string {
-	return params.name
+func (params *mockParams) Name() codec.Name {
+	return codec.Name(params.name)
 }
 
 func (params *mockParams) BuildVideoEncoder(r video.Reader, p prop.Media) (codec.ReadCloser, error) {
