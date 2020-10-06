@@ -1,8 +1,14 @@
 package wave
 
 import (
+	"errors"
+	"fmt"
 	"reflect"
 	"testing"
+)
+
+var (
+	errIdenticalAddress = errors.New("Cloned audio has the same memory address with the original audio")
 )
 
 func TestBufferStoreCopyAndLoad(t *testing.T) {
@@ -12,8 +18,9 @@ func TestBufferStoreCopyAndLoad(t *testing.T) {
 		SamplingRate: 48000,
 	}
 	testCases := map[string]struct {
-		New    func() EditableAudio
-		Update func(EditableAudio)
+		New      func() EditableAudio
+		Update   func(EditableAudio)
+		Validate func(*testing.T, Audio, Audio)
 	}{
 		"Float32Interleaved": {
 			New: func() EditableAudio {
@@ -21,6 +28,12 @@ func TestBufferStoreCopyAndLoad(t *testing.T) {
 			},
 			Update: func(src EditableAudio) {
 				src.Set(0, 0, Float32Sample(1))
+			},
+			Validate: func(t *testing.T, original Audio, clone Audio) {
+				ok := reflect.ValueOf(original.(*Float32Interleaved).Data).Pointer() != reflect.ValueOf(clone.(*Float32Interleaved).Data).Pointer()
+				if !ok {
+					t.Error(errIdenticalAddress)
+				}
 			},
 		},
 		"Float32NonInterleaved": {
@@ -30,6 +43,20 @@ func TestBufferStoreCopyAndLoad(t *testing.T) {
 			Update: func(src EditableAudio) {
 				src.Set(0, 0, Float32Sample(1))
 			},
+			Validate: func(t *testing.T, original Audio, clone Audio) {
+				originalReal := original.(*Float32NonInterleaved)
+				cloneReal := clone.(*Float32NonInterleaved)
+				if reflect.ValueOf(originalReal.Data).Pointer() == reflect.ValueOf(cloneReal.Data).Pointer() {
+					t.Error(errIdenticalAddress)
+				}
+
+				for i := range cloneReal.Data {
+					if reflect.ValueOf(originalReal.Data[i]).Pointer() == reflect.ValueOf(cloneReal.Data[i]).Pointer() {
+						err := fmt.Errorf("Channel %d memory address should be different", i)
+						t.Errorf("%v: %w", errIdenticalAddress, err)
+					}
+				}
+			},
 		},
 		"Int16Interleaved": {
 			New: func() EditableAudio {
@@ -38,6 +65,12 @@ func TestBufferStoreCopyAndLoad(t *testing.T) {
 			Update: func(src EditableAudio) {
 				src.Set(1, 1, Int16Sample(2))
 			},
+			Validate: func(t *testing.T, original Audio, clone Audio) {
+				ok := reflect.ValueOf(original.(*Int16Interleaved).Data).Pointer() != reflect.ValueOf(clone.(*Int16Interleaved).Data).Pointer()
+				if !ok {
+					t.Error(errIdenticalAddress)
+				}
+			},
 		},
 		"Int16NonInterleaved": {
 			New: func() EditableAudio {
@@ -45,6 +78,20 @@ func TestBufferStoreCopyAndLoad(t *testing.T) {
 			},
 			Update: func(src EditableAudio) {
 				src.Set(1, 1, Int16Sample(2))
+			},
+			Validate: func(t *testing.T, original Audio, clone Audio) {
+				originalReal := original.(*Int16NonInterleaved)
+				cloneReal := clone.(*Int16NonInterleaved)
+				if reflect.ValueOf(originalReal.Data).Pointer() == reflect.ValueOf(cloneReal.Data).Pointer() {
+					t.Error(errIdenticalAddress)
+				}
+
+				for i := range cloneReal.Data {
+					if reflect.ValueOf(originalReal.Data[i]).Pointer() == reflect.ValueOf(cloneReal.Data[i]).Pointer() {
+						err := fmt.Errorf("Channel %d memory address should be different", i)
+						t.Errorf("%v: %w", errIdenticalAddress, err)
+					}
+				}
 			},
 		},
 	}
@@ -57,9 +104,20 @@ func TestBufferStoreCopyAndLoad(t *testing.T) {
 		t.Log("Testing", name)
 
 		src := testCase.New()
+		src.Set(0, 0, Int16Sample(1))
 		buffer.StoreCopy(src)
+
+		testCase.Validate(t, src, buffer.Load())
+
 		if !reflect.DeepEqual(buffer.Load(), src) {
-			t.Fatal("Expected the copied audio chunk to be identical with the source")
+			t.Fatalf(`Expected the copied audio chunk to be identical with the source
+
+Expected:
+%v
+
+Actual:
+%v
+			`, src, buffer.Load())
 		}
 
 		testCase.Update(src)
