@@ -6,18 +6,31 @@ import (
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/pion/webrtc/v2"
 )
 
-// Name represents codec official name. It's possible to have more than 1 implementations
-// for the same codec name, e.g. openh264 vs x264.
-type Name string
+// RTPCodec wraps webrtc.RTPCodec. RTPCodec might extend webrtc.RTPCodec in the future.
+type RTPCodec webrtc.RTPCodec
 
-const (
-	NameOpus Name = "opus"
-	NameH264 Name = "H264"
-	NameVP8  Name = "VP8"
-	NameVP9  Name = "VP9"
-)
+// NewRTPH264Codec is a helper to create an H264 codec
+func NewRTPH264Codec(clockrate uint32) *RTPCodec {
+	return (*RTPCodec)(webrtc.NewRTPH264Codec(webrtc.DefaultPayloadTypeH264, clockrate))
+}
+
+// NewRTPVP8Codec is a helper to create an VP8 codec
+func NewRTPVP8Codec(clockrate uint32) *RTPCodec {
+	return (*RTPCodec)(webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, clockrate))
+}
+
+// NewRTPVP9Codec is a helper to create an VP9 codec
+func NewRTPVP9Codec(clockrate uint32) *RTPCodec {
+	return (*RTPCodec)(webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, clockrate))
+}
+
+// NewRTPOpusCodec is a helper to create an Opus codec
+func NewRTPOpusCodec(clockrate uint32) *RTPCodec {
+	return (*RTPCodec)(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, clockrate))
+}
 
 // AudioEncoderBuilder is the interface that wraps basic operations that are
 // necessary to build the audio encoder.
@@ -25,8 +38,8 @@ const (
 // This interface is for codec implementors to provide codec specific params,
 // but still giving generality for the users.
 type AudioEncoderBuilder interface {
-	// Name represents the codec name
-	Name() Name
+	// RTPCodec represents the codec metadata
+	RTPCodec() *RTPCodec
 	// BuildAudioEncoder builds audio encoder by given media params and audio input
 	BuildAudioEncoder(r audio.Reader, p prop.Media) (ReadCloser, error)
 }
@@ -37,8 +50,8 @@ type AudioEncoderBuilder interface {
 // This interface is for codec implementors to provide codec specific params,
 // but still giving generality for the users.
 type VideoEncoderBuilder interface {
-	// Name represents the codec name
-	Name() Name
+	// RTPCodec represents the codec metadata
+	RTPCodec() *RTPCodec
 	// BuildVideoEncoder builds video encoder by given media params and video input
 	BuildVideoEncoder(r video.Reader, p prop.Media) (ReadCloser, error)
 }

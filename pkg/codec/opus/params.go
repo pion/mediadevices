@@ -19,9 +19,9 @@ func NewParams() (Params, error) {
 	return Params{}, nil
 }
 
-// Name represents the codec name
-func (p *Params) Name() codec.Name {
-	return codec.NameOpus
+// RTPCodec represents the codec metadata
+func (p *Params) RTPCodec() *codec.RTPCodec {
+	return codec.NewRTPOpusCodec(48000)
 }
 
 // BuildAudioEncoder builds opus encoder with given params

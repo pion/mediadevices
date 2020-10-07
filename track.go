@@ -12,15 +12,6 @@ import (
 	"github.com/pion/webrtc/v2/pkg/media"
 )
 
-var (
-	webrtcCodecMapper = map[codec.Name]string{
-		codec.NameH264: webrtc.H264,
-		codec.NameVP8:  webrtc.VP8,
-		codec.NameVP9:  webrtc.VP9,
-		codec.NameOpus: webrtc.Opus,
-	}
-)
-
 // Tracker is an interface that represent MediaStreamTrack
 // Reference: https://w3c.github.io/mediacapture-main/#mediastreamtrack
 type Tracker interface {
@@ -216,14 +207,7 @@ func newVideoEncoderBuilders(vr driver.VideoRecorder, constraints MediaTrackCons
 
 	encoderBuilders := make([]encoderBuilder, len(constraints.VideoEncoderBuilders))
 	for i, b := range constraints.VideoEncoderBuilders {
-		// If the codec name is not in the supported mapping, fallback to as is
-		codecName := b.Name()
-		mappedName, ok := webrtcCodecMapper[codecName]
-		if ok {
-			encoderBuilders[i].name = mappedName
-		} else {
-			encoderBuilders[i].name = string(codecName)
-		}
+		encoderBuilders[i].name = b.RTPCodec().Name
 		encoderBuilders[i].build = func() (codec.ReadCloser, error) {
 			return b.BuildVideoEncoder(r, constraints.selectedMedia)
 		}
@@ -245,14 +229,7 @@ func newAudioEncoderBuilders(ar driver.AudioRecorder, constraints MediaTrackCons
 
 	encoderBuilders := make([]encoderBuilder, len(constraints.AudioEncoderBuilders))
 	for i, b := range constraints.AudioEncoderBuilders {
-		// If the codec name is not in the supported mapping, fallback to as is
-		codecName := b.Name()
-		mappedName, ok := webrtcCodecMapper[codecName]
-		if ok {
-			encoderBuilders[i].name = mappedName
-		} else {
-			encoderBuilders[i].name = string(codecName)
-		}
+		encoderBuilders[i].name = b.RTPCodec().Name
 		encoderBuilders[i].build = func() (codec.ReadCloser, error) {
 			return b.BuildAudioEncoder(r, constraints.selectedMedia)
 		}

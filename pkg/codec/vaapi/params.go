@@ -43,9 +43,9 @@ func NewVP8Params() (ParamsVP8, error) {
 	}, nil
 }
 
-// Name represents the codec name
-func (p *ParamsVP8) Name() codec.Name {
-	return codec.NameVP8
+// RTPCodec represents the codec metadata
+func (p *ParamsVP8) RTPCodec() *codec.RTPCodec {
+	return codec.NewRTPVP8Codec(90000)
 }
 
 // BuildVideoEncoder builds VP8 encoder with given params
@@ -112,9 +112,9 @@ func NewVP9Params() (ParamsVP9, error) {
 	}, nil
 }
 
-// Name represents the codec name
-func (p *ParamsVP9) Name() codec.Name {
-	return codec.NameVP9
+// RTPCodec represents the codec metadata
+func (p *ParamsVP9) RTPCodec() *codec.RTPCodec {
+	return codec.NewRTPVP9Codec(90000)
 }
 
 // BuildVideoEncoder builds VP9 encoder with given params
