@@ -20,9 +20,9 @@ func NewParams() (Params, error) {
 	}, nil
 }
 
-// Name represents the codec name
-func (p *Params) Name() codec.Name {
-	return codec.NameH264
+// RTPCodec represents the codec metadata
+func (p *Params) RTPCodec() *codec.RTPCodec {
+	return codec.NewRTPH264Codec(90000)
 }
 
 // BuildVideoEncoder builds openh264 encoder with given params
