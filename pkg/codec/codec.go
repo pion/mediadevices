@@ -10,26 +10,28 @@ import (
 )
 
 // RTPCodec wraps webrtc.RTPCodec. RTPCodec might extend webrtc.RTPCodec in the future.
-type RTPCodec webrtc.RTPCodec
+type RTPCodec struct {
+	*webrtc.RTPCodec
+}
 
 // NewRTPH264Codec is a helper to create an H264 codec
 func NewRTPH264Codec(clockrate uint32) *RTPCodec {
-	return (*RTPCodec)(webrtc.NewRTPH264Codec(webrtc.DefaultPayloadTypeH264, clockrate))
+	return &RTPCodec{webrtc.NewRTPH264Codec(webrtc.DefaultPayloadTypeH264, clockrate)}
 }
 
 // NewRTPVP8Codec is a helper to create an VP8 codec
 func NewRTPVP8Codec(clockrate uint32) *RTPCodec {
-	return (*RTPCodec)(webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, clockrate))
+	return &RTPCodec{webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, clockrate)}
 }
 
 // NewRTPVP9Codec is a helper to create an VP9 codec
 func NewRTPVP9Codec(clockrate uint32) *RTPCodec {
-	return (*RTPCodec)(webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, clockrate))
+	return &RTPCodec{webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, clockrate)}
 }
 
 // NewRTPOpusCodec is a helper to create an Opus codec
 func NewRTPOpusCodec(clockrate uint32) *RTPCodec {
-	return (*RTPCodec)(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, clockrate))
+	return &RTPCodec{webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, clockrate)}
 }
 
 // AudioEncoderBuilder is the interface that wraps basic operations that are
