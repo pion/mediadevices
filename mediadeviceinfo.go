@@ -7,7 +7,7 @@ type MediaDeviceType int
 
 // MediaDeviceType definitions.
 const (
-	VideoInput MediaDeviceType = iota
+	VideoInput MediaDeviceType = iota + 1
 	AudioInput
 	AudioOutput
 )

@@ -2,8 +2,6 @@ package mediadevices
 
 import (
 	"sync"
-
-	"github.com/pion/webrtc/v2"
 )
 
 // MediaStream is an interface that represents a collection of existing tracks.
@@ -21,21 +19,20 @@ type MediaStream interface {
 }
 
 type mediaStream struct {
-	trackers map[string]Tracker
+	trackers map[Tracker]struct{}
 	l        sync.RWMutex
 }
 
-const rtpCodecTypeDefault webrtc.RTPCodecType = 0
+const trackTypeDefault MediaDeviceType = 0
 
 // NewMediaStream creates a MediaStream interface that's defined in
 // https://w3c.github.io/mediacapture-main/#dom-mediastream
 func NewMediaStream(trackers ...Tracker) (MediaStream, error) {
-	m := mediaStream{trackers: make(map[string]Tracker)}
+	m := mediaStream{trackers: make(map[Tracker]struct{})}
 
 	for _, tracker := range trackers {
-		id := tracker.LocalTrack().ID()
-		if _, ok := m.trackers[id]; !ok {
-			m.trackers[id] = tracker
+		if _, ok := m.trackers[tracker]; !ok {
+			m.trackers[tracker] = struct{}{}
 		}
 	}
 
@@ -43,26 +40,26 @@ func NewMediaStream(trackers ...Tracker) (MediaStream, error) {
 }
 
 func (m *mediaStream) GetAudioTracks() []Tracker {
-	return m.queryTracks(webrtc.RTPCodecTypeAudio)
+	return m.queryTracks(AudioInput)
 }
 
 func (m *mediaStream) GetVideoTracks() []Tracker {
-	return m.queryTracks(webrtc.RTPCodecTypeVideo)
+	return m.queryTracks(VideoInput)
 }
 
 func (m *mediaStream) GetTracks() []Tracker {
-	return m.queryTracks(rtpCodecTypeDefault)
+	return m.queryTracks(trackTypeDefault)
 }
 
 // queryTracks returns all tracks that are the same kind as t.
 // If t is 0, which is the default, queryTracks will return all the tracks.
-func (m *mediaStream) queryTracks(t webrtc.RTPCodecType) []Tracker {
+func (m *mediaStream) queryTracks(t MediaDeviceType) []Tracker {
 	m.l.RLock()
 	defer m.l.RUnlock()
 
 	result := make([]Tracker, 0)
-	for _, tracker := range m.trackers {
-		if tracker.LocalTrack().Kind() == t || t == rtpCodecTypeDefault {
+	for tracker := range m.trackers {
+		if tracker.Kind() == t || t == trackTypeDefault {
 			result = append(result, tracker)
 		}
 	}
@@ -74,17 +71,16 @@ func (m *mediaStream) AddTrack(t Tracker) {
 	m.l.Lock()
 	defer m.l.Unlock()
 
-	id := t.LocalTrack().ID()
-	if _, ok := m.trackers[id]; ok {
+	if _, ok := m.trackers[t]; ok {
 		return
 	}
 
-	m.trackers[id] = t
+	m.trackers[t] = struct{}{}
 }
 
 func (m *mediaStream) RemoveTrack(t Tracker) {
 	m.l.Lock()
 	defer m.l.Unlock()
 
-	delete(m.trackers, t.LocalTrack().ID())
+	delete(m.trackers, t)
 }
