@@ -18,6 +18,7 @@ type Tracker interface {
 	Track() *webrtc.Track
 	LocalTrack() LocalTrack
 	Stop()
+	Kind() MediaDeviceType
 	// OnEnded registers a handler to receive an error from the media stream track.
 	// If the error is already occured before registering, the handler will be
 	// immediately called.
@@ -41,12 +42,14 @@ type track struct {
 	err            error
 	mu             sync.Mutex
 	endOnce        sync.Once
+	kind           MediaDeviceType
 }
 
 func newTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrackConstraints) (*track, error) {
 	var encoderBuilders []encoderBuilder
 	var rtpCodecs []*webrtc.RTPCodec
 	var buildSampler func(t LocalTrack) samplerFunc
+	var kind MediaDeviceType
 	var err error
 
 	err = d.Open()
@@ -56,10 +59,12 @@ func newTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrack
 
 	switch r := d.(type) {
 	case driver.VideoRecorder:
+		kind = VideoInput
 		rtpCodecs = opts.codecs[webrtc.RTPCodecTypeVideo]
 		buildSampler = newVideoSampler
 		encoderBuilders, err = newVideoEncoderBuilders(r, constraints)
 	case driver.AudioRecorder:
+		kind = AudioInput
 		rtpCodecs = opts.codecs[webrtc.RTPCodecTypeAudio]
 		buildSampler = func(t LocalTrack) samplerFunc {
 			return newAudioSampler(t, constraints.selectedMedia.Latency)
@@ -108,6 +113,7 @@ func newTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrack
 			sample:     buildSampler(localTrack),
 			d:          d,
 			encoder:    encoder,
+			kind:       kind,
 		}
 		go t.start()
 		return &t, nil
@@ -115,6 +121,11 @@ func newTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrack
 
 	d.Close()
 	return nil, errors.New("newTrack: failed to find a matching codec")
+}
+
+// Kind returns track's kind
+func (t *track) Kind() MediaDeviceType {
+	return t.kind
 }
 
 // OnEnded sets an error handler. When a track has been created and started, if an
