@@ -9,27 +9,22 @@ import (
 
 type samplerFunc func(b []byte) error
 
-// newVideoSampler creates a video sampler that uses the actual video frame rate and
-// the codec's clock rate to come up with a duration for each sample.
-func newVideoSampler(t LocalTrack) samplerFunc {
-	clockRate := float64(t.Codec().ClockRate)
-	lastTimestamp := time.Now()
-
+// newSampler creates a sampler that estimates duration per sample
+func newSampler(t LocalTrack) samplerFunc {
+	var last time.Time
+	first := true
 	return samplerFunc(func(b []byte) error {
 		now := time.Now()
-		duration := now.Sub(lastTimestamp).Seconds()
-		samples := uint32(math.Round(clockRate * duration))
-		lastTimestamp = now
+		var samples uint32
+		if first {
+			first = false
+		} else {
+			duration := now.Sub(last)
+			samples = uint32(math.Round(float64(t.Codec().ClockRate) * duration.Seconds()))
+		}
 
-		return t.WriteSample(media.Sample{Data: b, Samples: samples})
-	})
-}
-
-// newAudioSampler creates a audio sampler that uses a fixed latency and
-// the codec's clock rate to come up with a duration for each sample.
-func newAudioSampler(t LocalTrack, latency time.Duration) samplerFunc {
-	samples := uint32(math.Round(float64(t.Codec().ClockRate) * latency.Seconds()))
-	return samplerFunc(func(b []byte) error {
-		return t.WriteSample(media.Sample{Data: b, Samples: samples})
+		err := t.WriteSample(media.Sample{Data: b, Samples: samples})
+		last = now
+		return err
 	})
 }

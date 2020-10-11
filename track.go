@@ -48,7 +48,6 @@ type track struct {
 func newTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrackConstraints) (*track, error) {
 	var encoderBuilders []encoderBuilder
 	var rtpCodecs []*webrtc.RTPCodec
-	var buildSampler func(t LocalTrack) samplerFunc
 	var kind MediaDeviceType
 	var err error
 
@@ -61,14 +60,10 @@ func newTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrack
 	case driver.VideoRecorder:
 		kind = VideoInput
 		rtpCodecs = opts.codecs[webrtc.RTPCodecTypeVideo]
-		buildSampler = newVideoSampler
 		encoderBuilders, err = newVideoEncoderBuilders(r, constraints)
 	case driver.AudioRecorder:
 		kind = AudioInput
 		rtpCodecs = opts.codecs[webrtc.RTPCodecTypeAudio]
-		buildSampler = func(t LocalTrack) samplerFunc {
-			return newAudioSampler(t, constraints.selectedMedia.Latency)
-		}
 		encoderBuilders, err = newAudioEncoderBuilders(r, constraints)
 	default:
 		err = errors.New("newTrack: invalid driver type")
@@ -110,7 +105,7 @@ func newTrack(opts *MediaDevicesOptions, d driver.Driver, constraints MediaTrack
 
 		t := track{
 			localTrack: localTrack,
-			sample:     buildSampler(localTrack),
+			sample:     newSampler(localTrack),
 			d:          d,
 			encoder:    encoder,
 			kind:       kind,
