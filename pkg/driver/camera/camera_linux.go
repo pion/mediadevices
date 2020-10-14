@@ -185,11 +185,16 @@ func (c *camera) Properties() []prop.Media {
 	properties := make([]prop.Media, 0)
 	for format := range c.cam.GetSupportedFormats() {
 		for _, frameSize := range c.cam.GetSupportedFrameSizes(format) {
+			supportedFormat, ok := c.formats[format]
+			if !ok {
+				continue
+			}
+
 			properties = append(properties, prop.Media{
 				Video: prop.Video{
 					Width:       int(frameSize.MaxWidth),
 					Height:      int(frameSize.MaxHeight),
-					FrameFormat: c.formats[format],
+					FrameFormat: supportedFormat,
 				},
 			})
 		}
