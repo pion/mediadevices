@@ -83,6 +83,8 @@ func (c *camera) Open() error {
 		return err
 	}
 
+	// Late frames should be discarded. Buffering should be handled in higher level.
+	cam.SetBufferCount(1)
 	c.cam = cam
 	return nil
 }
