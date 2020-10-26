@@ -26,6 +26,36 @@ const (
 var (
 	errReadTimeout = errors.New("read timeout")
 	errEmptyFrame  = errors.New("empty frame")
+	// Reference: https://commons.wikimedia.org/wiki/File:Vector_Video_Standards2.svg
+	supportedResolutions = [][2]int{
+		{320, 240},
+		{640, 480},
+		{768, 576},
+		{800, 600},
+		{1024, 768},
+		{1280, 854},
+		{1280, 960},
+		{1280, 1024},
+		{1400, 1050},
+		{1600, 1200},
+		{2048, 1536},
+		{320, 200},
+		{800, 480},
+		{854, 480},
+		{1024, 600},
+		{1152, 768},
+		{1280, 720},
+		{1280, 768},
+		{1366, 768},
+		{1280, 800},
+		{1440, 900},
+		{1440, 960},
+		{1680, 1050},
+		{1920, 1080},
+		{2048, 1080},
+		{1920, 1200},
+		{2560, 1600},
+	}
 )
 
 // Camera implementation using v4l2
@@ -212,13 +242,41 @@ func (c *camera) Properties() []prop.Media {
 				continue
 			}
 
-			properties = append(properties, prop.Media{
-				Video: prop.Video{
-					Width:       int(frameSize.MaxWidth),
-					Height:      int(frameSize.MaxHeight),
-					FrameFormat: supportedFormat,
-				},
-			})
+			if frameSize.StepWidth == 0 || frameSize.StepHeight == 0 {
+				properties = append(properties, prop.Media{
+					Video: prop.Video{
+						Width:       int(frameSize.MaxWidth),
+						Height:      int(frameSize.MaxHeight),
+						FrameFormat: supportedFormat,
+					},
+				})
+			} else {
+				// FIXME: we should probably use a custom data structure to capture all of the supported resolutions
+				for _, supportedResolution := range supportedResolutions {
+					minWidth, minHeight := int(frameSize.MinWidth), int(frameSize.MinHeight)
+					maxWidth, maxHeight := int(frameSize.MaxWidth), int(frameSize.MaxHeight)
+					stepWidth, stepHeight := int(frameSize.StepWidth), int(frameSize.StepHeight)
+					width, height := supportedResolution[0], supportedResolution[1]
+
+					if width < minWidth || width > maxWidth ||
+						height < minHeight || height > maxHeight {
+						continue
+					}
+
+					if (width-minWidth)%stepWidth != 0 ||
+						(height-minHeight)%stepHeight != 0 {
+						continue
+					}
+
+					properties = append(properties, prop.Media{
+						Video: prop.Video{
+							Width:       width,
+							Height:      height,
+							FrameFormat: supportedFormat,
+						},
+					})
+				}
+			}
 		}
 	}
 	return properties
