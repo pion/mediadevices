@@ -8,7 +8,8 @@ import (
 	"errors"
 	"image"
 	"io"
-	"io/ioutil"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/blackjack/webcam"
@@ -40,19 +41,38 @@ type camera struct {
 }
 
 func init() {
-	searchPath := "/dev/v4l/by-path/"
-	devices, err := ioutil.ReadDir(searchPath)
-	if err != nil {
-		// No v4l device.
-		return
+	discovered := make(map[string]struct{})
+
+	discover := func(pattern string) {
+		devices, err := filepath.Glob(pattern)
+		if err != nil {
+			// No v4l device.
+			return
+		}
+		for _, device := range devices {
+			label := filepath.Base(device)
+			reallink, err := os.Readlink(device)
+			if err != nil {
+				reallink = label
+			} else {
+				reallink = filepath.Base(reallink)
+			}
+
+			if _, ok := discovered[reallink]; ok {
+				continue
+			}
+
+			discovered[reallink] = struct{}{}
+			cam := newCamera(device)
+			driver.GetManager().Register(cam, driver.Info{
+				Label:      label,
+				DeviceType: driver.Camera,
+			})
+		}
 	}
-	for _, device := range devices {
-		cam := newCamera(searchPath + device.Name())
-		driver.GetManager().Register(cam, driver.Info{
-			Label:      device.Name(),
-			DeviceType: driver.Camera,
-		})
-	}
+
+	discover("/dev/v4l/by-path/*")
+	discover("/dev/video*")
 }
 
 func newCamera(path string) *camera {
