@@ -201,11 +201,11 @@ type mockVideoCodec struct {
 	closed chan struct{}
 }
 
-func (m *mockVideoCodec) Read(b []byte) (int, error) {
+func (m *mockVideoCodec) Read() ([]byte, error) {
 	if _, err := m.r.Read(); err != nil {
-		return 0, err
+		return nil, err
 	}
-	return len(b), nil
+	return make([]byte, 20), nil
 }
 
 func (m *mockVideoCodec) Close() error { return nil }
@@ -216,11 +216,11 @@ type mockAudioCodec struct {
 	closed chan struct{}
 }
 
-func (m *mockAudioCodec) Read(b []byte) (int, error) {
+func (m *mockAudioCodec) Read() ([]byte, error) {
 	if _, err := m.r.Read(); err != nil {
-		return 0, err
+		return nil, err
 	}
-	return len(b), nil
+	return make([]byte, 20), nil
 }
 func (m *mockAudioCodec) Close() error { return nil }
 

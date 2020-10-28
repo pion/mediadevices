@@ -1,8 +1,6 @@
 package codec
 
 import (
-	"io"
-
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -60,7 +58,8 @@ type VideoEncoderBuilder interface {
 
 // ReadCloser is an io.ReadCloser with methods for rate limiting: SetBitRate and ForceKeyFrame
 type ReadCloser interface {
-	io.ReadCloser
+	Read() ([]byte, error)
+	Close() error
 	// SetBitRate sets current target bitrate, lower bitrate means smaller data will be transmitted
 	// but this also means that the quality will also be lower.
 	SetBitRate(int) error

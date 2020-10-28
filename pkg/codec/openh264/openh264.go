@@ -16,7 +16,6 @@ import (
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/codec"
-	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
 )
@@ -24,7 +23,6 @@ import (
 type encoder struct {
 	engine *C.Encoder
 	r      video.Reader
-	buff   []byte
 
 	mu     sync.Mutex
 	closed bool
@@ -52,26 +50,17 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	}, nil
 }
 
-func (e *encoder) Read(p []byte) (n int, err error) {
+func (e *encoder) Read() ([]byte, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if e.closed {
-		return 0, io.EOF
-	}
-
-	if e.buff != nil {
-		n, err = mio.Copy(p, e.buff)
-		if err == nil {
-			e.buff = nil
-		}
-
-		return n, err
+		return nil, io.EOF
 	}
 
 	img, err := e.r.Read()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	yuvImg := img.(*image.YCbCr)
@@ -85,16 +74,11 @@ func (e *encoder) Read(p []byte) (n int, err error) {
 		width:  C.int(bounds.Max.X - bounds.Min.X),
 	}, &rv)
 	if err := errResult(rv); err != nil {
-		return 0, fmt.Errorf("failed in encoding: %v", err)
+		return nil, fmt.Errorf("failed in encoding: %v", err)
 	}
 
 	encoded := C.GoBytes(unsafe.Pointer(s.data), s.data_len)
-	n, err = mio.Copy(p, encoded)
-	if err != nil {
-		e.buff = encoded
-	}
-
-	return n, err
+	return encoded, nil
 }
 
 func (e *encoder) SetBitRate(b int) error {

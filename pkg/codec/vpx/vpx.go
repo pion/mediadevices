@@ -56,7 +56,6 @@ import (
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/codec"
-	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
 )
@@ -67,7 +66,6 @@ type encoder struct {
 	cfg        *C.vpx_codec_enc_cfg_t
 	r          video.Reader
 	frameIndex int
-	buff       []byte
 	tStart     int
 	tLastFrame int
 	frame      []byte
@@ -206,25 +204,17 @@ func newEncoder(r video.Reader, p prop.Media, params Params, codecIface *C.vpx_c
 	}, nil
 }
 
-func (e *encoder) Read(p []byte) (int, error) {
+func (e *encoder) Read() ([]byte, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if e.closed {
-		return 0, io.EOF
-	}
-
-	if e.buff != nil {
-		n, err := mio.Copy(p, e.buff)
-		if err == nil {
-			e.buff = nil
-		}
-		return n, err
+		return nil, io.EOF
 	}
 
 	img, err := e.r.Read()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	yuvImg := img.(*image.YCbCr)
 	bounds := yuvImg.Bounds()
@@ -240,7 +230,7 @@ func (e *encoder) Read(p []byte) (int, error) {
 	if e.cfg.g_w != C.uint(width) || e.cfg.g_h != C.uint(height) {
 		e.cfg.g_w, e.cfg.g_h = C.uint(width), C.uint(height)
 		if ec := C.vpx_codec_enc_config_set(e.codec, e.cfg); ec != C.VPX_CODEC_OK {
-			return 0, fmt.Errorf("vpx_codec_enc_config_set failed (%d)", ec)
+			return nil, fmt.Errorf("vpx_codec_enc_config_set failed (%d)", ec)
 		}
 		e.raw.w, e.raw.h = C.uint(width), C.uint(height)
 		e.raw.r_w, e.raw.r_h = C.uint(width), C.uint(height)
@@ -253,7 +243,7 @@ func (e *encoder) Read(p []byte) (int, error) {
 		C.long(t-e.tStart), C.ulong(t-e.tLastFrame), C.long(flags), C.ulong(e.deadline),
 		(*C.uchar)(&yuvImg.Y[0]), (*C.uchar)(&yuvImg.Cb[0]), (*C.uchar)(&yuvImg.Cr[0]),
 	); ec != C.VPX_CODEC_OK {
-		return 0, fmt.Errorf("vpx_codec_encode failed (%d)", ec)
+		return nil, fmt.Errorf("vpx_codec_encode failed (%d)", ec)
 	}
 
 	e.frameIndex++
@@ -271,11 +261,10 @@ func (e *encoder) Read(p []byte) (int, error) {
 			e.frame = append(e.frame, encoded...)
 		}
 	}
-	n, err := mio.Copy(p, e.frame)
-	if err != nil {
-		e.buff = e.frame
-	}
-	return n, err
+
+	encoded := make([]byte, len(e.frame))
+	copy(encoded, e.frame)
+	return encoded, err
 }
 
 func (e *encoder) SetBitRate(b int) error {

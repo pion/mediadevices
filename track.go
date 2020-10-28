@@ -7,7 +7,6 @@ import (
 
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/driver"
-	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
 )
@@ -160,22 +159,14 @@ func (t *track) onError(err error) {
 
 // start starts the data flow from the driver all the way to the localTrack
 func (t *track) start() {
-	var n int
-	var err error
-	buff := make([]byte, 1024)
 	for {
-		n, err = t.encoder.Read(buff)
+		buff, err := t.encoder.Read()
 		if err != nil {
-			if e, ok := err.(*mio.InsufficientBufferError); ok {
-				buff = make([]byte, 2*e.RequiredSize)
-				continue
-			}
-
 			t.onError(err)
 			return
 		}
 
-		if err := t.sample(buff[:n]); err != nil {
+		if err := t.sample(buff); err != nil {
 			t.onError(err)
 			return
 		}

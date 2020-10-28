@@ -72,27 +72,22 @@ func newEncoder(r audio.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	return &e, nil
 }
 
-func (e *encoder) Read(p []byte) (int, error) {
+func (e *encoder) Read() ([]byte, error) {
 	buff, err := e.reader.Read()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
+	encoded := make([]byte, 1024)
 	switch b := buff.(type) {
 	case *wave.Int16Interleaved:
-		n, err := e.engine.Encode(b.Data, p)
-		if err != nil {
-			return n, err
-		}
-		return n, nil
+		n, err := e.engine.Encode(b.Data, encoded)
+		return encoded[:n:n], err
 	case *wave.Float32Interleaved:
-		n, err := e.engine.EncodeFloat32(b.Data, p)
-		if err != nil {
-			return n, err
-		}
-		return n, nil
+		n, err := e.engine.EncodeFloat32(b.Data, encoded)
+		return encoded[:n:n], err
 	default:
-		return 0, errors.New("unknown type of audio buffer")
+		return nil, errors.New("unknown type of audio buffer")
 	}
 }
 
