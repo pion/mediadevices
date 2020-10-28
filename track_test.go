@@ -10,7 +10,7 @@ func TestOnEnded(t *testing.T) {
 	errExpected := errors.New("an error")
 
 	t.Run("ErrorAfterRegister", func(t *testing.T) {
-		tr := &track{}
+		tr := &baseTrack{}
 
 		called := make(chan error, 1)
 		tr.OnEnded(func(error) {
@@ -35,7 +35,7 @@ func TestOnEnded(t *testing.T) {
 	})
 
 	t.Run("ErrorBeforeRegister", func(t *testing.T) {
-		tr := &track{}
+		tr := &baseTrack{}
 
 		tr.onError(errExpected)
 

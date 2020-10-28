@@ -7,80 +7,80 @@ import (
 // MediaStream is an interface that represents a collection of existing tracks.
 type MediaStream interface {
 	// GetAudioTracks implements https://w3c.github.io/mediacapture-main/#dom-mediastream-getaudiotracks
-	GetAudioTracks() []Tracker
+	GetAudioTracks() []Track
 	// GetVideoTracks implements https://w3c.github.io/mediacapture-main/#dom-mediastream-getvideotracks
-	GetVideoTracks() []Tracker
+	GetVideoTracks() []Track
 	// GetTracks implements https://w3c.github.io/mediacapture-main/#dom-mediastream-gettracks
-	GetTracks() []Tracker
+	GetTracks() []Track
 	// AddTrack implements https://w3c.github.io/mediacapture-main/#dom-mediastream-addtrack
-	AddTrack(t Tracker)
+	AddTrack(t Track)
 	// RemoveTrack implements https://w3c.github.io/mediacapture-main/#dom-mediastream-removetrack
-	RemoveTrack(t Tracker)
+	RemoveTrack(t Track)
 }
 
 type mediaStream struct {
-	trackers map[Tracker]struct{}
-	l        sync.RWMutex
+	tracks map[Track]struct{}
+	l      sync.RWMutex
 }
 
 const trackTypeDefault MediaDeviceType = 0
 
 // NewMediaStream creates a MediaStream interface that's defined in
 // https://w3c.github.io/mediacapture-main/#dom-mediastream
-func NewMediaStream(trackers ...Tracker) (MediaStream, error) {
-	m := mediaStream{trackers: make(map[Tracker]struct{})}
+func NewMediaStream(tracks ...Track) (MediaStream, error) {
+	m := mediaStream{tracks: make(map[Track]struct{})}
 
-	for _, tracker := range trackers {
-		if _, ok := m.trackers[tracker]; !ok {
-			m.trackers[tracker] = struct{}{}
+	for _, track := range tracks {
+		if _, ok := m.tracks[track]; !ok {
+			m.tracks[track] = struct{}{}
 		}
 	}
 
 	return &m, nil
 }
 
-func (m *mediaStream) GetAudioTracks() []Tracker {
+func (m *mediaStream) GetAudioTracks() []Track {
 	return m.queryTracks(AudioInput)
 }
 
-func (m *mediaStream) GetVideoTracks() []Tracker {
+func (m *mediaStream) GetVideoTracks() []Track {
 	return m.queryTracks(VideoInput)
 }
 
-func (m *mediaStream) GetTracks() []Tracker {
+func (m *mediaStream) GetTracks() []Track {
 	return m.queryTracks(trackTypeDefault)
 }
 
 // queryTracks returns all tracks that are the same kind as t.
 // If t is 0, which is the default, queryTracks will return all the tracks.
-func (m *mediaStream) queryTracks(t MediaDeviceType) []Tracker {
+func (m *mediaStream) queryTracks(t MediaDeviceType) []Track {
 	m.l.RLock()
 	defer m.l.RUnlock()
 
-	result := make([]Tracker, 0)
-	for tracker := range m.trackers {
-		if tracker.Kind() == t || t == trackTypeDefault {
-			result = append(result, tracker)
+	result := make([]Track, 0)
+	for track := range m.tracks {
+		if track.Kind() == t || t == trackTypeDefault {
+			result = append(result, track)
 		}
 	}
 
 	return result
 }
 
-func (m *mediaStream) AddTrack(t Tracker) {
+func (m *mediaStream) AddTrack(t Track) {
 	m.l.Lock()
 	defer m.l.Unlock()
 
-	if _, ok := m.trackers[t]; ok {
+	if _, ok := m.tracks[t]; ok {
 		return
 	}
 
-	m.trackers[t] = struct{}{}
+	m.tracks[t] = struct{}{}
 }
 
-func (m *mediaStream) RemoveTrack(t Tracker) {
+func (m *mediaStream) RemoveTrack(t Track) {
 	m.l.Lock()
 	defer m.l.Unlock()
 
-	delete(m.trackers, t)
+	delete(m.tracks, t)
 }
