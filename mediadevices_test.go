@@ -1,91 +1,42 @@
 package mediadevices
 
 import (
-	"errors"
 	"io"
 	"testing"
 	"time"
 
-	"github.com/pion/webrtc/v2"
-	"github.com/pion/webrtc/v2/pkg/media"
-
-	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/driver"
 	_ "github.com/pion/mediadevices/pkg/driver/audiotest"
 	_ "github.com/pion/mediadevices/pkg/driver/videotest"
-	"github.com/pion/mediadevices/pkg/io/audio"
-	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
 func TestGetUserMedia(t *testing.T) {
-	videoParams := mockParams{
-		BaseParams: codec.BaseParams{
-			BitRate: 100000,
-		},
-		name: "MockVideo",
-	}
-	audioParams := mockParams{
-		BaseParams: codec.BaseParams{
-			BitRate: 32000,
-		},
-		name: "MockAudio",
-	}
-	md := NewMediaDevicesFromCodecs(
-		map[webrtc.RTPCodecType][]*webrtc.RTPCodec{
-			webrtc.RTPCodecTypeVideo: {
-				{Type: webrtc.RTPCodecTypeVideo, Name: "MockVideo", PayloadType: 1},
-			},
-			webrtc.RTPCodecTypeAudio: {
-				{Type: webrtc.RTPCodecTypeAudio, Name: "MockAudio", PayloadType: 2},
-			},
-		},
-		WithTrackGenerator(
-			func(_ uint8, _ uint32, id, _ string, codec *webrtc.RTPCodec) (
-				LocalTrack, error,
-			) {
-				return newMockTrack(codec, id), nil
-			},
-		),
-	)
 	constraints := MediaStreamConstraints{
 		Video: func(c *MediaTrackConstraints) {
-			c.Enabled = true
 			c.Width = prop.Int(640)
 			c.Height = prop.Int(480)
-			params := videoParams
-			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&params}
 		},
 		Audio: func(c *MediaTrackConstraints) {
-			c.Enabled = true
-			params := audioParams
-			c.AudioEncoderBuilders = []codec.AudioEncoderBuilder{&params}
 		},
 	}
 	constraintsWrong := MediaStreamConstraints{
 		Video: func(c *MediaTrackConstraints) {
-			c.Enabled = true
-			c.Width = prop.Int(640)
+			c.Width = prop.IntExact(10000)
 			c.Height = prop.Int(480)
-			params := videoParams
-			params.BitRate = 0
-			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&params}
 		},
 		Audio: func(c *MediaTrackConstraints) {
-			c.Enabled = true
-			params := audioParams
-			c.AudioEncoderBuilders = []codec.AudioEncoderBuilder{&params}
 		},
 	}
 
 	// GetUserMedia with broken parameters
-	ms, err := md.GetUserMedia(constraintsWrong)
+	ms, err := GetUserMedia(constraintsWrong)
 	if err == nil {
 		t.Fatal("Expected error, but got nil")
 	}
 
 	// GetUserMedia with correct parameters
-	ms, err = md.GetUserMedia(constraints)
+	ms, err = GetUserMedia(constraints)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -103,11 +54,11 @@ func TestGetUserMedia(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	for _, track := range tracks {
-		track.Stop()
+		track.Close()
 	}
 
 	// Stop and retry GetUserMedia
-	ms, err = md.GetUserMedia(constraints)
+	ms, err = GetUserMedia(constraints)
 	if err != nil {
 		t.Fatalf("Failed to GetUserMedia after the previsous tracks stopped: %v", err)
 	}
@@ -124,105 +75,9 @@ func TestGetUserMedia(t *testing.T) {
 	}
 	time.Sleep(50 * time.Millisecond)
 	for _, track := range tracks {
-		track.Stop()
+		track.Close()
 	}
 }
-
-type mockTrack struct {
-	codec *webrtc.RTPCodec
-	id    string
-}
-
-func newMockTrack(codec *webrtc.RTPCodec, id string) *mockTrack {
-	return &mockTrack{
-		codec: codec,
-		id:    id,
-	}
-}
-
-func (t *mockTrack) WriteSample(s media.Sample) error {
-	return nil
-}
-
-func (t *mockTrack) Codec() *webrtc.RTPCodec {
-	return t.codec
-}
-
-func (t *mockTrack) ID() string {
-	return t.id
-}
-
-func (t *mockTrack) Kind() webrtc.RTPCodecType {
-	return t.codec.Type
-}
-
-type mockParams struct {
-	codec.BaseParams
-	name string
-}
-
-func (params *mockParams) RTPCodec() *codec.RTPCodec {
-	rtpCodec := codec.NewRTPH264Codec(90000)
-	rtpCodec.Name = params.name
-	return rtpCodec
-}
-
-func (params *mockParams) BuildVideoEncoder(r video.Reader, p prop.Media) (codec.ReadCloser, error) {
-	if params.BitRate == 0 {
-		// This is a dummy error to test the failure condition.
-		return nil, errors.New("wrong codec parameter")
-	}
-	return &mockVideoCodec{
-		r:      r,
-		closed: make(chan struct{}),
-	}, nil
-}
-
-func (params *mockParams) BuildAudioEncoder(r audio.Reader, p prop.Media) (codec.ReadCloser, error) {
-	return &mockAudioCodec{
-		r:      r,
-		closed: make(chan struct{}),
-	}, nil
-}
-
-type mockCodec struct{}
-
-func (e *mockCodec) SetBitRate(b int) error {
-	return nil
-}
-
-func (e *mockCodec) ForceKeyFrame() error {
-	return nil
-}
-
-type mockVideoCodec struct {
-	mockCodec
-	r      video.Reader
-	closed chan struct{}
-}
-
-func (m *mockVideoCodec) Read() ([]byte, func(), error) {
-	if _, _, err := m.r.Read(); err != nil {
-		return nil, func() {}, err
-	}
-	return make([]byte, 20), func() {}, nil
-}
-
-func (m *mockVideoCodec) Close() error { return nil }
-
-type mockAudioCodec struct {
-	mockCodec
-	r      audio.Reader
-	closed chan struct{}
-}
-
-func (m *mockAudioCodec) Read() ([]byte, func(), error) {
-	if _, _, err := m.r.Read(); err != nil {
-		return nil, func() {}, err
-	}
-	return make([]byte, 20), func() {}, nil
-}
-func (m *mockAudioCodec) Close() error { return nil }
 
 func TestSelectBestDriverConstraintsResultIsSetProperly(t *testing.T) {
 	filterFn := driver.FilterVideoRecorder()

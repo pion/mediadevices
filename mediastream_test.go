@@ -10,15 +10,12 @@ type mockMediaStreamTrack struct {
 	kind MediaDeviceType
 }
 
-func (track *mockMediaStreamTrack) Track() *webrtc.Track {
-	return nil
+func (track *mockMediaStreamTrack) ID() string {
+	return ""
 }
 
-func (track *mockMediaStreamTrack) LocalTrack() LocalTrack {
+func (track *mockMediaStreamTrack) Close() error {
 	return nil
-}
-
-func (track *mockMediaStreamTrack) Stop() {
 }
 
 func (track *mockMediaStreamTrack) Kind() MediaDeviceType {
@@ -28,8 +25,16 @@ func (track *mockMediaStreamTrack) Kind() MediaDeviceType {
 func (track *mockMediaStreamTrack) OnEnded(handler func(error)) {
 }
 
+func (track *mockMediaStreamTrack) Bind(pc *webrtc.PeerConnection) (*webrtc.Track, error) {
+	return nil, nil
+}
+
+func (track *mockMediaStreamTrack) Unbind(pc *webrtc.PeerConnection) error {
+	return nil
+}
+
 func TestMediaStreamFilters(t *testing.T) {
-	audioTracks := []Tracker{
+	audioTracks := []Track{
 		&mockMediaStreamTrack{AudioInput},
 		&mockMediaStreamTrack{AudioInput},
 		&mockMediaStreamTrack{AudioInput},
@@ -37,7 +42,7 @@ func TestMediaStreamFilters(t *testing.T) {
 		&mockMediaStreamTrack{AudioInput},
 	}
 
-	videoTracks := []Tracker{
+	videoTracks := []Track{
 		&mockMediaStreamTrack{VideoInput},
 		&mockMediaStreamTrack{VideoInput},
 		&mockMediaStreamTrack{VideoInput},
@@ -49,7 +54,7 @@ func TestMediaStreamFilters(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expect := func(t *testing.T, actual, expected []Tracker) {
+	expect := func(t *testing.T, actual, expected []Track) {
 		if len(actual) != len(expected) {
 			t.Fatalf("%s: Expected to get %d trackers, but got %d trackers", t.Name(), len(expected), len(actual))
 		}

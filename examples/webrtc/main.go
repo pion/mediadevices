@@ -5,26 +5,23 @@ import (
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/examples/internal/signal"
-	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/webrtc/v2"
-
-	// This is required to use opus audio encoder
-	"github.com/pion/mediadevices/pkg/codec/opus"
 
 	// If you don't like vpx, you can also use x264 by importing as below
 	// "github.com/pion/mediadevices/pkg/codec/x264" // This is required to use h264 video encoder
 	// or you can also use openh264 for alternative h264 implementation
 	// "github.com/pion/mediadevices/pkg/codec/openh264"
-	"github.com/pion/mediadevices/pkg/codec/vpx" // This is required to use VP8/VP9 video encoder
+	"github.com/pion/mediadevices/pkg/codec/openh264" // This is required to use VP8/VP9 video encoder
+	"github.com/pion/mediadevices/pkg/codec/opus"     // This is required to use VP8/VP9 video encoder
 
 	// Note: If you don't have a camera or microphone or your adapters are not supported,
 	//       you can always swap your adapters with our dummy adapters below.
 	// _ "github.com/pion/mediadevices/pkg/driver/videotest"
 	// _ "github.com/pion/mediadevices/pkg/driver/audiotest"
-	_ "github.com/pion/mediadevices/pkg/driver/camera"     // This is required to register camera adapter
-	_ "github.com/pion/mediadevices/pkg/driver/microphone" // This is required to register microphone adapter
+	_ "github.com/pion/mediadevices/pkg/driver/audiotest"
+	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
 )
 
 const (
@@ -61,44 +58,48 @@ func main() {
 		fmt.Printf("Connection State has changed %s \n", connectionState.String())
 	})
 
-	md := mediadevices.NewMediaDevices(peerConnection)
+	vp8Params, err := openh264.NewParams()
+	if err != nil {
+		panic(err)
+	}
+	vp8Params.BitRate = 300_000 // 300kbps
 
 	opusParams, err := opus.NewParams()
 	if err != nil {
 		panic(err)
 	}
-	opusParams.BitRate = 32000 // 32kbps
+	codecSelector := mediadevices.NewCodecSelector(
+		mediadevices.WithVideoEncoders(&vp8Params),
+		mediadevices.WithAudioEncoders(&opusParams),
+	)
 
-	vp8Params, err := vpx.NewVP8Params()
-	if err != nil {
-		panic(err)
-	}
-	vp8Params.BitRate = 100000 // 100kbps
-
-	s, err := md.GetUserMedia(mediadevices.MediaStreamConstraints{
-		Audio: func(c *mediadevices.MediaTrackConstraints) {
-			c.Enabled = true
-			c.AudioEncoderBuilders = []codec.AudioEncoderBuilder{&opusParams}
-		},
+	s, err := mediadevices.GetUserMedia(mediadevices.MediaStreamConstraints{
 		Video: func(c *mediadevices.MediaTrackConstraints) {
 			c.FrameFormat = prop.FrameFormat(frame.FormatYUY2)
-			c.Enabled = true
 			c.Width = prop.Int(640)
 			c.Height = prop.Int(480)
-			c.VideoEncoderBuilders = []codec.VideoEncoderBuilder{&vp8Params}
 		},
+		Audio: func(c *mediadevices.MediaTrackConstraints) {
+		},
+		Codec: codecSelector,
 	})
 	if err != nil {
 		panic(err)
 	}
 
 	for _, tracker := range s.GetTracks() {
-		t := tracker.Track()
 		tracker.OnEnded(func(err error) {
-			fmt.Printf("Track (ID: %s, Label: %s) ended with error: %v\n",
-				t.ID(), t.Label(), err)
+			fmt.Printf("Track (ID: %s) ended with error: %v\n",
+				tracker.ID(), err)
 		})
-		_, err = peerConnection.AddTransceiverFromTrack(t,
+
+		// In Pion/webrtc v3, bind will be called automatically after SDP negotiation
+		webrtcTrack, err := tracker.Bind(peerConnection)
+		if err != nil {
+			panic(err)
+		}
+
+		_, err = peerConnection.AddTransceiverFromTrack(webrtcTrack,
 			webrtc.RtpTransceiverInit{
 				Direction: webrtc.RTPTransceiverDirectionSendonly,
 			},
