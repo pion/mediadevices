@@ -7,13 +7,13 @@ import (
 	"image"
 )
 
-func decodeYUY2(frame []byte, width, height int) (image.Image, error) {
+func decodeYUY2(frame []byte, width, height int) (image.Image, func(), error) {
 	yi := width * height
 	ci := yi / 2
 	fi := yi + 2*ci
 
 	if len(frame) != fi {
-		return nil, fmt.Errorf("frame length (%d) less than expected (%d)", len(frame), fi)
+		return nil, func() {}, fmt.Errorf("frame length (%d) less than expected (%d)", len(frame), fi)
 	}
 
 	y := make([]byte, yi)
@@ -39,16 +39,16 @@ func decodeYUY2(frame []byte, width, height int) (image.Image, error) {
 		CStride:        width / 2,
 		SubsampleRatio: image.YCbCrSubsampleRatio422,
 		Rect:           image.Rect(0, 0, width, height),
-	}, nil
+	}, func() {}, nil
 }
 
-func decodeUYVY(frame []byte, width, height int) (image.Image, error) {
+func decodeUYVY(frame []byte, width, height int) (image.Image, func(), error) {
 	yi := width * height
 	ci := yi / 2
 	fi := yi + 2*ci
 
 	if len(frame) != fi {
-		return nil, fmt.Errorf("frame length (%d) less than expected (%d)", len(frame), fi)
+		return nil, func() {}, fmt.Errorf("frame length (%d) less than expected (%d)", len(frame), fi)
 	}
 
 	y := make([]byte, yi)
@@ -74,5 +74,5 @@ func decodeUYVY(frame []byte, width, height int) (image.Image, error) {
 		CStride:        width / 2,
 		SubsampleRatio: image.YCbCrSubsampleRatio422,
 		Rect:           image.Rect(0, 0, width, height),
-	}, nil
+	}, func() {}, nil
 }

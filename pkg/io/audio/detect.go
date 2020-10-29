@@ -13,12 +13,12 @@ func DetectChanges(interval time.Duration, onChange func(prop.Media)) TransformF
 	return func(r Reader) Reader {
 		var currentProp prop.Media
 		var chunkCount uint
-		return ReaderFunc(func() (wave.Audio, error) {
+		return ReaderFunc(func() (wave.Audio, func(), error) {
 			var dirty bool
 
-			chunk, err := r.Read()
+			chunk, _, err := r.Read()
 			if err != nil {
-				return nil, err
+				return nil, func() {}, err
 			}
 
 			info := chunk.ChunkInfo()
@@ -40,7 +40,7 @@ func DetectChanges(interval time.Duration, onChange func(prop.Media)) TransformF
 			}
 
 			chunkCount++
-			return chunk, nil
+			return chunk, func() {}, nil
 		})
 	}
 }

@@ -58,7 +58,7 @@ type VideoEncoderBuilder interface {
 
 // ReadCloser is an io.ReadCloser with methods for rate limiting: SetBitRate and ForceKeyFrame
 type ReadCloser interface {
-	Read() ([]byte, error)
+	Read() (b []byte, release func(), err error)
 	Close() error
 	// SetBitRate sets current target bitrate, lower bitrate means smaller data will be transmitted
 	// but this also means that the quality will also be lower.

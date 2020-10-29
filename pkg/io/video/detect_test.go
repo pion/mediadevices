@@ -12,8 +12,8 @@ import (
 
 func BenchmarkDetectChanges(b *testing.B) {
 	var src Reader
-	src = ReaderFunc(func() (image.Image, error) {
-		return image.NewRGBA(image.Rect(0, 0, 1920, 1080)), nil
+	src = ReaderFunc(func() (image.Image, func(), error) {
+		return image.NewRGBA(image.Rect(0, 0, 1920, 1080)), func() {}, nil
 	})
 
 	b.Run("WithoutDetectChanges", func(b *testing.B) {
@@ -40,8 +40,8 @@ func BenchmarkDetectChanges(b *testing.B) {
 
 func TestDetectChanges(t *testing.T) {
 	buildSource := func(p prop.Media) (Reader, func(prop.Media)) {
-		return ReaderFunc(func() (image.Image, error) {
-				return image.NewRGBA(image.Rect(0, 0, p.Width, p.Height)), nil
+		return ReaderFunc(func() (image.Image, func(), error) {
+				return image.NewRGBA(image.Rect(0, 0, p.Width, p.Height)), func() {}, nil
 			}), func(newProp prop.Media) {
 				p = newProp
 			}
@@ -86,7 +86,7 @@ func TestDetectChanges(t *testing.T) {
 			detectBeforeFirstFrame = true
 		})(src)
 
-		frame, err := src.Read()
+		frame, _, err := src.Read()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -113,7 +113,7 @@ func TestDetectChanges(t *testing.T) {
 				expected.Width = width
 				expected.Height = height
 				update(expected)
-				frame, err := src.Read()
+				frame, _, err := src.Read()
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -143,7 +143,7 @@ func TestDetectChanges(t *testing.T) {
 		})(src)
 
 		for count < 3 {
-			frame, err := src.Read()
+			frame, _, err := src.Read()
 			if err != nil {
 				t.Fatal(err)
 			}

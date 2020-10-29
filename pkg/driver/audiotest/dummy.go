@@ -52,10 +52,10 @@ func (d *dummy) AudioRecord(p prop.Media) (audio.Reader, error) {
 
 	closed := d.closed
 
-	reader := audio.ReaderFunc(func() (wave.Audio, error) {
+	reader := audio.ReaderFunc(func() (wave.Audio, func(), error) {
 		select {
 		case <-closed:
-			return nil, io.EOF
+			return nil, func() {}, io.EOF
 		default:
 		}
 
@@ -78,7 +78,7 @@ func (d *dummy) AudioRecord(p prop.Media) (audio.Reader, error) {
 				a.SetFloat32(i, ch, wave.Float32Sample(sin[phase]))
 			}
 		}
-		return a, nil
+		return a, func() {}, nil
 	})
 	return reader, nil
 }

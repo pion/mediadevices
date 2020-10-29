@@ -110,12 +110,12 @@ func (rc *ReadCloser) dataCb(data []byte) {
 // Read reads raw data, the format is determined by the media type and property:
 //   - For video, each call will return a frame.
 //   - For audio, each call will return a chunk which its size configured by Latency
-func (rc *ReadCloser) Read() ([]byte, error) {
+func (rc *ReadCloser) Read() ([]byte, func(), error) {
 	data, ok := <-rc.dataChan
 	if !ok {
-		return nil, io.EOF
+		return nil, func() {}, io.EOF
 	}
-	return data, nil
+	return data, func() {}, nil
 }
 
 // Close closes the capturing session, and no data will flow anymore

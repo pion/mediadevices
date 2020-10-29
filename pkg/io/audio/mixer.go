@@ -8,14 +8,14 @@ import (
 // NewChannelMixer creates audio transform to mix audio channels.
 func NewChannelMixer(channels int, mixer mixer.ChannelMixer) TransformFunc {
 	return func(r Reader) Reader {
-		return ReaderFunc(func() (wave.Audio, error) {
-			buff, err := r.Read()
+		return ReaderFunc(func() (wave.Audio, func(), error) {
+			buff, _, err := r.Read()
 			if err != nil {
-				return nil, err
+				return nil, func() {}, err
 			}
 			ci := buff.ChunkInfo()
 			if ci.Channels == channels {
-				return buff, nil
+				return buff, func() {}, nil
 			}
 
 			ci.Channels = channels
@@ -32,9 +32,9 @@ func NewChannelMixer(channels int, mixer mixer.ChannelMixer) TransformFunc {
 				mixed = wave.NewFloat32NonInterleaved(ci)
 			}
 			if err := mixer.Mix(mixed, buff); err != nil {
-				return nil, err
+				return nil, func() {}, err
 			}
-			return mixed, nil
+			return mixed, func() {}, nil
 		})
 	}
 }

@@ -57,7 +57,7 @@ func TestBroadcast(t *testing.T) {
 					frameCount := 0
 					frameSent := 0
 					lastSend := time.Now()
-					src = ReaderFunc(func() (interface{}, error) {
+					src = ReaderFunc(func() (interface{}, func(), error) {
 						if pauseCond.src && frameSent == 30 {
 							time.Sleep(time.Second)
 						}
@@ -74,7 +74,7 @@ func TestBroadcast(t *testing.T) {
 						frame := frames[frameCount]
 						frameCount++
 						frameSent++
-						return frame, nil
+						return frame, func() {}, nil
 					})
 					broadcaster := NewBroadcaster(src, nil)
 					var done uint32
@@ -95,7 +95,7 @@ func TestBroadcast(t *testing.T) {
 								if pauseCond.dst && count == 30 {
 									time.Sleep(time.Second)
 								}
-								frame, err := reader.Read()
+								frame, _, err := reader.Read()
 								if err != nil {
 									t.Error(err)
 								}

@@ -15,7 +15,7 @@ func detectCurrentVideoProp(broadcaster *video.Broadcaster) (prop.Media, error) 
 	// in any case.
 	metaReader := broadcaster.NewReader(false)
 	metaReader = video.DetectChanges(0, func(p prop.Media) { currentProp = p })(metaReader)
-	_, err := metaReader.Read()
+	_, _, err := metaReader.Read()
 
 	return currentProp, err
 }
@@ -29,7 +29,7 @@ func detectCurrentAudioProp(broadcaster *audio.Broadcaster) (prop.Media, error) 
 	// in any case.
 	metaReader := broadcaster.NewReader(false)
 	metaReader = audio.DetectChanges(0, func(p prop.Media) { currentProp = p })(metaReader)
-	_, err := metaReader.Read()
+	_, _, err := metaReader.Read()
 
 	return currentProp, err
 }

@@ -56,10 +56,10 @@ func (cam *camera) VideoRecord(property prop.Media) (video.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	r := video.ReaderFunc(func() (image.Image, error) {
-		frame, err := rc.Read()
+	r := video.ReaderFunc(func() (image.Image, func(), error) {
+		frame, _, err := rc.Read()
 		if err != nil {
-			return nil, err
+			return nil, func() {}, err
 		}
 		return decoder.Decode(frame, property.Width, property.Height)
 	})

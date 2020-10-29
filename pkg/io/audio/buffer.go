@@ -13,15 +13,15 @@ func NewBuffer(nSamples int) TransformFunc {
 	var inBuff wave.Audio
 
 	return func(r Reader) Reader {
-		return ReaderFunc(func() (wave.Audio, error) {
+		return ReaderFunc(func() (wave.Audio, func(), error) {
 			for {
 				if inBuff != nil && inBuff.ChunkInfo().Len >= nSamples {
 					break
 				}
 
-				buff, err := r.Read()
+				buff, _, err := r.Read()
 				if err != nil {
-					return nil, err
+					return nil, func() {}, err
 				}
 				switch b := buff.(type) {
 				case *wave.Float32Interleaved:
@@ -59,7 +59,7 @@ func NewBuffer(nSamples int) TransformFunc {
 					ib.Size.Len += b.Size.Len
 
 				default:
-					return nil, errUnsupported
+					return nil, func() {}, errUnsupported
 				}
 			}
 			switch ib := inBuff.(type) {
@@ -71,7 +71,7 @@ func NewBuffer(nSamples int) TransformFunc {
 				copy(ibCopy.Data, ib.Data)
 				ib.Data = ib.Data[n:]
 				ib.Size.Len -= nSamples
-				return &ibCopy, nil
+				return &ibCopy, func() {}, nil
 
 			case *wave.Float32Interleaved:
 				ibCopy := *ib
@@ -81,9 +81,9 @@ func NewBuffer(nSamples int) TransformFunc {
 				copy(ibCopy.Data, ib.Data)
 				ib.Data = ib.Data[n:]
 				ib.Size.Len -= nSamples
-				return &ibCopy, nil
+				return &ibCopy, func() {}, nil
 			}
-			return nil, errUnsupported
+			return nil, func() {}, errUnsupported
 		})
 	}
 }

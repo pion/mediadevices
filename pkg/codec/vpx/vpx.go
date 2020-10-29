@@ -204,17 +204,17 @@ func newEncoder(r video.Reader, p prop.Media, params Params, codecIface *C.vpx_c
 	}, nil
 }
 
-func (e *encoder) Read() ([]byte, error) {
+func (e *encoder) Read() ([]byte, func(), error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if e.closed {
-		return nil, io.EOF
+		return nil, func() {}, io.EOF
 	}
 
-	img, err := e.r.Read()
+	img, _, err := e.r.Read()
 	if err != nil {
-		return nil, err
+		return nil, func() {}, err
 	}
 	yuvImg := img.(*image.YCbCr)
 	bounds := yuvImg.Bounds()
@@ -230,7 +230,7 @@ func (e *encoder) Read() ([]byte, error) {
 	if e.cfg.g_w != C.uint(width) || e.cfg.g_h != C.uint(height) {
 		e.cfg.g_w, e.cfg.g_h = C.uint(width), C.uint(height)
 		if ec := C.vpx_codec_enc_config_set(e.codec, e.cfg); ec != C.VPX_CODEC_OK {
-			return nil, fmt.Errorf("vpx_codec_enc_config_set failed (%d)", ec)
+			return nil, func() {}, fmt.Errorf("vpx_codec_enc_config_set failed (%d)", ec)
 		}
 		e.raw.w, e.raw.h = C.uint(width), C.uint(height)
 		e.raw.r_w, e.raw.r_h = C.uint(width), C.uint(height)
@@ -243,7 +243,7 @@ func (e *encoder) Read() ([]byte, error) {
 		C.long(t-e.tStart), C.ulong(t-e.tLastFrame), C.long(flags), C.ulong(e.deadline),
 		(*C.uchar)(&yuvImg.Y[0]), (*C.uchar)(&yuvImg.Cb[0]), (*C.uchar)(&yuvImg.Cr[0]),
 	); ec != C.VPX_CODEC_OK {
-		return nil, fmt.Errorf("vpx_codec_encode failed (%d)", ec)
+		return nil, func() {}, fmt.Errorf("vpx_codec_encode failed (%d)", ec)
 	}
 
 	e.frameIndex++
@@ -264,7 +264,7 @@ func (e *encoder) Read() ([]byte, error) {
 
 	encoded := make([]byte, len(e.frame))
 	copy(encoded, e.frame)
-	return encoded, err
+	return encoded, func() {}, err
 }
 
 func (e *encoder) SetBitRate(b int) error {

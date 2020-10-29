@@ -64,7 +64,6 @@ import (
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/codec"
-	mio "github.com/pion/mediadevices/pkg/io"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
 )
@@ -296,17 +295,17 @@ func newVP8Encoder(r video.Reader, p prop.Media, params ParamsVP8) (codec.ReadCl
 	return e, nil
 }
 
-func (e *encoderVP8) Read() ([]byte, error) {
+func (e *encoderVP8) Read() ([]byte, func(), error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if e.closed {
-		return nil, io.EOF
+		return nil, func() {}, io.EOF
 	}
 
-	img, err := e.r.Read()
+	img, _, err := e.r.Read()
 	if err != nil {
-		return nil, err
+		return nil, func() {}, err
 	}
 	yuvImg := img.(*image.YCbCr)
 
@@ -348,7 +347,7 @@ func (e *encoderVP8) Read() ([]byte, error) {
 			}
 		}
 		if e.picParam.reconstructed_frame == C.VA_INVALID_SURFACE {
-			return nil, errors.New("no available surface")
+			return nil, func() {}, errors.New("no available surface")
 		}
 
 		C.setForceKFFlagVP8(&e.picParam, 0)
@@ -416,7 +415,7 @@ func (e *encoderVP8) Read() ([]byte, error) {
 			C.size_t(uintptr(p.src)),
 			&id,
 		); s != C.VA_STATUS_SUCCESS {
-			return nil, fmt.Errorf("failed to create buffer: %s", C.GoString(C.vaErrorStr(s)))
+			return nil, func() {}, fmt.Errorf("failed to create buffer: %s", C.GoString(C.vaErrorStr(s)))
 		}
 		buffs = append(buffs, id)
 	}
@@ -426,17 +425,17 @@ func (e *encoderVP8) Read() ([]byte, error) {
 		e.display, e.ctxID,
 		e.surfs[surfaceVP8Input],
 	); s != C.VA_STATUS_SUCCESS {
-		return nil, fmt.Errorf("failed to begin picture: %s", C.GoString(C.vaErrorStr(s)))
+		return nil, func() {}, fmt.Errorf("failed to begin picture: %s", C.GoString(C.vaErrorStr(s)))
 	}
 
 	// Upload image
 	var vaImg C.VAImage
 	var rawBuf unsafe.Pointer
 	if s := C.vaDeriveImage(e.display, e.surfs[surfaceVP8Input], &vaImg); s != C.VA_STATUS_SUCCESS {
-		return nil, fmt.Errorf("failed to derive image: %s", C.GoString(C.vaErrorStr(s)))
+		return nil, func() {}, fmt.Errorf("failed to derive image: %s", C.GoString(C.vaErrorStr(s)))
 	}
 	if s := C.vaMapBuffer(e.display, vaImg.buf, &rawBuf); s != C.VA_STATUS_SUCCESS {
-		return nil, fmt.Errorf("failed to map buffer: %s", C.GoString(C.vaErrorStr(s)))
+		return nil, func() {}, fmt.Errorf("failed to map buffer: %s", C.GoString(C.vaErrorStr(s)))
 	}
 	// TODO: use vaImg.pitches to support padding
 	C.memcpy(
@@ -452,10 +451,10 @@ func (e *encoderVP8) Read() ([]byte, error) {
 		unsafe.Pointer(&yuvImg.Cr[0]), C.size_t(len(yuvImg.Cr)),
 	)
 	if s := C.vaUnmapBuffer(e.display, vaImg.buf); s != C.VA_STATUS_SUCCESS {
-		return nil, fmt.Errorf("failed to unmap buffer: %s", C.GoString(C.vaErrorStr(s)))
+		return nil, func() {}, fmt.Errorf("failed to unmap buffer: %s", C.GoString(C.vaErrorStr(s)))
 	}
 	if s := C.vaDestroyImage(e.display, vaImg.image_id); s != C.VA_STATUS_SUCCESS {
-		return nil, fmt.Errorf("failed to destroy image: %s", C.GoString(C.vaErrorStr(s)))
+		return nil, func() {}, fmt.Errorf("failed to destroy image: %s", C.GoString(C.vaErrorStr(s)))
 	}
 
 	if s := C.vaRenderPicture(
@@ -463,38 +462,38 @@ func (e *encoderVP8) Read() ([]byte, error) {
 		&buffs[1], // 0 is for ouput
 		C.int(len(buffs)-1),
 	); s != C.VA_STATUS_SUCCESS {
-		return nil, fmt.Errorf("failed to render picture: %s", C.GoString(C.vaErrorStr(s)))
+		return nil, func() {}, fmt.Errorf("failed to render picture: %s", C.GoString(C.vaErrorStr(s)))
 	}
 	if s := C.vaEndPicture(
 		e.display, e.ctxID,
 	); s != C.VA_STATUS_SUCCESS {
-		return nil, fmt.Errorf("failed to end picture: %s", C.GoString(C.vaErrorStr(s)))
+		return nil, func() {}, fmt.Errorf("failed to end picture: %s", C.GoString(C.vaErrorStr(s)))
 	}
 
 	// Load encoded data
 	for retry := 3; retry >= 0; retry-- {
 		if s := C.vaSyncSurface(e.display, e.picParam.reconstructed_frame); s != C.VA_STATUS_SUCCESS {
-			return nil, fmt.Errorf("failed to sync surface: %s", C.GoString(C.vaErrorStr(s)))
+			return nil, func() {}, fmt.Errorf("failed to sync surface: %s", C.GoString(C.vaErrorStr(s)))
 		}
 		var surfStat C.VASurfaceStatus
 		if s := C.vaQuerySurfaceStatus(
 			e.display, e.picParam.reconstructed_frame, &surfStat,
 		); s != C.VA_STATUS_SUCCESS {
-			return nil, fmt.Errorf("failed to query surface status: %s", C.GoString(C.vaErrorStr(s)))
+			return nil, func() {}, fmt.Errorf("failed to query surface status: %s", C.GoString(C.vaErrorStr(s)))
 		}
 		if surfStat == C.VASurfaceReady {
 			break
 		}
 		if retry == 0 {
-			return nil, fmt.Errorf("failed to sync surface: %d", surfStat)
+			return nil, func() {}, fmt.Errorf("failed to sync surface: %d", surfStat)
 		}
 	}
 	var seg *C.VACodedBufferSegment
 	if s := C.vaMapBufferSeg(e.display, buffs[0], &seg); s != C.VA_STATUS_SUCCESS {
-		return nil, fmt.Errorf("failed to map buffer: %s", C.GoString(C.vaErrorStr(s)))
+		return nil, func() {}, fmt.Errorf("failed to map buffer: %s", C.GoString(C.vaErrorStr(s)))
 	}
 	if seg.status&C.VA_CODED_BUF_STATUS_SLICE_OVERFLOW_MASK != 0 {
-		return nil, errors.New("buffer size too small")
+		return nil, func() {}, errors.New("buffer size too small")
 	}
 
 	if cap(e.frame) < int(seg.size) {
@@ -507,13 +506,13 @@ func (e *encoderVP8) Read() ([]byte, error) {
 	)
 
 	if s := C.vaUnmapBuffer(e.display, buffs[0]); s != C.VA_STATUS_SUCCESS {
-		return nil, fmt.Errorf("failed to unmap buffer: %s", C.GoString(C.vaErrorStr(s)))
+		return nil, func() {}, fmt.Errorf("failed to unmap buffer: %s", C.GoString(C.vaErrorStr(s)))
 	}
 
 	// Destroy buffers
 	for _, b := range buffs {
 		if s := C.vaDestroyBuffer(e.display, b); s != C.VA_STATUS_SUCCESS {
-			return nil, fmt.Errorf("failed to destroy buffer: %s", C.GoString(C.vaErrorStr(s)))
+			return nil, func() {}, fmt.Errorf("failed to destroy buffer: %s", C.GoString(C.vaErrorStr(s)))
 		}
 	}
 
@@ -538,7 +537,7 @@ func (e *encoderVP8) Read() ([]byte, error) {
 
 	encoded := make([]byte, len(e.frame))
 	copy(encoded, e.frame)
-	return encoded, err
+	return encoded, func() {}, err
 }
 
 func (e *encoderVP8) SetBitRate(b int) error {

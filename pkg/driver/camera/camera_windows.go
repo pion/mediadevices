@@ -116,10 +116,10 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 
 	img := &image.YCbCr{}
 
-	r := video.ReaderFunc(func() (image.Image, error) {
+	r := video.ReaderFunc(func() (image.Image, func(), error) {
 		b, ok := <-c.ch
 		if !ok {
-			return nil, io.EOF
+			return nil, func() {}, io.EOF
 		}
 		img.Y = b[:nPix]
 		img.Cb = b[nPix : nPix+nPix/2]
@@ -128,7 +128,7 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 		img.CStride = p.Width / 2
 		img.SubsampleRatio = image.YCbCrSubsampleRatio422
 		img.Rect = image.Rect(0, 0, p.Width, p.Height)
-		return img, nil
+		return img, func() {}, nil
 	})
 	return r, nil
 }

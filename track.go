@@ -160,7 +160,7 @@ func (t *track) onError(err error) {
 // start starts the data flow from the driver all the way to the localTrack
 func (t *track) start() {
 	for {
-		buff, err := t.encoder.Read()
+		buff, _, err := t.encoder.Read()
 		if err != nil {
 			t.onError(err)
 			return

@@ -97,11 +97,11 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 		return nil, err
 	}
 
-	reader := audio.ReaderFunc(func() (wave.Audio, error) {
+	reader := audio.ReaderFunc(func() (wave.Audio, func(), error) {
 		buff, ok := <-samplesChan
 		if !ok {
 			stream.Close()
-			return nil, io.EOF
+			return nil, func() {}, io.EOF
 		}
 
 		a := wave.NewInt16Interleaved(
@@ -112,7 +112,7 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 		)
 		copy(a.Data, buff)
 
-		return a, nil
+		return a, func() {}, nil
 	})
 
 	stream.Start()

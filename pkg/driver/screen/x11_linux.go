@@ -68,9 +68,9 @@ func (s *screen) VideoRecord(p prop.Media) (video.Reader, error) {
 	var dst image.RGBA
 	reader := s.reader
 
-	r := video.ReaderFunc(func() (image.Image, error) {
+	r := video.ReaderFunc(func() (image.Image, func(), error) {
 		<-s.tick.C
-		return reader.Read().ToRGBA(&dst), nil
+		return reader.Read().ToRGBA(&dst), func() {}, nil
 	})
 	return r, nil
 }

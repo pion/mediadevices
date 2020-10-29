@@ -17,12 +17,12 @@ func TestDetectCurrentVideoProp(t *testing.T) {
 	second.Pix[0] = 2
 
 	isFirst := true
-	source := video.ReaderFunc(func() (image.Image, error) {
+	source := video.ReaderFunc(func() (image.Image, func(), error) {
 		if isFirst {
 			isFirst = true
-			return first, nil
+			return first, func() {}, nil
 		} else {
-			return second, nil
+			return second, func() {}, nil
 		}
 	})
 
@@ -42,7 +42,7 @@ func TestDetectCurrentVideoProp(t *testing.T) {
 	}
 
 	reader := broadcaster.NewReader(false)
-	img, err := reader.Read()
+	img, _, err := reader.Read()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,12 +65,12 @@ func TestDetectCurrentAudioProp(t *testing.T) {
 	second.Data[0] = 2
 
 	isFirst := true
-	source := audio.ReaderFunc(func() (wave.Audio, error) {
+	source := audio.ReaderFunc(func() (wave.Audio, func(), error) {
 		if isFirst {
 			isFirst = true
-			return first, nil
+			return first, func() {}, nil
 		} else {
-			return second, nil
+			return second, func() {}, nil
 		}
 	})
 
@@ -86,7 +86,7 @@ func TestDetectCurrentAudioProp(t *testing.T) {
 	}
 
 	reader := broadcaster.NewReader(false)
-	chunk, err := reader.Read()
+	chunk, _, err := reader.Read()
 	if err != nil {
 		t.Fatal(err)
 	}

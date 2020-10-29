@@ -103,10 +103,10 @@ func (d *dummy) VideoRecord(p prop.Media) (video.Reader, error) {
 	d.tick = tick
 	closed := d.closed
 
-	r := video.ReaderFunc(func() (image.Image, error) {
+	r := video.ReaderFunc(func() (image.Image, func(), error) {
 		select {
 		case <-closed:
-			return nil, io.EOF
+			return nil, func() {}, io.EOF
 		default:
 		}
 
@@ -130,7 +130,7 @@ func (d *dummy) VideoRecord(p prop.Media) (video.Reader, error) {
 			CStride:        p.Width / 2,
 			SubsampleRatio: image.YCbCrSubsampleRatio422,
 			Rect:           image.Rect(0, 0, p.Width, p.Height),
-		}, nil
+		}, func() {}, nil
 	})
 
 	return r, nil
