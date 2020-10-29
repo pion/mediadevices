@@ -194,10 +194,10 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 
 	// TODO: detect microphone device disconnection and return EOF
 
-	reader := audio.ReaderFunc(func() (wave.Audio, error) {
+	reader := audio.ReaderFunc(func() (wave.Audio, func(), error) {
 		b, ok := <-m.chBuf
 		if !ok {
-			return nil, io.EOF
+			return nil, func() {}, io.EOF
 		}
 
 		select {
@@ -210,7 +210,7 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 				uintptr(unsafe.Sizeof(b.waveHdr)),
 			)
 			if err := errWinmm[ret]; err != nil {
-				return nil, err
+				return nil, func() {}, err
 			}
 		}
 
@@ -229,7 +229,7 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 			}
 		}
 
-		return a, nil
+		return a, func() {}, nil
 	})
 	return reader, nil
 }

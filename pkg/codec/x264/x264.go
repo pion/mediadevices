@@ -94,17 +94,17 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	return &e, nil
 }
 
-func (e *encoder) Read() ([]byte, error) {
+func (e *encoder) Read() ([]byte, func(), error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if e.closed {
-		return nil, io.EOF
+		return nil, func() {}, io.EOF
 	}
 
-	img, err := e.r.Read()
+	img, _, err := e.r.Read()
 	if err != nil {
-		return nil, err
+		return nil, func() {}, err
 	}
 	yuvImg := img.(*image.YCbCr)
 
@@ -117,11 +117,11 @@ func (e *encoder) Read() ([]byte, error) {
 		&rc,
 	)
 	if err := errFromC(rc); err != nil {
-		return nil, err
+		return nil, func() {}, err
 	}
 
 	encoded := C.GoBytes(unsafe.Pointer(s.data), s.data_len)
-	return encoded, err
+	return encoded, func() {}, err
 }
 
 func (e *encoder) SetBitRate(b int) error {

@@ -9,18 +9,18 @@ import (
 func TestBroadcast(t *testing.T) {
 	resolution := image.Rect(0, 0, 1920, 1080)
 	img := image.NewGray(resolution)
-	source := ReaderFunc(func() (image.Image, error) {
-		return img, nil
+	source := ReaderFunc(func() (image.Image, func(), error) {
+		return img, func() {}, nil
 	})
 
 	broadcaster := NewBroadcaster(source, nil)
 	readerWithoutCopy1 := broadcaster.NewReader(false)
 	readerWithoutCopy2 := broadcaster.NewReader(false)
-	actualWithoutCopy1, err := readerWithoutCopy1.Read()
+	actualWithoutCopy1, _, err := readerWithoutCopy1.Read()
 	if err != nil {
 		t.Fatal(err)
 	}
-	actualWithoutCopy2, err := readerWithoutCopy2.Read()
+	actualWithoutCopy2, _, err := readerWithoutCopy2.Read()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestBroadcast(t *testing.T) {
 	}
 
 	readerWithCopy := broadcaster.NewReader(true)
-	actualWithCopy, err := readerWithCopy.Read()
+	actualWithCopy, _, err := readerWithCopy.Read()
 	if err != nil {
 		t.Fatal(err)
 	}

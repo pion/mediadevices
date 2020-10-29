@@ -156,10 +156,10 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 			}
 		}
 
-		return ReaderFunc(func() (image.Image, error) {
-			img, err := r.Read()
+		return ReaderFunc(func() (image.Image, func(), error) {
+			img, _, err := r.Read()
 			if err != nil {
-				return nil, err
+				return nil, func() {}, err
 			}
 
 			switch v := img.(type) {
@@ -169,7 +169,7 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 				scalerCached.Scale(dst, rect, v, v.Rect, draw.Src, nil)
 
 				cloned := *dst // clone metadata
-				return &cloned, nil
+				return &cloned, func() {}, nil
 
 			case *image.YCbCr:
 				ycbcrRealloc(v)
@@ -184,10 +184,10 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 				scalerCached.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Src, nil)
 
 				cloned := *(imgScaled.(*image.YCbCr)) // clone metadata
-				return &cloned, nil
+				return &cloned, func() {}, nil
 
 			default:
-				return nil, errUnsupportedImageType
+				return nil, func() {}, errUnsupportedImageType
 			}
 		})
 	}

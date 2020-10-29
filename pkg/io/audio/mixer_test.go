@@ -34,16 +34,16 @@ func TestMixer(t *testing.T) {
 	trans := NewChannelMixer(1, &mixer.MonoMixer{})
 
 	var iSent int
-	r := trans(ReaderFunc(func() (wave.Audio, error) {
+	r := trans(ReaderFunc(func() (wave.Audio, func(), error) {
 		if iSent < len(input) {
 			iSent++
-			return input[iSent-1], nil
+			return input[iSent-1], func() {}, nil
 		}
-		return nil, io.EOF
+		return nil, func() {}, io.EOF
 	}))
 
 	for i := 0; ; i++ {
-		a, err := r.Read()
+		a, _, err := r.Read()
 		if err != nil {
 			if err == io.EOF && i >= len(expected) {
 				break

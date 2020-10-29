@@ -14,12 +14,12 @@ func DetectChanges(interval time.Duration, onChange func(prop.Media)) TransformF
 		var currentProp prop.Media
 		var lastTaken time.Time
 		var frames uint
-		return ReaderFunc(func() (image.Image, error) {
+		return ReaderFunc(func() (image.Image, func(), error) {
 			var dirty bool
 
-			img, err := r.Read()
+			img, _, err := r.Read()
 			if err != nil {
-				return nil, err
+				return nil, func() {}, err
 			}
 
 			bounds := img.Bounds()
@@ -52,7 +52,7 @@ func DetectChanges(interval time.Duration, onChange func(prop.Media)) TransformF
 			}
 
 			frames++
-			return img, nil
+			return img, func() {}, nil
 		})
 	}
 }

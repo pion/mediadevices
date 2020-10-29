@@ -182,7 +182,7 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
 	var buf []byte
-	r := video.ReaderFunc(func() (img image.Image, err error) {
+	r := video.ReaderFunc(func() (img image.Image, release func(), err error) {
 		// Lock to avoid accessing the buffer after StopStreaming()
 		c.mutex.Lock()
 		defer c.mutex.Unlock()
@@ -191,23 +191,23 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 		for i := 0; i < maxEmptyFrameCount; i++ {
 			if ctx.Err() != nil {
 				// Return EOF if the camera is already closed.
-				return nil, io.EOF
+				return nil, func() {}, io.EOF
 			}
 
 			err := cam.WaitForFrame(5) // 5 seconds
 			switch err.(type) {
 			case nil:
 			case *webcam.Timeout:
-				return nil, errReadTimeout
+				return nil, func() {}, errReadTimeout
 			default:
 				// Camera has been stopped.
-				return nil, err
+				return nil, func() {}, err
 			}
 
 			b, err := cam.ReadFrame()
 			if err != nil {
 				// Camera has been stopped.
-				return nil, err
+				return nil, func() {}, err
 			}
 
 			// Frame is empty.
@@ -227,7 +227,7 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 			n := copy(buf, b)
 			return decoder.Decode(buf[:n], p.Width, p.Height)
 		}
-		return nil, errEmptyFrame
+		return nil, func() {}, errEmptyFrame
 	})
 
 	return r, nil

@@ -10,16 +10,16 @@ import (
 func Throttle(rate float32) TransformFunc {
 	return func(r Reader) Reader {
 		ticker := time.NewTicker(time.Duration(int64(float64(time.Second) / float64(rate))))
-		return ReaderFunc(func() (image.Image, error) {
+		return ReaderFunc(func() (image.Image, func(), error) {
 			for {
-				img, err := r.Read()
+				img, _, err := r.Read()
 				if err != nil {
 					ticker.Stop()
-					return nil, err
+					return nil, func() {}, err
 				}
 				select {
 				case <-ticker.C:
-					return img, nil
+					return img, func() {}, nil
 				default:
 				}
 			}

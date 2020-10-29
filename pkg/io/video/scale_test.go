@@ -215,11 +215,11 @@ func TestScale(t *testing.T) {
 				c := c
 				t.Run(name, func(t *testing.T) {
 					trans := Scale(c.width, c.height, algo)
-					r := trans(ReaderFunc(func() (image.Image, error) {
-						return c.src, nil
+					r := trans(ReaderFunc(func() (image.Image, func(), error) {
+						return c.src, func() {}, nil
 					}))
 					for i := 0; i < 4; i++ {
-						out, err := r.Read()
+						out, _, err := r.Read()
 						if err != nil {
 							t.Fatalf("Unexpected error: %v", err)
 						}
@@ -261,12 +261,12 @@ func BenchmarkScale(b *testing.B) {
 						img := img
 						b.Run(name, func(b *testing.B) {
 							trans := Scale(640, 360, algo)
-							r := trans(ReaderFunc(func() (image.Image, error) {
-								return img, nil
+							r := trans(ReaderFunc(func() (image.Image, func(), error) {
+								return img, func() {}, nil
 							}))
 
 							for i := 0; i < b.N; i++ {
-								_, err := r.Read()
+								_, _, err := r.Read()
 								if err != nil {
 									b.Fatalf("Unexpected error: %v", err)
 								}

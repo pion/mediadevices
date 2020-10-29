@@ -27,7 +27,7 @@ func NewBroadcaster(source Reader, config *BroadcasterConfig) *Broadcaster {
 		coreConfig = config.Core
 	}
 
-	broadcaster := io.NewBroadcaster(io.ReaderFunc(func() (interface{}, error) {
+	broadcaster := io.NewBroadcaster(io.ReaderFunc(func() (interface{}, func(), error) {
 		return source.Read()
 	}), coreConfig)
 
@@ -51,16 +51,16 @@ func (broadcaster *Broadcaster) NewReader(copyFrame bool) Reader {
 	}
 
 	reader := broadcaster.ioBroadcaster.NewReader(copyFn)
-	return ReaderFunc(func() (image.Image, error) {
-		data, err := reader.Read()
+	return ReaderFunc(func() (image.Image, func(), error) {
+		data, _, err := reader.Read()
 		img, _ := data.(image.Image)
-		return img, err
+		return img, func() {}, err
 	})
 }
 
 // ReplaceSource replaces the underlying source. This operation is thread safe.
 func (broadcaster *Broadcaster) ReplaceSource(source Reader) error {
-	return broadcaster.ioBroadcaster.ReplaceSource(io.ReaderFunc(func() (interface{}, error) {
+	return broadcaster.ioBroadcaster.ReplaceSource(io.ReaderFunc(func() (interface{}, func(), error) {
 		return source.Read()
 	}))
 }
@@ -68,9 +68,9 @@ func (broadcaster *Broadcaster) ReplaceSource(source Reader) error {
 // Source retrieves the underlying source. This operation is thread safe.
 func (broadcaster *Broadcaster) Source() Reader {
 	source := broadcaster.ioBroadcaster.Source()
-	return ReaderFunc(func() (image.Image, error) {
-		data, err := source.Read()
+	return ReaderFunc(func() (image.Image, func(), error) {
+		data, _, err := source.Read()
 		img, _ := data.(image.Image)
-		return img, err
+		return img, func() {}, err
 	})
 }

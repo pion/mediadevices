@@ -5,13 +5,14 @@ import (
 )
 
 type Reader interface {
-	Read() (wave.Audio, error)
+	Read() (chunk wave.Audio, release func(), err error)
 }
 
-type ReaderFunc func() (wave.Audio, error)
+type ReaderFunc func() (chunk wave.Audio, release func(), err error)
 
-func (rf ReaderFunc) Read() (wave.Audio, error) {
-	return rf()
+func (rf ReaderFunc) Read() (chunk wave.Audio, release func(), err error) {
+	chunk, release, err = rf()
+	return
 }
 
 // TransformFunc produces a new Reader that will produces a transformed audio

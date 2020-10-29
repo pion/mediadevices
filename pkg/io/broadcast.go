@@ -127,10 +127,10 @@ func NewBroadcaster(source Reader, config *BroadcasterConfig) *Broadcaster {
 func (broadcaster *Broadcaster) NewReader(copyFn func(interface{}) interface{}) Reader {
 	currentCount := broadcaster.buffer.lastCount()
 
-	return ReaderFunc(func() (data interface{}, err error) {
+	return ReaderFunc(func() (data interface{}, release func(), err error) {
 		currentCount++
 		if push := broadcaster.buffer.acquire(currentCount); push != nil {
-			data, err = broadcaster.source.Load().(Reader).Read()
+			data, _, err = broadcaster.source.Load().(Reader).Read()
 			push(&broadcasterData{
 				data:  data,
 				err:   err,

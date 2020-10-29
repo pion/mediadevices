@@ -55,17 +55,17 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	return &e, nil
 }
 
-func (e *encoder) Read() ([]byte, error) {
+func (e *encoder) Read() ([]byte, func(), error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if e.closed {
-		return nil, io.EOF
+		return nil, func() {}, io.EOF
 	}
 
-	img, err := e.r.Read()
+	img, _, err := e.r.Read()
 	if err != nil {
-		return nil, err
+		return nil, func() {}, err
 	}
 	imgReal := img.(*image.YCbCr)
 	var y, cb, cr C.Slice
@@ -79,7 +79,7 @@ func (e *encoder) Read() ([]byte, error) {
 	var encodedBuffer *C.MMAL_BUFFER_HEADER_T
 	status := C.enc_encode(&e.engine, y, cb, cr, &encodedBuffer)
 	if status.code != 0 {
-		return nil, statusToErr(&status)
+		return nil, func() {}, statusToErr(&status)
 	}
 
 	// GoBytes copies the C array to Go slice. After this, it's safe to release the C array
@@ -87,7 +87,7 @@ func (e *encoder) Read() ([]byte, error) {
 	// Release the buffer so that mmal can reuse this memory
 	C.mmal_buffer_header_release(encodedBuffer)
 
-	return encoded, err
+	return encoded, func() {}, err
 }
 
 func (e *encoder) SetBitRate(b int) error {

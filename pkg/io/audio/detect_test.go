@@ -11,12 +11,12 @@ import (
 
 func TestDetectChanges(t *testing.T) {
 	buildSource := func(p prop.Media) (Reader, func(prop.Media)) {
-		return ReaderFunc(func() (wave.Audio, error) {
+		return ReaderFunc(func() (wave.Audio, func(), error) {
 				return wave.NewFloat32Interleaved(wave.ChunkInfo{
 					Len:          0,
 					Channels:     p.ChannelCount,
 					SamplingRate: p.SampleRate,
-				}), nil
+				}), func() {}, nil
 			}), func(newProp prop.Media) {
 				p = newProp
 			}
@@ -34,7 +34,7 @@ func TestDetectChanges(t *testing.T) {
 			detectBeforeFirstChunk = true
 		})(src)
 
-		_, err := src.Read()
+		_, _, err := src.Read()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -63,7 +63,7 @@ func TestDetectChanges(t *testing.T) {
 				expected.ChannelCount = channelCount
 				expected.SampleRate = sampleRate
 				update(expected)
-				_, err := src.Read()
+				_, _, err := src.Read()
 				if err != nil {
 					t.Fatal(err)
 				}

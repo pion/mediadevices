@@ -63,10 +63,10 @@ func imageToYCbCr(dst *image.YCbCr, src image.Image) {
 // ToI420 converts r to a new reader that will output images in I420 format
 func ToI420(r Reader) Reader {
 	var yuvImg image.YCbCr
-	return ReaderFunc(func() (image.Image, error) {
-		img, err := r.Read()
+	return ReaderFunc(func() (image.Image, func(), error) {
+		img, _, err := r.Read()
 		if err != nil {
-			return nil, err
+			return nil, func() {}, err
 		}
 
 		imageToYCbCr(&yuvImg, img)
@@ -79,11 +79,11 @@ func ToI420(r Reader) Reader {
 			i422ToI420(&yuvImg)
 		case image.YCbCrSubsampleRatio420:
 		default:
-			return nil, fmt.Errorf("unsupported pixel format: %s", yuvImg.SubsampleRatio)
+			return nil, func() {}, fmt.Errorf("unsupported pixel format: %s", yuvImg.SubsampleRatio)
 		}
 
 		yuvImg.SubsampleRatio = image.YCbCrSubsampleRatio420
-		return &yuvImg, nil
+		return &yuvImg, func() {}, nil
 	})
 }
 
@@ -130,13 +130,13 @@ func imageToRGBA(dst *image.RGBA, src image.Image) {
 // ToRGBA converts r to a new reader that will output images in RGBA format
 func ToRGBA(r Reader) Reader {
 	var dst image.RGBA
-	return ReaderFunc(func() (image.Image, error) {
-		img, err := r.Read()
+	return ReaderFunc(func() (image.Image, func(), error) {
+		img, _, err := r.Read()
 		if err != nil {
-			return nil, err
+			return nil, func() {}, err
 		}
 
 		imageToRGBA(&dst, img)
-		return &dst, nil
+		return &dst, func() {}, nil
 	})
 }

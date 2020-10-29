@@ -5,13 +5,14 @@ import (
 )
 
 type Reader interface {
-	Read() (img image.Image, err error)
+	Read() (img image.Image, release func(), err error)
 }
 
-type ReaderFunc func() (img image.Image, err error)
+type ReaderFunc func() (img image.Image, release func(), err error)
 
-func (rf ReaderFunc) Read() (img image.Image, err error) {
-	return rf()
+func (rf ReaderFunc) Read() (img image.Image, release func(), err error) {
+	img, release, err = rf()
+	return
 }
 
 // TransformFunc produces a new Reader that will produces a transformed video

@@ -19,14 +19,14 @@ func TestThrottle(t *testing.T) {
 
 	var cntPush int
 	trans := Throttle(50)
-	r := trans(ReaderFunc(func() (image.Image, error) {
+	r := trans(ReaderFunc(func() (image.Image, func(), error) {
 		<-ticker.C
 		cntPush++
-		return img, nil
+		return img, func() {}, nil
 	}))
 
 	for i := 0; i < 20; i++ {
-		_, err := r.Read()
+		_, _, err := r.Read()
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}

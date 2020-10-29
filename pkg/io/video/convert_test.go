@@ -144,10 +144,10 @@ func TestToI420(t *testing.T) {
 	for name, c := range cases {
 		c := c
 		t.Run(name, func(t *testing.T) {
-			r := ToI420(ReaderFunc(func() (image.Image, error) {
-				return c.src, nil
+			r := ToI420(ReaderFunc(func() (image.Image, func(), error) {
+				return c.src, func() {}, nil
 			}))
-			out, err := r.Read()
+			out, _, err := r.Read()
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -199,10 +199,10 @@ func TestToRGBA(t *testing.T) {
 	for name, c := range cases {
 		c := c
 		t.Run(name, func(t *testing.T) {
-			r := ToRGBA(ReaderFunc(func() (image.Image, error) {
-				return c.src, nil
+			r := ToRGBA(ReaderFunc(func() (image.Image, func(), error) {
+				return c.src, func() {}, nil
 			}))
-			out, err := r.Read()
+			out, _, err := r.Read()
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -225,12 +225,12 @@ func BenchmarkToI420(b *testing.B) {
 			for name, img := range cases {
 				img := img
 				b.Run(name, func(b *testing.B) {
-					r := ToI420(ReaderFunc(func() (image.Image, error) {
-						return img, nil
+					r := ToI420(ReaderFunc(func() (image.Image, func(), error) {
+						return img, func() {}, nil
 					}))
 
 					for i := 0; i < b.N; i++ {
-						_, err := r.Read()
+						_, _, err := r.Read()
 						if err != nil {
 							b.Fatalf("Unexpected error: %v", err)
 						}
@@ -253,12 +253,12 @@ func BenchmarkToRGBA(b *testing.B) {
 			for name, img := range cases {
 				img := img
 				b.Run(name, func(b *testing.B) {
-					r := ToRGBA(ReaderFunc(func() (image.Image, error) {
-						return img, nil
+					r := ToRGBA(ReaderFunc(func() (image.Image, func(), error) {
+						return img, func() {}, nil
 					}))
 
 					for i := 0; i < b.N; i++ {
-						_, err := r.Read()
+						_, _, err := r.Read()
 						if err != nil {
 							b.Fatalf("Unexpected error: %v", err)
 						}

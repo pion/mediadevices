@@ -5,13 +5,13 @@ import (
 	"image"
 )
 
-func decodeI420(frame []byte, width, height int) (image.Image, error) {
+func decodeI420(frame []byte, width, height int) (image.Image, func(), error) {
 	yi := width * height
 	cbi := yi + width*height/4
 	cri := cbi + width*height/4
 
 	if cri > len(frame) {
-		return nil, fmt.Errorf("frame length (%d) less than expected (%d)", len(frame), cri)
+		return nil, func() {}, fmt.Errorf("frame length (%d) less than expected (%d)", len(frame), cri)
 	}
 
 	return &image.YCbCr{
@@ -22,15 +22,15 @@ func decodeI420(frame []byte, width, height int) (image.Image, error) {
 		CStride:        width / 2,
 		SubsampleRatio: image.YCbCrSubsampleRatio420,
 		Rect:           image.Rect(0, 0, width, height),
-	}, nil
+	}, func() {}, nil
 }
 
-func decodeNV21(frame []byte, width, height int) (image.Image, error) {
+func decodeNV21(frame []byte, width, height int) (image.Image, func(), error) {
 	yi := width * height
 	ci := yi + width*height/2
 
 	if ci > len(frame) {
-		return nil, fmt.Errorf("frame length (%d) less than expected (%d)", len(frame), ci)
+		return nil, func() {}, fmt.Errorf("frame length (%d) less than expected (%d)", len(frame), ci)
 	}
 
 	var cb, cr []byte
@@ -47,5 +47,5 @@ func decodeNV21(frame []byte, width, height int) (image.Image, error) {
 		CStride:        width / 2,
 		SubsampleRatio: image.YCbCrSubsampleRatio420,
 		Rect:           image.Rect(0, 0, width, height),
-	}, nil
+	}, func() {}, nil
 }
