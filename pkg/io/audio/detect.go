@@ -32,7 +32,10 @@ func DetectChanges(interval time.Duration, onChange func(prop.Media)) TransformF
 				dirty = true
 			}
 
-			latency := time.Duration(chunk.ChunkInfo().Len) * time.Second / time.Nanosecond / time.Duration(currentProp.SampleRate)
+			var latency time.Duration
+			if currentProp.SampleRate != 0 {
+				latency = time.Duration(chunk.ChunkInfo().Len) * time.Second / time.Nanosecond / time.Duration(currentProp.SampleRate)
+			}
 			if currentProp.Latency != latency {
 				currentProp.Latency = latency
 				dirty = true
