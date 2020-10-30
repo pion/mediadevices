@@ -106,8 +106,9 @@ func (m *microphone) AudioRecord(p prop.Media) (audio.Reader, error) {
 
 		a := wave.NewInt16Interleaved(
 			wave.ChunkInfo{
-				Channels: p.ChannelCount,
-				Len:      len(buff) / p.ChannelCount,
+				Channels:     p.ChannelCount,
+				Len:          len(buff) / p.ChannelCount,
+				SamplingRate: p.SampleRate,
 			},
 		)
 		copy(a.Data, buff)
