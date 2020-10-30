@@ -13,7 +13,7 @@ func TestDetectChanges(t *testing.T) {
 	buildSource := func(p prop.Media) (Reader, func(prop.Media)) {
 		return ReaderFunc(func() (wave.Audio, func(), error) {
 				return wave.NewFloat32Interleaved(wave.ChunkInfo{
-					Len:          0,
+					Len:          960,
 					Channels:     p.ChannelCount,
 					SamplingRate: p.SampleRate,
 				}), func() {}, nil
@@ -28,6 +28,7 @@ func TestDetectChanges(t *testing.T) {
 		var actual prop.Media
 		expected.ChannelCount = 2
 		expected.SampleRate = 48000
+		expected.Latency = time.Millisecond * 20
 		src, _ := buildSource(expected)
 		src = DetectChanges(time.Second, func(p prop.Media) {
 			actual = p
@@ -53,24 +54,22 @@ func TestDetectChanges(t *testing.T) {
 		var actual prop.Media
 		expected.ChannelCount = 2
 		expected.SampleRate = 48000
+		expected.Latency = 20 * time.Millisecond
 		src, update := buildSource(expected)
 		src = DetectChanges(time.Second, func(p prop.Media) {
 			actual = p
 		})(src)
 
 		for channelCount := 1; channelCount < 8; channelCount++ {
-			for sampleRate := 12000; sampleRate <= 48000; sampleRate += 4000 {
-				expected.ChannelCount = channelCount
-				expected.SampleRate = sampleRate
-				update(expected)
-				_, _, err := src.Read()
-				if err != nil {
-					t.Fatal(err)
-				}
+			expected.ChannelCount = channelCount
+			update(expected)
+			_, _, err := src.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
 
-				if !reflect.DeepEqual(actual, expected) {
-					t.Fatalf("Received an unexpected prop\nExpected:\n%v\nActual:\n%v\n", expected, actual)
-				}
+			if !reflect.DeepEqual(actual, expected) {
+				t.Fatalf("Received an unexpected prop\nExpected:\n%v\nActual:\n%v\n", expected, actual)
 			}
 		}
 	})

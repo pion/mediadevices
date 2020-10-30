@@ -32,6 +32,12 @@ func DetectChanges(interval time.Duration, onChange func(prop.Media)) TransformF
 				dirty = true
 			}
 
+			latency := time.Duration(chunk.ChunkInfo().Len) * time.Second / time.Nanosecond / time.Duration(currentProp.SampleRate)
+			if currentProp.Latency != latency {
+				currentProp.Latency = latency
+				dirty = true
+			}
+
 			// TODO: Also detect sample format changes?
 			// TODO: Add audio detect changes. As of now, there's no useful property to track.
 
