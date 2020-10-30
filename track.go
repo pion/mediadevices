@@ -243,8 +243,6 @@ func (track *VideoTrack) Bind(pc *webrtc.PeerConnection) (*webrtc.Track, error) 
 	}
 
 	wantCodecs := pc.GetRegisteredRTPCodecs(webrtc.RTPCodecTypeVideo)
-	fmt.Println(wantCodecs)
-	fmt.Println(&inputProp)
 	encodedReader, selectedCodec, err := track.selector.selectVideoCodec(wantCodecs, reader, inputProp)
 	if err != nil {
 		return nil, err
