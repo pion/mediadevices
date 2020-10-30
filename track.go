@@ -123,8 +123,6 @@ func (track *baseTrack) bind(pc *webrtc.PeerConnection, encodedReader codec.Read
 	signalCh := make(chan chan<- struct{})
 	track.activePeerConnections[pc] = signalCh
 
-	fmt.Println("Binding")
-
 	go func() {
 		var doneCh chan<- struct{}
 		defer func() {
