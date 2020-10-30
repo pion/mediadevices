@@ -2,7 +2,6 @@ package mediadevices
 
 import (
 	"errors"
-	"fmt"
 	"image"
 	"math/rand"
 	"sync"
