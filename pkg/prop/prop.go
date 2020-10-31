@@ -42,15 +42,18 @@ func prettifyStruct(i interface{}) string {
 			value := obj.Field(i)
 
 			padding := strings.Repeat("  ", level)
-			if value.Kind() == reflect.Struct {
+			switch value.Kind() {
+			case reflect.Struct:
 				rows = append(rows, fmt.Sprintf("%s%v:", padding, field.Name))
 				addRows(level+1, value)
-			} else {
+			case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
 				if value.IsNil() {
 					rows = append(rows, fmt.Sprintf("%s%v: any", padding, field.Name))
 				} else {
 					rows = append(rows, fmt.Sprintf("%s%v: %v", padding, field.Name, value))
 				}
+			default:
+				rows = append(rows, fmt.Sprintf("%s%v: %v", padding, field.Name, value))
 			}
 		}
 	}
