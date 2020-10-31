@@ -46,7 +46,11 @@ func prettifyStruct(i interface{}) string {
 				rows = append(rows, fmt.Sprintf("%s%v:", padding, field.Name))
 				addRows(level+1, value)
 			} else {
-				rows = append(rows, fmt.Sprintf("%s%v: %v", padding, field.Name, value))
+				if value.IsNil() {
+					rows = append(rows, fmt.Sprintf("%s%v: any", padding, field.Name))
+				} else {
+					rows = append(rows, fmt.Sprintf("%s%v: %v", padding, field.Name, value))
+				}
 			}
 		}
 	}
