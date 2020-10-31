@@ -120,12 +120,15 @@ func queryDriverProperties(filter driver.FilterFn) map[driver.Driver][]prop.Medi
 func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints) (driver.Driver, MediaTrackConstraints, error) {
 	var bestDriver driver.Driver
 	var bestProp prop.Media
+	var foundPropertiesLog []string
 	minFitnessDist := math.Inf(1)
 
+	foundPropertiesLog = append(foundPropertiesLog, "\n============ Found Properties ============")
 	driverProperties := queryDriverProperties(filter)
 	for d, props := range driverProperties {
 		priority := float64(d.Info().Priority)
 		for _, p := range props {
+			foundPropertiesLog = append(foundPropertiesLog, p.String())
 			fitnessDist, ok := constraints.MediaConstraints.FitnessDistance(p)
 			if !ok {
 				continue
@@ -139,26 +142,18 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 		}
 	}
 
+	foundPropertiesLog = append(foundPropertiesLog, "=============== Constraints ==============")
+	foundPropertiesLog = append(foundPropertiesLog, constraints.String())
+	foundPropertiesLog = append(foundPropertiesLog, "================ Best Fit ================")
+
 	if bestDriver == nil {
-		var foundProperties []string
-		for _, props := range driverProperties {
-			for _, p := range props {
-				foundProperties = append(foundProperties, fmt.Sprint(&p))
-			}
-		}
-
-		err := fmt.Errorf(`%w:
-============ Found Properties ============
-
-%s
-
-=============== Constraints ==============
-
-%s
-`, errNotFound, strings.Join(foundProperties, "\n\n"), &constraints)
-		return nil, MediaTrackConstraints{}, err
+		foundPropertiesLog = append(foundPropertiesLog, "Not found")
+		logger.Debug(strings.Join(foundPropertiesLog, "\n\n"))
+		return nil, MediaTrackConstraints{}, errNotFound
 	}
 
+	foundPropertiesLog = append(foundPropertiesLog, bestProp.String())
+	logger.Debug(strings.Join(foundPropertiesLog, "\n\n"))
 	constraints.selectedMedia = prop.Media{}
 	constraints.selectedMedia.MergeConstraints(constraints.MediaConstraints)
 	constraints.selectedMedia.Merge(bestProp)
