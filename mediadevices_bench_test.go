@@ -1,3 +1,4 @@
+// +build e2e
 package mediadevices
 
 import (
