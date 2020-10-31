@@ -6,7 +6,9 @@ import (
 	"image/jpeg"
 )
 
-func decodeMJPEG(frame []byte, width, height int) (image.Image, func(), error) {
-	img, err := jpeg.Decode(bytes.NewReader(frame))
-	return img, func() {}, err
+func decodeMJPEG() decoderFunc {
+	return func(frame []byte, width, height int) (image.Image, func(), error) {
+		img, err := jpeg.Decode(bytes.NewReader(frame))
+		return img, func() {}, err
+	}
 }

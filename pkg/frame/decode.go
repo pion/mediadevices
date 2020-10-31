@@ -5,22 +5,22 @@ import (
 )
 
 func NewDecoder(f Format) (Decoder, error) {
-	var decoder decoderFunc
+	var buildDecoder func() decoderFunc
 
 	switch f {
 	case FormatI420:
-		decoder = decodeI420
+		buildDecoder = decodeI420
 	case FormatNV21:
-		decoder = decodeNV21
+		buildDecoder = decodeNV21
 	case FormatYUY2:
-		decoder = decodeYUY2
+		buildDecoder = decodeYUY2
 	case FormatUYVY:
-		decoder = decodeUYVY
+		buildDecoder = decodeUYVY
 	case FormatMJPEG:
-		decoder = decodeMJPEG
+		buildDecoder = decodeMJPEG
 	default:
 		return nil, fmt.Errorf("%s is not supported", f)
 	}
 
-	return decoder, nil
+	return buildDecoder(), nil
 }

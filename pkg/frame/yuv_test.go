@@ -27,7 +27,7 @@ func TestDecodeYUY2(t *testing.T) {
 		Rect:           image.Rect(0, 0, width, height),
 	}
 
-	img, _, err := decodeYUY2(input, width, height)
+	img, _, err := decodeYUY2()(input, width, height)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestDecodeUYVY(t *testing.T) {
 		Rect:           image.Rect(0, 0, width, height),
 	}
 
-	img, _, err := decodeUYVY(input, width, height)
+	img, _, err := decodeUYVY()(input, width, height)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,11 +76,13 @@ func BenchmarkDecodeYUY2(b *testing.B) {
 		sz := sz
 		b.Run(fmt.Sprintf("%dx%d", sz.width, sz.height), func(b *testing.B) {
 			input := make([]byte, sz.width*sz.height*2)
+			decode := decodeYUY2()
 			for i := 0; i < b.N; i++ {
-				_, _, err := decodeYUY2(input, sz.width, sz.height)
+				_, release, err := decode(input, sz.width, sz.height)
 				if err != nil {
 					b.Fatal(err)
 				}
+				release()
 			}
 		})
 	}
