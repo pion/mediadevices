@@ -48,7 +48,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	vp8Params.BitRate = 300_000 // 300kbps
+	vp8Params.BitRate = 100_000 // 100kbps
 
 	opusParams, err := opus.NewParams()
 	if err != nil {
