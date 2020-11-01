@@ -7,6 +7,7 @@ require (
 	github.com/jfreymuth/pulse v0.0.0-20201014123913-1e525c426c93
 	github.com/lherman-cs/opus v0.0.2
 	github.com/pion/logging v0.2.2
+	github.com/pion/rtp v1.6.0
 	github.com/pion/webrtc/v2 v2.2.26
 	github.com/satori/go.uuid v1.2.0
 	golang.org/x/image v0.0.0-20200927104501-e162460cd6b5

@@ -12,6 +12,7 @@ import (
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/wave"
 	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v2/pkg/media"
 )
 
 var (
@@ -109,7 +110,7 @@ func (track *baseTrack) onError(err error) {
 	}
 }
 
-func (track *baseTrack) bind(pc *webrtc.PeerConnection, encodedReader codec.ReadCloser, selectedCodec *codec.RTPCodec, sampler func(*webrtc.Track) samplerFunc) (*webrtc.Track, error) {
+func (track *baseTrack) bind(pc *webrtc.PeerConnection, encodedReader codec.ReadCloser, selectedCodec *codec.RTPCodec, sample samplerFunc) (*webrtc.Track, error) {
 	track.mu.Lock()
 	defer track.mu.Unlock()
 
@@ -118,7 +119,6 @@ func (track *baseTrack) bind(pc *webrtc.PeerConnection, encodedReader codec.Read
 		return nil, err
 	}
 
-	sample := sampler(webrtcTrack)
 	signalCh := make(chan chan<- struct{})
 	track.activePeerConnections[pc] = signalCh
 
@@ -147,7 +147,12 @@ func (track *baseTrack) bind(pc *webrtc.PeerConnection, encodedReader codec.Read
 				return
 			}
 
-			if err := sample(buff); err != nil {
+			sampleCount := sample()
+			err = webrtcTrack.WriteSample(media.Sample{
+				Data:    buff,
+				Samples: sampleCount,
+			})
+			if err != nil {
 				track.onError(err)
 				return
 			}
@@ -247,7 +252,7 @@ func (track *VideoTrack) Bind(pc *webrtc.PeerConnection) (*webrtc.Track, error) 
 		return nil, err
 	}
 
-	return track.bind(pc, encodedReader, selectedCodec, newVideoSampler)
+	return track.bind(pc, encodedReader, selectedCodec, newVideoSampler(selectedCodec.ClockRate))
 }
 
 func (track *VideoTrack) Unbind(pc *webrtc.PeerConnection) error {
@@ -317,7 +322,7 @@ func (track *AudioTrack) Bind(pc *webrtc.PeerConnection) (*webrtc.Track, error) 
 		return nil, err
 	}
 
-	return track.bind(pc, encodedReader, selectedCodec, func(t *webrtc.Track) samplerFunc { return newAudioSampler(t, inputProp.Latency) })
+	return track.bind(pc, encodedReader, selectedCodec, newAudioSampler(selectedCodec.ClockRate, inputProp.Latency))
 }
 
 func (track *AudioTrack) Unbind(pc *webrtc.PeerConnection) error {
