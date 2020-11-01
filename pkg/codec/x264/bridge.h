@@ -47,7 +47,7 @@ Encoder *enc_new(x264_param_t param, char *preset, int *rc) {
   e->param.b_repeat_headers = 1;
   e->param.b_annexb = 1;
 
-  if (x264_param_apply_profile(&e->param, "baseline") < 0) {
+  if (x264_param_apply_profile(&e->param, "high") < 0) {
     *rc = ERR_APPLY_PROFILE;
     goto fail;
   }
