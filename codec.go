@@ -58,17 +58,16 @@ func (selector *CodecSelector) Populate(setting *webrtc.MediaEngine) {
 	}
 }
 
-func (selector *CodecSelector) selectVideoCodec(wantCodecs []*webrtc.RTPCodec, reader video.Reader, inputProp prop.Media) (codec.ReadCloser, *codec.RTPCodec, error) {
+func (selector *CodecSelector) selectVideoCodecByNames(reader video.Reader, inputProp prop.Media, codecNames ...string) (codec.ReadCloser, *codec.RTPCodec, error) {
 	var selectedEncoder codec.VideoEncoderBuilder
 	var encodedReader codec.ReadCloser
 	var errReasons []string
 	var err error
 
 outer:
-	for _, wantCodec := range wantCodecs {
-		name := wantCodec.Name
+	for _, wantCodec := range codecNames {
 		for _, encoder := range selector.videoEncoders {
-			if encoder.RTPCodec().Name == name {
+			if encoder.RTPCodec().Name == wantCodec {
 				encodedReader, err = encoder.BuildVideoEncoder(reader, inputProp)
 				if err == nil {
 					selectedEncoder = encoder
@@ -87,17 +86,26 @@ outer:
 	return encodedReader, selectedEncoder.RTPCodec(), nil
 }
 
-func (selector *CodecSelector) selectAudioCodec(wantCodecs []*webrtc.RTPCodec, reader audio.Reader, inputProp prop.Media) (codec.ReadCloser, *codec.RTPCodec, error) {
+func (selector *CodecSelector) selectVideoCodec(reader video.Reader, inputProp prop.Media, codecs ...*webrtc.RTPCodec) (codec.ReadCloser, *codec.RTPCodec, error) {
+	var codecNames []string
+
+	for _, codec := range codecs {
+		codecNames = append(codecNames, codec.Name)
+	}
+
+	return selector.selectVideoCodecByNames(reader, inputProp, codecNames...)
+}
+
+func (selector *CodecSelector) selectAudioCodecByNames(reader audio.Reader, inputProp prop.Media, codecNames ...string) (codec.ReadCloser, *codec.RTPCodec, error) {
 	var selectedEncoder codec.AudioEncoderBuilder
 	var encodedReader codec.ReadCloser
 	var errReasons []string
 	var err error
 
 outer:
-	for _, wantCodec := range wantCodecs {
-		name := wantCodec.Name
+	for _, wantCodec := range codecNames {
 		for _, encoder := range selector.audioEncoders {
-			if encoder.RTPCodec().Name == name {
+			if encoder.RTPCodec().Name == wantCodec {
 				encodedReader, err = encoder.BuildAudioEncoder(reader, inputProp)
 				if err == nil {
 					selectedEncoder = encoder
@@ -114,4 +122,14 @@ outer:
 	}
 
 	return encodedReader, selectedEncoder.RTPCodec(), nil
+}
+
+func (selector *CodecSelector) selectAudioCodec(reader audio.Reader, inputProp prop.Media, codecs ...*webrtc.RTPCodec) (codec.ReadCloser, *codec.RTPCodec, error) {
+	var codecNames []string
+
+	for _, codec := range codecs {
+		codecNames = append(codecNames, codec.Name)
+	}
+
+	return selector.selectAudioCodecByNames(reader, inputProp, codecNames...)
 }
