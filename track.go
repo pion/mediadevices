@@ -11,6 +11,7 @@ import (
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/wave"
+	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
 )
@@ -259,6 +260,41 @@ func (track *VideoTrack) Unbind(pc *webrtc.PeerConnection) error {
 	return track.unbind(pc)
 }
 
+func (track *VideoTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser, error) {
+	reader := track.NewReader(false)
+	inputProp, err := detectCurrentVideoProp(track.Broadcaster)
+	if err != nil {
+		return nil, err
+	}
+
+	encodedReader, selectedCodec, err := track.selector.selectVideoCodecByNames(reader, inputProp, codecName)
+	if err != nil {
+		return nil, err
+	}
+
+	sample := newVideoSampler(selectedCodec.ClockRate)
+
+	// FIXME: not sure the best way to get unique ssrc. We probably should have a global keeper that can generate a random ID and does book keeping?
+	packetizer := rtp.NewPacketizer(mtu, selectedCodec.PayloadType, rand.Uint32(), selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
+
+	return &rtpReadCloserImpl{
+		readFn: func() ([]*rtp.Packet, func(), error) {
+			encoded, release, err := encodedReader.Read()
+			if err != nil {
+				encodedReader.Close()
+				track.onError(err)
+				return nil, func() {}, err
+			}
+			defer release()
+
+			samples := sample()
+			pkts := packetizer.Packetize(encoded, samples)
+			return pkts, release, err
+		},
+		closeFn: encodedReader.Close,
+	}, nil
+}
+
 // AudioTrack is a specific track type that contains audio source which allows multiple readers to access, and
 // manipulate.
 type AudioTrack struct {
@@ -327,4 +363,39 @@ func (track *AudioTrack) Bind(pc *webrtc.PeerConnection) (*webrtc.Track, error) 
 
 func (track *AudioTrack) Unbind(pc *webrtc.PeerConnection) error {
 	return track.unbind(pc)
+}
+
+func (track *AudioTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser, error) {
+	reader := track.NewReader(false)
+	inputProp, err := detectCurrentAudioProp(track.Broadcaster)
+	if err != nil {
+		return nil, err
+	}
+
+	encodedReader, selectedCodec, err := track.selector.selectAudioCodecByNames(reader, inputProp, codecName)
+	if err != nil {
+		return nil, err
+	}
+
+	sample := newVideoSampler(selectedCodec.ClockRate)
+
+	// FIXME: not sure the best way to get unique ssrc. We probably should have a global keeper that can generate a random ID and does book keeping?
+	packetizer := rtp.NewPacketizer(mtu, selectedCodec.PayloadType, rand.Uint32(), selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
+
+	return &rtpReadCloserImpl{
+		readFn: func() ([]*rtp.Packet, func(), error) {
+			encoded, release, err := encodedReader.Read()
+			if err != nil {
+				encodedReader.Close()
+				track.onError(err)
+				return nil, func() {}, err
+			}
+			defer release()
+
+			samples := sample()
+			pkts := packetizer.Packetize(encoded, samples)
+			return pkts, release, err
+		},
+		closeFn: encodedReader.Close,
+	}, nil
 }
