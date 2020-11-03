@@ -33,6 +33,10 @@ func (track *mockMediaStreamTrack) Unbind(pc *webrtc.PeerConnection) error {
 	return nil
 }
 
+func (track *mockMediaStreamTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser, error) {
+	return nil, nil
+}
+
 func TestMediaStreamFilters(t *testing.T) {
 	audioTracks := []Track{
 		&mockMediaStreamTrack{AudioInput},
