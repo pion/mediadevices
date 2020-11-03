@@ -1,9 +1,9 @@
 ## Instructions
 
-### Download rtp-send example
+### Download rtpexample
 
 ```
-go get github.com/pion/mediadevices/examples/rtp-send
+go get github.com/pion/mediadevices/examples/rtp
 ```
 
 ### Listen RTP
@@ -19,9 +19,9 @@ Or run VLC media plyer:
 vlc ./vp8.sdp
 ```
 
-### Run rtp-send
+### Run rtp
 
-Run `rtp-send localhost:5000`
+Run `rtp localhost:5000`
 
 A video should start playing in your GStreamer or VLC window.
 It's not WebRTC, but pure RTP.
