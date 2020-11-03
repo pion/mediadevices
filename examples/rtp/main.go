@@ -47,7 +47,7 @@ func main() {
 	})
 	must(err)
 
-	videoTrack := mediaStream.GetVideoTracks()[0].(*mediadevices.VideoTrack)
+	videoTrack := mediaStream.GetVideoTracks()[0]
 	defer videoTrack.Close()
 
 	rtpReader, err := videoTrack.NewRTPReader(vp8Params.RTPCodec().Name, mtu)

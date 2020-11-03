@@ -54,6 +54,9 @@ type Track interface {
 	// Unbind is the clean up operation that should be called after Bind. Similar to Bind, unbind will
 	// be called automatically in the future.
 	Unbind(*webrtc.PeerConnection) error
+	// NewRTPReader creates a new reader from the source. The reader will encode the source, and packetize
+	// the encoded data in RTP format with given mtu size.
+	NewRTPReader(codecName string, mtu int) (RTPReadCloser, error)
 }
 
 type baseTrack struct {
