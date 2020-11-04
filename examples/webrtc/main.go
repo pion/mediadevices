@@ -7,7 +7,7 @@ import (
 	"github.com/pion/mediadevices/examples/internal/signal"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/prop"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 
 	// If you don't like x264, you can also use vpx by importing as below
 	// "github.com/pion/mediadevices/pkg/codec/vpx" // This is required to use VP8/VP9 video encoder

@@ -75,8 +75,18 @@ func main() {
 		log.Fatalf("Error unpacking the cascade file: %s", err)
 	}
 
+	devices := mediadevices.EnumerateDevices()
+	deviceID := ""
+
+	for _, device := range devices {
+		if device.Label == "video0" {
+			deviceID = device.DeviceID
+		}
+	}
+
 	mediaStream, err := mediadevices.GetUserMedia(mediadevices.MediaStreamConstraints{
 		Video: func(c *mediadevices.MediaTrackConstraints) {
+			c.DeviceID = prop.StringExact(deviceID)
 			c.FrameFormat = prop.FrameFormatExact(frame.FormatUYVY)
 			c.Width = prop.Int(640)
 			c.Height = prop.Int(480)
