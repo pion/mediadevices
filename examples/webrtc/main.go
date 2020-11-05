@@ -26,10 +26,6 @@ import (
 	_ "github.com/pion/mediadevices/pkg/driver/microphone" // This is required to register microphone adapter
 )
 
-const (
-	videoCodecName = webrtc.VP8
-)
-
 func main() {
 	config := webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
