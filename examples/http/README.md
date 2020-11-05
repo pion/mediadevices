@@ -8,7 +8,7 @@ go get github.com/pion/mediadevices/examples/http
 
 ### Run HTTP server
 
-Run `http`
+Run `http :1313`
 
 
 ### Access the camera stream from the browser

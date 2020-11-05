@@ -11,6 +11,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"os"
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -28,7 +29,13 @@ func must(err error) {
 }
 
 func main() {
-	s, err := mediadevices.GetUserMedia(mediadevices.MediaStreamConstraints{
+	if len(os.Args) != 2 {
+		fmt.Printf("usage: %s host:port\n", os.Args[0])
+		return
+	}
+	dest := os.Args[1]
+
+	mediaStream, err := mediadevices.GetUserMedia(mediadevices.MediaStreamConstraints{
 		Video: func(constraint *mediadevices.MediaTrackConstraints) {
 			constraint.Width = prop.Int(600)
 			constraint.Height = prop.Int(400)
@@ -36,8 +43,9 @@ func main() {
 	})
 	must(err)
 
-	t := s.GetVideoTracks()[0]
-	videoTrack := t.(*mediadevices.VideoTrack)
+	track := mediaStream.GetVideoTracks()[0]
+	videoTrack := track.(*mediadevices.VideoTrack)
+	defer videoTrack.Close()
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var buf bytes.Buffer
@@ -72,6 +80,6 @@ func main() {
 		}
 	})
 
-	fmt.Println("listening on http://localhost:1313")
-	log.Println(http.ListenAndServe("localhost:1313", nil))
+	fmt.Printf("listening on %s\n", dest)
+	log.Println(http.ListenAndServe(dest, nil))
 }
