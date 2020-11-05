@@ -1,20 +1,25 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"io/ioutil"
 	"log"
-	"time"
+	"net"
+	"os"
 
 	pigo "github.com/esimov/pigo/core"
 	"github.com/pion/mediadevices"
+	"github.com/pion/mediadevices/pkg/codec/vpx"       // This is required to use h264 video encoder
 	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
 	"github.com/pion/mediadevices/pkg/frame"
+	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
 const (
 	confidenceLevel = 5.0
+	mtu             = 1000
 )
 
 var (
@@ -28,7 +33,7 @@ func must(err error) {
 	}
 }
 
-func detectFace(frame *image.YCbCr) bool {
+func detectFaces(frame *image.YCbCr) []pigo.Detection {
 	bounds := frame.Bounds()
 	cascadeParams := pigo.CascadeParams{
 		MinSize:     100,
@@ -49,17 +54,68 @@ func detectFace(frame *image.YCbCr) bool {
 
 	// Calculate the intersection over union (IoU) of two clusters.
 	dets = classifier.ClusterDetections(dets, 0)
+	return dets
+}
 
-	for _, det := range dets {
-		if det.Q >= confidenceLevel {
-			return true
-		}
+func drawCircle(frame *image.YCbCr, x0, y0, r int) {
+	width := frame.Bounds().Dx()
+	x, y, dx, dy := r-1, 0, 1, 1
+	err := dx - (r * 2)
+
+	convert := func(x, y int) int {
+		return y*width + x
 	}
 
-	return false
+	for x > y {
+		frame.Y[convert(x0+x, y0+y)] = 0
+		frame.Y[convert(x0+y, y0+x)] = 0
+		frame.Y[convert(x0-y, y0+x)] = 0
+		frame.Y[convert(x0-x, y0+y)] = 0
+		frame.Y[convert(x0-x, y0-y)] = 0
+		frame.Y[convert(x0-y, y0-x)] = 0
+		frame.Y[convert(x0+y, y0-x)] = 0
+		frame.Y[convert(x0+x, y0-y)] = 0
+
+		if err <= 0 {
+			y++
+			err += dy
+			dy += 2
+		}
+		if err > 0 {
+			x--
+			dx += 2
+			err += dx - (r * 2)
+		}
+	}
+}
+
+func detectFace(r video.Reader) video.Reader {
+	return video.ReaderFunc(func() (img image.Image, release func(), err error) {
+		img, release, err = r.Read()
+		if err != nil {
+			return
+		}
+
+		yuv := img.(*image.YCbCr)
+		dets := detectFaces(yuv)
+		for _, det := range dets {
+			if det.Q < confidenceLevel {
+				continue
+			}
+
+			drawCircle(yuv, det.Col, det.Row, det.Scale/2)
+		}
+		return
+	})
 }
 
 func main() {
+	if len(os.Args) != 2 {
+		fmt.Printf("usage: %s host:port\n", os.Args[0])
+		return
+	}
+	dest := os.Args[1]
+
 	// prepare face detector
 	var err error
 	cascade, err = ioutil.ReadFile("facefinder")
@@ -75,12 +131,21 @@ func main() {
 		log.Fatalf("Error unpacking the cascade file: %s", err)
 	}
 
+	vp8Params, err := vpx.NewVP8Params()
+	must(err)
+	vp8Params.BitRate = 1_000_000 // 100kbps
+
+	codecSelector := mediadevices.NewCodecSelector(
+		mediadevices.WithVideoEncoders(&vp8Params),
+	)
+
 	mediaStream, err := mediadevices.GetUserMedia(mediadevices.MediaStreamConstraints{
 		Video: func(c *mediadevices.MediaTrackConstraints) {
 			c.FrameFormat = prop.FrameFormatExact(frame.FormatUYVY)
 			c.Width = prop.Int(640)
 			c.Height = prop.Int(480)
 		},
+		Codec: codecSelector,
 	})
 	must(err)
 
@@ -88,18 +153,27 @@ func main() {
 	videoTrack := mediaStream.GetVideoTracks()[0].(*mediadevices.VideoTrack)
 	defer videoTrack.Close()
 
-	videoReader := videoTrack.NewReader(false)
-	// To save resources, we can simply use 4 fps to detect faces.
-	ticker := time.NewTicker(time.Millisecond * 250)
-	defer ticker.Stop()
+	videoTrack.Transform(detectFace)
 
-	for range ticker.C {
-		frame, release, err := videoReader.Read()
+	rtpReader, err := videoTrack.NewRTPReader(vp8Params.RTPCodec().Name, mtu)
+	must(err)
+
+	addr, err := net.ResolveUDPAddr("udp", dest)
+	must(err)
+	conn, err := net.DialUDP("udp", nil, addr)
+	must(err)
+
+	buff := make([]byte, mtu)
+	for {
+		pkts, release, err := rtpReader.Read()
 		must(err)
 
-		// Since we asked the frame format to be exactly YUY2 in GetUserMedia, we can guarantee that it must be YCbCr
-		if detectFace(frame.(*image.YCbCr)) {
-			log.Println("Detect a face")
+		for _, pkt := range pkts {
+			n, err := pkt.MarshalTo(buff)
+			must(err)
+
+			_, err = conn.Write(buff[:n])
+			must(err)
 		}
 
 		release()
