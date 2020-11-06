@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	confidenceLevel = 5.0
+	confidenceLevel = 9.5
 	mtu             = 1000
+	thickness       = 5
 )
 
 var (
@@ -57,34 +58,43 @@ func detectFaces(frame *image.YCbCr) []pigo.Detection {
 	return dets
 }
 
-func drawCircle(frame *image.YCbCr, x0, y0, r int) {
+func drawRect(frame *image.YCbCr, x0, y0, size int) {
+	if x0 < 0 {
+		x0 = 0
+	}
+
+	if y0 < 0 {
+		y0 = 0
+	}
+
 	width := frame.Bounds().Dx()
-	x, y, dx, dy := r-1, 0, 1, 1
-	err := dx - (r * 2)
+	height := frame.Bounds().Dy()
+	x1 := x0 + size
+	y1 := y0 + size
+
+	if x1 >= width {
+		x1 = width - 1
+	}
+
+	if y1 >= height {
+		y1 = height - 1
+	}
 
 	convert := func(x, y int) int {
 		return y*width + x
 	}
 
-	for x > y {
-		frame.Y[convert(x0+x, y0+y)] = 0
-		frame.Y[convert(x0+y, y0+x)] = 0
-		frame.Y[convert(x0-y, y0+x)] = 0
-		frame.Y[convert(x0-x, y0+y)] = 0
-		frame.Y[convert(x0-x, y0-y)] = 0
-		frame.Y[convert(x0-y, y0-x)] = 0
-		frame.Y[convert(x0+y, y0-x)] = 0
-		frame.Y[convert(x0+x, y0-y)] = 0
-
-		if err <= 0 {
-			y++
-			err += dy
-			dy += 2
+	for x := x0; x < x1; x++ {
+		for t := 0; t < thickness; t++ {
+			frame.Y[convert(x, y0+t)] = 0
+			frame.Y[convert(x, y1-t)] = 0
 		}
-		if err > 0 {
-			x--
-			dx += 2
-			err += dx - (r * 2)
+	}
+
+	for y := y0; y < y1; y++ {
+		for t := 0; t < thickness; t++ {
+			frame.Y[convert(x0+t, y)] = 0
+			frame.Y[convert(x1-t, y)] = 0
 		}
 	}
 }
@@ -103,7 +113,7 @@ func detectFace(r video.Reader) video.Reader {
 				continue
 			}
 
-			drawCircle(yuv, det.Col, det.Row, det.Scale/2)
+			drawRect(yuv, det.Col-det.Scale/2, det.Row-det.Scale/2, det.Scale)
 		}
 		return
 	})
