@@ -126,7 +126,7 @@ func main() {
 }
 ```
 
-Since `mediadevices` doesn't implement the video/audio codecs, it needs to call the codec library from the system through cgo. Therfore, you're required to install the codec libraries before you can use them in `mediadevices`. In the next section, it shows a list of available codecs, where the packages are defined, and how to install the codec library to your system.
+Since `mediadevices` doesn't implement the video/audio codecs, it needs to call the codec libraries from the system through cgo. Therefore, you're required to install the codec libraries before you can use them in `mediadevices`. In the next section, it shows a list of available codecs, where the packages are defined, and how to install the codec library to your system.
 
 Note: there's no recommendation to choose one codec or another as it is very complex and subjective.
 
