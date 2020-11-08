@@ -39,4 +39,4 @@ Copy the text that `./webrtc` just emitted and copy into second text area
 
 A video should start playing in your browser above the input boxes, and will continue playing until you close the application.
 
-Congrats, you have used pion-WebRTC! Now start building something cool
+Congrats, you have used pion-MediaDevices! Now start building something cool
