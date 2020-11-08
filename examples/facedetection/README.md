@@ -3,12 +3,12 @@
 ### Download facedetection example
 
 ```
-go get github.com/pion/mediadevices/examples/facedetection
+git clone https://github.com/pion/mediadevices.git
 ```
 
-### Run facedetection
+### Compile and Run facedetection
 
-Run `facedetection`
+Run `cd mediadevices/examples/facedetection && go build && ./facedetection`
 
 You should be able to see some loggings when it can see faces.
 
