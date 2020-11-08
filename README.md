@@ -184,7 +184,7 @@ A totally open, royalty-free, highly versatile audio codec.
 
 Result as of Nov 4, 2020 with Go 1.14 on a Raspberry pi 3, `mediadevices` can produce video, encode, send across network, and decode at **720p, 30 fps with < 500 ms latency**.  
 
-The test was taken by capturing a camera stream, decoding the raw frames, encoding the video stream with mmal, and sending the stream through Webrtc, and decoding with H264.
+The test was taken by capturing a camera stream, decoding the raw frames, encoding the video stream with mmal, and sending the stream through Webrtc.
 
 ## FAQ
 
