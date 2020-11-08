@@ -3,12 +3,12 @@
 ### Download http example
 
 ```
-go get github.com/pion/mediadevices/examples/http
+git clone https://github.com/pion/mediadevices.git
 ```
 
-### Run HTTP server
+### Compile and Run HTTP server
 
-Run `http :1313`
+Run `cd mediadevices/examples/http && go build && ./http :1313`
 
 
 ### Access the camera stream from the browser
