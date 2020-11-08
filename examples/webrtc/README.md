@@ -1,26 +1,30 @@
 ## Instructions
 
-### Download gstreamer-send
+### Download webrtc example
 
 ```
-go get github.com/pion/mediadevices/examples/webrtc
+git clone https://github.com/pion/mediadevices.git
+```
+
+#### Compile webrtc example
+
+```
+cd mediadevices/examples/webrtc && go build
 ```
 
 ### Open example page
 
 [jsfiddle.net](https://jsfiddle.net/gh/get/library/pure/pion/mediadevices/tree/master/examples/internal/jsfiddle/audio-and-video) you should see two text-areas and a 'Start Session' button
 
-### Run webrtc with your browsers SessionDescription as stdin
+### Run the webrtc example with your browsers SessionDescription as stdin
 
-In the jsfiddle the top textarea is your browser, copy that and:
+In the jsfiddle the top textarea is your browser, copy that, and store the session description in an environment variable, `export SDP=<put_the_sdp_here>`
 
-#### Linux
-
-Run `echo $BROWSER_SDP | webrtc`
+Run `echo $SDP | ./webrtc`
 
 ### Input webrtc's SessionDescription into your browser
 
-Copy the text that `webrtc` just emitted and copy into second text area
+Copy the text that `./webrtc` just emitted and copy into second text area
 
 ### Hit 'Start Session' in jsfiddle, enjoy your video!
 
