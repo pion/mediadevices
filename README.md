@@ -13,7 +13,7 @@
 </p>
 <br>
 
-[MediaDevices](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices) provides access to connected media input devices like cameras and microphones, as well as screen sharing. It can also be used to encode your video/audio stream to various codec selections. 
+`mediadevices` provides access to connected media input devices like cameras and microphones, as well as screen sharing. It can also be used to encode your video/audio stream to various codec selections. 
 
 The focus of the project has been to seek out a **simple** and **elegant design** for writing media pipelines.
 
