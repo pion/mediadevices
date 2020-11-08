@@ -13,9 +13,7 @@
 </p>
 <br>
 
-`mediadevices` provides access to connected media input devices like cameras and microphones, as well as screen sharing. It can also be used to encode your video/audio stream to various codec selections. 
-
-The focus of the project has been to seek out a **simple** and **elegant design** for writing media pipelines.
+`mediadevices` provides access to media input devices like cameras, microphones, and screen capture. It can also be used to encode your video/audio stream to various codec selections. `mediadevices` abstracts away the complexities of interacting with things like hardware and codecs allowing you to focus on building appilcations, interacting only with an amazingly simple, easy, and elegant API!
 
 ![](img/demo.gif)
 
@@ -143,28 +141,28 @@ A totally open, royalty-free, highly versatile audio codec.
 
 ## Benchmark
 
-Result as of Nov 4, 2020 with Go 1.14 on a Raspberry pi 3, `mediadevices` can produce a **720p at 30 fps with <500ms latency video**.  
+Result as of Nov 4, 2020 with Go 1.14 on a Raspberry pi 3, `mediadevices` can produce video, encode, send across network, and decode at **720p, 30 fps with < 500 ms latency**.  
 
-The test was taken by capturing a camera stream, decode raw frames, encode the video stream with mmal to H264, and send the stream through Webrtc.
+The test was taken by capturing a camera stream, decoding the raw frames, encoding the video stream with mmal, and sending the stream through Webrtc, and decoding with H264.
 
 ## FAQ
 
 ### Failed to find the best driver that fits the constraints
 
-`mediadevices` provides an automated driver discovery through `GetUserMedia` and `GetDisplayMedia`. In an oversimplified explanation, the discovery algorithm as followed:
+`mediadevices` provides an automated driver discovery through `GetUserMedia` and `GetDisplayMedia`. The driver discover algorithm works something like:
 
 1. Open all registered drivers
 2. Get all properties (property describes what a driver is capable of, e.g. resolution, frame rate, etc.) from opened drivers
 3. Find the best property that meets the criteria
 
 So, when `mediadevices` returns `failed to find the best driver that fits the constraints` error, one of the following conditions might have occured:
-* In your program, the driver has never been imported as a side effect, e.g. `import _ github.com/pion/mediadevices/pkg/driver/camera`
-* Your constraint is too strict that there's no driver can fullfil your requirements. In this case, you can try to turn up the debug level by specifying the following environment variable: `export PION_LOG_DEBUG=all`
-* Your driver is not supported/implemented. In this case, you can either wait for the maintainers to implement it. Or, you can implement it yourself and register it through `RegisterDriverAdapter`
+* Driver was not imported as a side effect in your program, e.g. `import _ github.com/pion/mediadevices/pkg/driver/camera`
+* Your constraint is too strict that there's no driver can fullfil your requirements. In this case, you can try to turn up the debug level by specifying the following environment variable: `export PION_LOG_DEBUG=all` to see what was too strict and tune that.
+* Your driver is not supported/implemented. In this case, you can either let us know (file an issue) and wait for the maintainers to implement it. Or, you can implement it yourself and register it through `RegisterDriverAdapter`
 
 ### Failed to find vpx/x264/mmal/opus codecs
 
-Since `mediadevices` uses cgo to access video/audio codecs, it needs to find these libraries from the system. To do that, `mediadevices` uses [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/) for library discovery.
+Since `mediadevices` uses cgo to access video/audio codecs, it needs to find these libraries from the system. To accomplish this, [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/) is used for library discovery.
 
 If you see the following error message at compile time:
 ```
