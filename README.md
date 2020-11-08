@@ -88,7 +88,47 @@ func main() {
 | Microphone |  ✔️   | ✔️  |   ✔️    |
 |   Screen   |  ✔️   | ✖️  |   ✖️    |
 
+By default, there's no media input registered. This decision was made to allow you to pay what you need. Therefore, you need to import the associated packages for the media inputs. For example, if you want to use a camera, you need to import the camera package as a side effect:
+
+```go
+import (
+	...
+	_ "github.com/pion/mediadevices/pkg/driver/camera"
+)
+```
+
 ## Available Codecs
+
+In order to encode your video/audio, `mediadevices` needs to know what codecs that you want to use and their parameters. To do this, you need to import the associated packages for the codecs, and add them to the codec selector that you'll pass to `GetUserMedia`:
+
+```go
+package main
+
+import (
+	"github.com/pion/mediadevices"
+	"github.com/pion/mediadevices/pkg/codec/x264"      // This is required to use H264 video encoder
+	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
+)
+
+func main() {
+	x264Params, _ := x264.NewParams()
+	x264Params.Preset = x264.PresetMedium
+	x264Params.BitRate = 1_000_000 // 1mbps
+
+	codecSelector := mediadevices.NewCodecSelector(
+		mediadevices.WithVideoEncoders(&x264Params),
+	)
+	
+	mediaStream, _ := mediadevices.GetUserMedia(mediadevices.MediaStreamConstraints{
+		Video: func(c *mediadevices.MediaTrackConstraints) {},
+		Codec: codecSelector, // let GetUsermedia know available codecs
+	})
+}
+```
+
+Since `mediadevices` doesn't implement the video/audio codecs, it needs to call the codec library from the system through cgo. Therfore, you're required to install the codec libraries before you can use them in `mediadevices`. In the next section, it shows a list of available codecs, where the packages are defined, and how to install the codec library to your system.
+
+Note: there's no recommendation to choose one codec or another as it is very complex and subjective.
 
 ### Video Codecs
 
