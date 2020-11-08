@@ -13,9 +13,7 @@
 </p>
 <br>
 
-[MediaDevices](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices) provides access to connected media input devices like cameras and microphones, as well as screen sharing. It can also be used to encode your video/audio stream to various codec selections. 
-
-The focus of the project has been to seek out a **simple** and **elegant design** for writing media pipelines.
+`mediadevices` provides access to media input devices like cameras, microphones, and screen capture. It can also be used to encode your video/audio stream to various codec selections. `mediadevices` abstracts away the complexities of interacting with things like hardware and codecs allowing you to focus on building appilcations, interacting only with an amazingly simple, easy, and elegant API!
 
 ![](img/demo.gif)
 
@@ -90,7 +88,48 @@ func main() {
 | Microphone |  ✔️   | ✔️  |   ✔️    |
 |   Screen   |  ✔️   | ✖️  |   ✖️    |
 
+By default, there's no media input registered. This decision was made to allow you to pay what you need. Therefore, you need to import the associated packages for the media inputs. For example, if you want to use a camera, you need to import the camera package as a side effect:
+
+```go
+import (
+	...
+	_ "github.com/pion/mediadevices/pkg/driver/camera"
+)
+```
+
 ## Available Codecs
+
+In order to encode your video/audio, `mediadevices` needs to know what codecs that you want to use and their parameters. To do this, you need to import the associated packages for the codecs, and add them to the codec selector that you'll pass to `GetUserMedia`:
+
+```go
+package main
+
+import (
+	"github.com/pion/mediadevices"
+	"github.com/pion/mediadevices/pkg/codec/x264"      // This is required to use H264 video encoder
+	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
+)
+
+func main() {
+	// configure codec specific parameters
+	x264Params, _ := x264.NewParams()
+	x264Params.Preset = x264.PresetMedium
+	x264Params.BitRate = 1_000_000 // 1mbps
+
+	codecSelector := mediadevices.NewCodecSelector(
+		mediadevices.WithVideoEncoders(&x264Params),
+	)
+	
+	mediaStream, _ := mediadevices.GetUserMedia(mediadevices.MediaStreamConstraints{
+		Video: func(c *mediadevices.MediaTrackConstraints) {},
+		Codec: codecSelector, // let GetUsermedia know available codecs
+	})
+}
+```
+
+Since `mediadevices` doesn't implement the video/audio codecs, it needs to call the codec libraries from the system through cgo. Therefore, you're required to install the codec libraries before you can use them in `mediadevices`. In the next section, it shows a list of available codecs, where the packages are defined (documentation linked), and installation instructions.
+
+Note: we do not provide recommendations on choosing one codec or another as it is very complex and can be subjective.
 
 ### Video Codecs
 
@@ -143,28 +182,28 @@ A totally open, royalty-free, highly versatile audio codec.
 
 ## Benchmark
 
-Result as of Nov 4, 2020 with Go 1.14 on a Raspberry pi 3, `mediadevices` can produce a **720p at 30 fps with <500ms latency video**.  
+Result as of Nov 4, 2020 with Go 1.14 on a Raspberry pi 3, `mediadevices` can produce video, encode, send across network, and decode at **720p, 30 fps with < 500 ms latency**.  
 
-The test was taken by capturing a camera stream, decode raw frames, encode the video stream with mmal to H264, and send the stream through Webrtc.
+The test was taken by capturing a camera stream, decoding the raw frames, encoding the video stream with mmal, and sending the stream through Webrtc.
 
 ## FAQ
 
 ### Failed to find the best driver that fits the constraints
 
-`mediadevices` provides an automated driver discovery through `GetUserMedia` and `GetDisplayMedia`. In an oversimplified explanation, the discovery algorithm as followed:
+`mediadevices` provides an automated driver discovery through `GetUserMedia` and `GetDisplayMedia`. The driver discover algorithm works something like:
 
 1. Open all registered drivers
 2. Get all properties (property describes what a driver is capable of, e.g. resolution, frame rate, etc.) from opened drivers
 3. Find the best property that meets the criteria
 
 So, when `mediadevices` returns `failed to find the best driver that fits the constraints` error, one of the following conditions might have occured:
-* In your program, the driver has never been imported as a side effect, e.g. `import _ github.com/pion/mediadevices/pkg/driver/camera`
-* Your constraint is too strict that there's no driver can fullfil your requirements. In this case, you can try to turn up the debug level by specifying the following environment variable: `export PION_LOG_DEBUG=all`
-* Your driver is not supported/implemented. In this case, you can either wait for the maintainers to implement it. Or, you can implement it yourself and register it through `RegisterDriverAdapter`
+* Driver was not imported as a side effect in your program, e.g. `import _ github.com/pion/mediadevices/pkg/driver/camera`
+* Your constraint is too strict that there's no driver can fullfil your requirements. In this case, you can try to turn up the debug level by specifying the following environment variable: `export PION_LOG_DEBUG=all` to see what was too strict and tune that.
+* Your driver is not supported/implemented. In this case, you can either let us know (file an issue) and wait for the maintainers to implement it. Or, you can implement it yourself and register it through `RegisterDriverAdapter`
 
 ### Failed to find vpx/x264/mmal/opus codecs
 
-Since `mediadevices` uses cgo to access video/audio codecs, it needs to find these libraries from the system. To do that, `mediadevices` uses [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/) for library discovery.
+Since `mediadevices` uses cgo to access video/audio codecs, it needs to find these libraries from the system. To accomplish this, [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/) is used for library discovery.
 
 If you see the following error message at compile time:
 ```
