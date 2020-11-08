@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/pion/mediadevices"
-	"github.com/pion/mediadevices/pkg/codec/vpx"       // This is required to use VP8/VP9 video encoder
+	"github.com/pion/mediadevices/pkg/codec/x264"      // This is required to use H264 video encoder
 	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -29,12 +29,13 @@ func main() {
 	}
 	dest := os.Args[1]
 
-	vp8Params, err := vpx.NewVP8Params()
+	x264Params, err := x264.NewParams()
 	must(err)
-	vp8Params.BitRate = 100000 // 100kbps
+	x264Params.Preset = x264.PresetMedium
+	x264Params.BitRate = 1_000_000 // 1mbps
 
 	codecSelector := mediadevices.NewCodecSelector(
-		mediadevices.WithVideoEncoders(&vp8Params),
+		mediadevices.WithVideoEncoders(&x264Params),
 	)
 
 	mediaStream, err := mediadevices.GetUserMedia(mediadevices.MediaStreamConstraints{
@@ -50,7 +51,7 @@ func main() {
 	videoTrack := mediaStream.GetVideoTracks()[0]
 	defer videoTrack.Close()
 
-	rtpReader, err := videoTrack.NewRTPReader(vp8Params.RTPCodec().Name, mtu)
+	rtpReader, err := videoTrack.NewRTPReader(x264Params.RTPCodec().Name, mtu)
 	must(err)
 
 	addr, err := net.ResolveUDPAddr("udp", dest)
