@@ -111,6 +111,7 @@ import (
 )
 
 func main() {
+	// configure codec specific parameters
 	x264Params, _ := x264.NewParams()
 	x264Params.Preset = x264.PresetMedium
 	x264Params.BitRate = 1_000_000 // 1mbps
