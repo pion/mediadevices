@@ -1,5 +1,14 @@
 ## Instructions
 
+### Install required codecs
+
+In this example, we'll be using x264 and opus as our video and audio codecs. Therefore, we need to make sure that these codecs are installed within our system. 
+
+Installation steps:
+
+* [x264](https://github.com/pion/mediadevices#x264)
+* [opus](https://github.com/pion/mediadevices#opus)
+
 ### Download webrtc example
 
 ```
