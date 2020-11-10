@@ -3,6 +3,7 @@ package mediadevices
 import (
 	"errors"
 	"image"
+	"io"
 	"math/rand"
 	"sync"
 
@@ -57,6 +58,8 @@ type Track interface {
 	// NewRTPReader creates a new reader from the source. The reader will encode the source, and packetize
 	// the encoded data in RTP format with given mtu size.
 	NewRTPReader(codecName string, mtu int) (RTPReadCloser, error)
+	// NewEncodedReader creates a new Go standard io.ReadCloser that reads the encoded data in codecName format
+	NewEncodedReader(codecName string) (io.ReadCloser, error)
 }
 
 type baseTrack struct {
@@ -182,6 +185,31 @@ func (track *baseTrack) unbind(pc *webrtc.PeerConnection) error {
 	return nil
 }
 
+func (track *baseTrack) newEncodedReader(reader codec.ReadCloser) (io.ReadCloser, error) {
+	var encoded []byte
+	release := func() {}
+	return &encodedReadCloserImpl{
+		readFn: func(b []byte) (int, error) {
+			var err error
+
+			if len(encoded) == 0 {
+				release()
+				encoded, release, err = reader.Read()
+				if err != nil {
+					reader.Close()
+					track.onError(err)
+					return 0, err
+				}
+			}
+
+			n := copy(b, encoded)
+			encoded = encoded[n:]
+			return n, nil
+		},
+		closeFn: reader.Close,
+	}, nil
+}
+
 func newTrackFromDriver(d driver.Driver, constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {
 	if err := d.Open(); err != nil {
 		return nil, err
@@ -298,6 +326,21 @@ func (track *VideoTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser,
 	}, nil
 }
 
+func (track *VideoTrack) NewEncodedReader(codecName string) (io.ReadCloser, error) {
+	reader := track.NewReader(false)
+	inputProp, err := detectCurrentVideoProp(track.Broadcaster)
+	if err != nil {
+		return nil, err
+	}
+
+	encodedReader, _, err := track.selector.selectVideoCodecByNames(reader, inputProp, codecName)
+	if err != nil {
+		return nil, err
+	}
+
+	return track.newEncodedReader(encodedReader)
+}
+
 // AudioTrack is a specific track type that contains audio source which allows multiple readers to access, and
 // manipulate.
 type AudioTrack struct {
@@ -401,4 +444,19 @@ func (track *AudioTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser,
 		},
 		closeFn: encodedReader.Close,
 	}, nil
+}
+
+func (track *AudioTrack) NewEncodedReader(codecName string) (io.ReadCloser, error) {
+	reader := track.NewReader(false)
+	inputProp, err := detectCurrentAudioProp(track.Broadcaster)
+	if err != nil {
+		return nil, err
+	}
+
+	encodedReader, _, err := track.selector.selectAudioCodecByNames(reader, inputProp, codecName)
+	if err != nil {
+		return nil, err
+	}
+
+	return track.newEncodedReader(encodedReader)
 }

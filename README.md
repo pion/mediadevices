@@ -79,6 +79,7 @@ func main() {
 * [Face Detection](/examples/facedetection) - Use a machine learning algorithm to detect faces in a camera stream
 * [RTP Stream](examples/rtp) - Capture camera stream, encode it in H264/VP8/VP9, and send it to a RTP server
 * [HTTP Broadcast](/examples/http) - Broadcast camera stream through HTTP with MJPEG
+* [Archive](/examples/archive) - Archive H264 encoded video stream from a camera
 
 ## Available Media Inputs
 

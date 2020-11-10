@@ -1,6 +1,7 @@
 package mediadevices
 
 import (
+	"io"
 	"testing"
 
 	"github.com/pion/webrtc/v2"
@@ -34,6 +35,10 @@ func (track *mockMediaStreamTrack) Unbind(pc *webrtc.PeerConnection) error {
 }
 
 func (track *mockMediaStreamTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser, error) {
+	return nil, nil
+}
+
+func (track *mockMediaStreamTrack) NewEncodedReader(codecName string) (io.ReadCloser, error) {
 	return nil, nil
 }
 
