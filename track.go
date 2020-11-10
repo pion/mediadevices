@@ -380,7 +380,7 @@ func (track *AudioTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser,
 		return nil, err
 	}
 
-	sample := newVideoSampler(selectedCodec.ClockRate)
+	sample := newAudioSampler(selectedCodec.ClockRate, inputProp.Latency)
 
 	// FIXME: not sure the best way to get unique ssrc. We probably should have a global keeper that can generate a random ID and does book keeping?
 	packetizer := rtp.NewPacketizer(mtu, selectedCodec.PayloadType, rand.Uint32(), selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
