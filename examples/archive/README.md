@@ -18,6 +18,8 @@ git clone https://github.com/pion/mediadevices.git
 
 Run `cd mediadevices/examples/archive && go build && ./archive recorded.h264`
 
+To stop recording, press `Ctrl+c` or send a SIGINT signal.
+
 ### Playback recorded video
 
 Install GStreamer and run:
