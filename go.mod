@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/blackjack/webcam v0.0.0-20200313125108-10ed912a8539
-	github.com/gen2brain/malgo v0.10.19
+	github.com/gen2brain/malgo v0.10.24
 	github.com/lherman-cs/opus v0.0.2
 	github.com/pion/logging v0.2.2
 	github.com/pion/rtp v1.6.0
