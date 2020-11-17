@@ -15,8 +15,6 @@
 
 `mediadevices` provides access to media input devices like cameras, microphones, and screen capture. It can also be used to encode your video/audio stream to various codec selections. `mediadevices` abstracts away the complexities of interacting with things like hardware and codecs allowing you to focus on building appilcations, interacting only with an amazingly simple, easy, and elegant API!
 
-![](img/demo.gif)
-
 ## Install
 
 `go get -u github.com/pion/mediadevices`
