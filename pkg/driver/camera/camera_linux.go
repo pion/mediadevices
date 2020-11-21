@@ -21,6 +21,7 @@ import (
 
 const (
 	maxEmptyFrameCount = 5
+	prioritizedDevice  = "video0"
 )
 
 var (
@@ -94,9 +95,14 @@ func init() {
 
 			discovered[reallink] = struct{}{}
 			cam := newCamera(device)
+			priority := driver.PriorityNormal
+			if label == prioritizedDevice {
+				priority = driver.PriorityHigh
+			}
 			driver.GetManager().Register(cam, driver.Info{
 				Label:      label,
 				DeviceType: driver.Camera,
+				Priority:   priority,
 			})
 		}
 	}
