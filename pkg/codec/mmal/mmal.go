@@ -3,7 +3,8 @@
 // Reference: https://github.com/raspberrypi/userland/tree/master/interface/mmal
 package mmal
 
-// #cgo pkg-config: mmal
+// #cgo CFLAGS: -I/opt/vc/include
+// #cgo LDFLAGS: -L/opt/vc/lib -lmmal -lmmal_core -lmmal_util -lmmal_vc_client -lbcm_host -lvcsm -lvcos
 // #include "bridge.h"
 import "C"
 import (

@@ -144,8 +144,7 @@ A free software library and application for encoding video streams into the H.26
 A framework to enable H264 hardware encoding for Raspberry Pi or boards that use VideoCore GPUs.
 
 * Package: [github.com/pion/mediadevices/pkg/codec/mmal](https://pkg.go.dev/github.com/pion/mediadevices/pkg/codec/mmal)
-* Installation:
-  * Raspbian: `export PKG_CONFIG_PATH=/opt/vc/lib/pkgconfig`
+* Installation: no installation needed, mmal should come built in Raspberry Pi devices
 
 #### openh264
 A codec library which supports H.264 encoding and decoding. It is suitable for use in real time applications.
