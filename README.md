@@ -85,7 +85,7 @@ func main() {
 | :--------: | :---: | :-: | :-----: |
 |   Camera   |  ✔️   | ✔️  |   ✔️    |
 | Microphone |  ✔️   | ✔️  |   ✔️    |
-|   Screen   |  ✔️   | ✖️  |   ✖️    |
+|   Screen   |  ✔️   | ✔️  |   ✔️    |
 
 By default, there's no media input registered. This decision was made to allow you to pay what you need. Therefore, you need to import the associated packages for the media inputs. For example, if you want to use a camera, you need to import the camera package as a side effect:
 
