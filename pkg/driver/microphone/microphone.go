@@ -37,12 +37,6 @@ type microphone struct {
 
 func init() {
 	var err error
-	/*
-		backends := []malgo.Backend{
-			malgo.BackendPulseaudio,
-			malgo.BackendAlsa,
-		}
-	*/
 	ctx, err = malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {
 		logger.Debugf("%v\n", message)
 	})
@@ -56,11 +50,18 @@ func init() {
 	}
 
 	for _, device := range devices {
-		// TODO: Detect default device and prioritize it
-		driver.GetManager().Register(newMicrophone(device), driver.Info{
-			Label:      device.ID.String(),
-			DeviceType: driver.Microphone,
-		})
+		info, err := ctx.DeviceInfo(malgo.Capture, device.ID, malgo.Shared)
+		if err == nil {
+			priority := driver.PriorityNormal
+			if info.IsDefault > 0 {
+				priority = driver.PriorityHigh
+			}
+			driver.GetManager().Register(newMicrophone(info), driver.Info{
+				Label:      device.ID.String(),
+				DeviceType: driver.Microphone,
+				Priority:   priority,
+			})
+		}
 	}
 
 	// Decide which endian
@@ -133,7 +134,7 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 		return nil, err
 	}
 
-	return audio.ReaderFunc(func() (wave.Audio, func(), error) {
+	var reader audio.Reader = audio.ReaderFunc(func() (wave.Audio, func(), error) {
 		chunk, ok := <-m.chunkChan
 		if !ok {
 			device.Stop()
@@ -145,7 +146,12 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 		// FIXME: the decoder should also fill this information
 		decodedChunk.(*wave.Float32Interleaved).Size.SamplingRate = inputProp.SampleRate
 		return decodedChunk, func() {}, err
-	}), nil
+	})
+
+	// FIXME: The current audio detection and audio encoder can only work with a static latency. Since the latency from the driver
+	//        can fluctuate, we need to stabilize it. Maybe there's a better way for doing this?
+	reader = audio.NewBuffer(int(inputProp.Latency.Seconds() * float64(inputProp.SampleRate)))(reader)
+	return reader, nil
 }
 
 func (m *microphone) Properties() []prop.Media {
@@ -159,46 +165,36 @@ func (m *microphone) Properties() []prop.Media {
 	}
 
 	for ch := m.MinChannels; ch <= m.MaxChannels; ch++ {
-		for sampleRate := m.MinSampleRate; sampleRate <= m.MaxSampleRate; sampleRate += sampleRateStep {
-			for i := 0; i < int(m.FormatCount); i++ {
-				format := m.Formats[i]
+		// FIXME: Currently support 48kHz only. We need to implement a resampler first.
+		// for sampleRate := m.MinSampleRate; sampleRate <= m.MaxSampleRate; sampleRate += sampleRateStep {
+		sampleRate := 48000
+		for i := 0; i < int(m.FormatCount); i++ {
+			format := m.Formats[i]
 
-				supportedProp := prop.Media{
-					Audio: prop.Audio{
-						ChannelCount: int(ch),
-						SampleRate:   int(sampleRate),
-						IsBigEndian:  isBigEndian,
-						// miniaudio only supports interleaved at the moment
-						IsInterleaved: true,
-					},
-				}
-
-				switch malgo.FormatType(format) {
-				case malgo.FormatF32:
-					supportedProp.SampleSize = 4
-					supportedProp.IsFloat = true
-				case malgo.FormatS16:
-					supportedProp.SampleSize = 2
-					supportedProp.IsFloat = false
-				}
-
-				supportedProps = append(supportedProps, supportedProp)
+			supportedProp := prop.Media{
+				Audio: prop.Audio{
+					ChannelCount: int(ch),
+					SampleRate:   int(sampleRate),
+					IsBigEndian:  isBigEndian,
+					// miniaudio only supports interleaved at the moment
+					IsInterleaved: true,
+					// FIXME: should change this to a less discrete value
+					Latency: time.Millisecond * 20,
+				},
 			}
-		}
-	}
 
-	// FIXME: remove this hardcoded value. Malgo doesn't support "ma_context_get_device_info" API yet. The above iterations
-	//        will always return nothing as of now
-	supportedProps = append(supportedProps, prop.Media{
-		Audio: prop.Audio{
-			Latency:       time.Millisecond * 20,
-			ChannelCount:  1,
-			SampleRate:    48000,
-			SampleSize:    4,
-			IsFloat:       true,
-			IsBigEndian:   isBigEndian,
-			IsInterleaved: true,
-		},
-	})
+			switch malgo.FormatType(format) {
+			case malgo.FormatF32:
+				supportedProp.SampleSize = 4
+				supportedProp.IsFloat = true
+			case malgo.FormatS16:
+				supportedProp.SampleSize = 2
+				supportedProp.IsFloat = false
+			}
+
+			supportedProps = append(supportedProps, supportedProp)
+		}
+		// }
+	}
 	return supportedProps
 }
