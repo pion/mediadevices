@@ -16,7 +16,7 @@ typedef struct Slice {
 
 typedef struct Encoder {
   x264_t *h;
-  x264_picture_t pic_in, pic_out;
+  x264_picture_t pic_in;
   x264_param_t param;
 } Encoder;
 
@@ -52,15 +52,21 @@ Encoder *enc_new(x264_param_t param, char *preset, int *rc) {
     goto fail;
   }
 
-  if (x264_picture_alloc(&e->pic_in, param.i_csp, param.i_width, param.i_height) < 0) {
+  x264_picture_t pic_in;
+  if (x264_picture_alloc(&pic_in, param.i_csp, param.i_width, param.i_height) < 0) {
     *rc = ERR_ALLOC_PICTURE;
     goto fail;
   }
 
+  // FIXME: we use x264_picture_alloc to set the metadata only, we don't need the allocated memory
+  //        to store the frame. Since we free the frame memory here, we don't need to call
+  //        x264_picture_clean later.
+  e->pic_in = pic_in;
+  x264_picture_clean(&pic_in);
+
   e->h = x264_encoder_open(&e->param);
   if (!e->h) {
     *rc = ERR_OPEN_ENGINE;
-    x264_picture_clean(&e->pic_in);
     goto fail;
   }
 
@@ -75,24 +81,24 @@ Slice enc_encode(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr, int *rc) {
   x264_nal_t *nal;
   int i_nal;
 
+  x264_picture_t pic_out;
   e->pic_in.img.plane[0] = y;
   e->pic_in.img.plane[1] = cb;
   e->pic_in.img.plane[2] = cr;
 
-  int frame_size = x264_encoder_encode(e->h, &nal, &i_nal, &e->pic_in, &e->pic_out);
+  int frame_size = x264_encoder_encode(e->h, &nal, &i_nal, &e->pic_in, &pic_out);
   Slice s = {.data_len = frame_size};
   if (frame_size <= 0) {
     *rc = ERR_ENCODE;
     return s;
   }
 
-  e->pic_in.i_pts++;
+  // e->pic_in.i_pts++;
   s.data = nal->p_payload;
   return s;
 }
 
 void enc_close(Encoder *e, int *rc) {
   x264_encoder_close(e->h);
-  x264_picture_clean(&e->pic_in);
   free(e);
 }
