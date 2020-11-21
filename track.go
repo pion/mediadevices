@@ -379,9 +379,6 @@ func newAudioTrackFromDriver(d driver.Driver, recorder driver.AudioRecorder, con
 		return nil, err
 	}
 
-	// FIXME: The current audio detection and audio encoder can only work with a static latency. Since the latency from the driver
-	//        can fluctuate, we need to stabilize it. Maybe there's a better way for doing this?
-	reader = audio.NewBuffer(int(constraints.selectedMedia.Latency.Seconds() * float64(constraints.selectedMedia.SampleRate)))(reader)
 	return newAudioTrackFromReader(d, reader, selector), nil
 }
 
