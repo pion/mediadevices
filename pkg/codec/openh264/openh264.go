@@ -1,7 +1,5 @@
 package openh264
 
-// #cgo CFLAGS: -I${SRCDIR}/../../../cvendor/include
-// #cgo CXXFLAGS: -I${SRCDIR}/../../../cvendor/include
 // #include <string.h>
 // #include <openh264/codec_api.h>
 // #include <errno.h>
