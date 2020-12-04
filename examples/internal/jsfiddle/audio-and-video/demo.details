@@ -1,0 +1,6 @@
+---
+ name: audio-and-video
+ description: Example of using Pion WebRTC to play audio and video
+ authors:
+   - Sean DuBois
+   - Atsushi Watanabe

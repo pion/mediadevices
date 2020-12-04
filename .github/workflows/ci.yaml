@@ -1,0 +1,81 @@
+name: CI
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: [ '1.15', '1.14' ]
+    name: Linux Go ${{ matrix.go }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq \
+          && sudo apt-get install --no-install-recommends -y \
+            libopus-dev \
+            libva-dev \
+            libvpx-dev \
+            libx264-dev
+      - name: go vet
+        run: go vet $(go list ./... | grep -v mmal)
+      - name: go build
+        run: go build $(go list ./... | grep -v mmal)
+      - name: go build without CGO
+        run: go build . pkg/...
+        env:
+          CGO_ENABLED: 0
+      - name: go test
+        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic $(go list ./... | grep -v mmal)
+      - uses: codecov/codecov-action@v1
+        if: matrix.go == '1.15'
+      - name: go test without CGO
+        run: go test . pkg/... -v
+        env:
+          CGO_ENABLED: 0
+  build-darwin:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        go: [ '1.15', '1.14' ]
+    name: Darwin Go ${{ matrix.go }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Install dependencies
+        run: |
+          brew install \
+            pkg-config \
+            opus \
+            libvpx \
+            x264
+      - name: go vet
+        run: go vet $(go list ./... | grep -v mmal)
+      - name: go build
+        run: go build $(go list ./... | grep -v mmal)
+      - name: go build without CGO
+        run: go build . pkg/...
+        env:
+          CGO_ENABLED: 0
+      - name: go test
+        run: go test -v -race $(go list ./... | grep -v mmal)
+      - name: go test without CGO
+        run: go test . pkg/... -v
+        env:
+          CGO_ENABLED: 0
