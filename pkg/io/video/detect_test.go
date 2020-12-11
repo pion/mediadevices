@@ -3,7 +3,6 @@ package video
 import (
 	"fmt"
 	"image"
-	"math/rand"
 	"runtime"
 	"testing"
 	"time"
@@ -77,8 +76,6 @@ func TestDetectChanges(t *testing.T) {
 
 	SlowDownAfterThrottle := func(rate float32, factor float64, after time.Duration) TransformFunc {
 		return func(r Reader) Reader {
-			// fix seed value for random operations
-			rand.Seed(42)
 			sleep := float64(time.Second) / float64(rate)
 			start := time.Now()
 			f := 1.0
