@@ -3,6 +3,7 @@ package video
 import (
 	"fmt"
 	"image"
+	"math/rand"
 	"runtime"
 	"testing"
 	"time"
@@ -71,6 +72,29 @@ func TestDetectChanges(t *testing.T) {
 
 		if output.Bounds().Dx() != expected.Width {
 			t.Fatalf("expected output width from to be %d but got %d", expected.Width, output.Bounds().Dx())
+		}
+	}
+
+	SlowDownAfterThrottle := func(rate float32, factor float64, after time.Duration) TransformFunc {
+		return func(r Reader) Reader {
+			// fix seed value for random operations
+			rand.Seed(42)
+			sleep := float64(time.Second) / float64(rate)
+			start := time.Now()
+			f := 1.0
+			return ReaderFunc(func() (image.Image, func(), error) {
+				for {
+					img, _, err := r.Read()
+					if err != nil {
+						return nil, func() {}, err
+					}
+					if time.Since(start) > after {
+						f = factor
+					}
+					time.Sleep(time.Duration(sleep * f))
+					return img, func() {}, nil
+				}
+			})
 		}
 	}
 
@@ -156,7 +180,7 @@ func TestDetectChanges(t *testing.T) {
 		}
 	})
 
-	t.Run("OnChangeNotCalledOnToleratedFrameRateVariation", func(t *testing.T) {
+	t.Run("OnChangeNotCalledForToleratedFrameRateVariation", func(t *testing.T) {
 		// https://github.com/pion/mediadevices/issues/198
 		if runtime.GOOS == "darwin" {
 			t.Skip("Skipping because Darwin CI is not reliable for timing related tests.")
@@ -168,15 +192,18 @@ func TestDetectChanges(t *testing.T) {
 		expected.Height = 1080
 		expected.FrameRate = 30
 		src, _ := buildSource(expected)
-		src = Throttle(25)(src)
-		src = DetectChanges(time.Second, 10, func(p prop.Media) {
+		src = SlowDownAfterThrottle(expected.FrameRate, 1.1, time.Second)(src)
+		src = DetectChanges(time.Second, 5, func(p prop.Media) {
 			count++
 		})(src)
-		for i := 0; i < 100; i++ {
+		for start := time.Now(); time.Since(start) < 3*time.Second; {
 			src.Read()
 		}
-		if count > 0 {
-			t.Fatalf("onChange was called %d times but should not have been.", count)
+		// onChange is called once before first frame: prop.FrameRate still 0.
+		// onChange is called again after receiving frames during the specified interval: prop.FrameRate is properly calculated
+		// So if the frame rate only changes within the specified tolerance, onChange should no longer be called.
+		if count > 2 {
+			t.Fatalf("onChange was called more than twice.")
 		}
 	})
 }
