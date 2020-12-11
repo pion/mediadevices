@@ -155,4 +155,28 @@ func TestDetectChanges(t *testing.T) {
 			assertEq(t, actual, expected, frame, checkFrameRate)
 		}
 	})
+
+	t.Run("OnChangeNotCalledOnToleratedFrameRateVariation", func(t *testing.T) {
+		// https://github.com/pion/mediadevices/issues/198
+		if runtime.GOOS == "darwin" {
+			t.Skip("Skipping because Darwin CI is not reliable for timing related tests.")
+		}
+
+		var expected prop.Media
+		var count int
+		expected.Width = 1920
+		expected.Height = 1080
+		expected.FrameRate = 30
+		src, _ := buildSource(expected)
+		src = Throttle(25)(src)
+		src = DetectChanges(time.Second, 10, func(p prop.Media) {
+			count++
+		})(src)
+		for i := 0; i < 100; i++ {
+			src.Read()
+		}
+		if count > 0 {
+			t.Fatalf("onChange was called %d times but should not have been.", count)
+		}
+	})
 }
