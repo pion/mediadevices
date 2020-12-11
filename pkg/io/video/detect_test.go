@@ -28,7 +28,7 @@ func BenchmarkDetectChanges(b *testing.B) {
 		src := src
 		b.Run(fmt.Sprintf("WithDetectChanges%d", n), func(b *testing.B) {
 			for i := 0; i < n; i++ {
-				src = DetectChanges(time.Microsecond, func(p prop.Media) {})(src)
+				src = DetectChanges(time.Microsecond, 0, func(p prop.Media) {})(src)
 			}
 
 			for i := 0; i < b.N; i++ {
@@ -74,6 +74,27 @@ func TestDetectChanges(t *testing.T) {
 		}
 	}
 
+	SlowDownAfterThrottle := func(rate float32, factor float64, after time.Duration) TransformFunc {
+		return func(r Reader) Reader {
+			sleep := float64(time.Second) / float64(rate)
+			start := time.Now()
+			f := 1.0
+			return ReaderFunc(func() (image.Image, func(), error) {
+				for {
+					img, _, err := r.Read()
+					if err != nil {
+						return nil, func() {}, err
+					}
+					if time.Since(start) > after {
+						f = factor
+					}
+					time.Sleep(time.Duration(sleep * f))
+					return img, func() {}, nil
+				}
+			})
+		}
+	}
+
 	t.Run("OnChangeCalledBeforeFirstFrame", func(t *testing.T) {
 		var detectBeforeFirstFrame bool
 		var expected prop.Media
@@ -81,7 +102,7 @@ func TestDetectChanges(t *testing.T) {
 		expected.Width = 1920
 		expected.Height = 1080
 		src, _ := buildSource(expected)
-		src = DetectChanges(time.Second, func(p prop.Media) {
+		src = DetectChanges(time.Second, 0, func(p prop.Media) {
 			actual = p
 			detectBeforeFirstFrame = true
 		})(src)
@@ -104,7 +125,7 @@ func TestDetectChanges(t *testing.T) {
 		expected.Width = 1920
 		expected.Height = 1080
 		src, update := buildSource(expected)
-		src = DetectChanges(time.Second, func(p prop.Media) {
+		src = DetectChanges(time.Second, 0, func(p prop.Media) {
 			actual = p
 		})(src)
 
@@ -137,7 +158,7 @@ func TestDetectChanges(t *testing.T) {
 		expected.FrameRate = 30
 		src, _ := buildSource(expected)
 		src = Throttle(expected.FrameRate)(src)
-		src = DetectChanges(time.Second*5, func(p prop.Media) {
+		src = DetectChanges(time.Second*5, 0, func(p prop.Media) {
 			actual = p
 			count++
 		})(src)
@@ -153,6 +174,33 @@ func TestDetectChanges(t *testing.T) {
 				checkFrameRate = true
 			}
 			assertEq(t, actual, expected, frame, checkFrameRate)
+		}
+	})
+
+	t.Run("OnChangeNotCalledForToleratedFrameRateVariation", func(t *testing.T) {
+		// https://github.com/pion/mediadevices/issues/198
+		if runtime.GOOS == "darwin" {
+			t.Skip("Skipping because Darwin CI is not reliable for timing related tests.")
+		}
+
+		var expected prop.Media
+		var count int
+		expected.Width = 1920
+		expected.Height = 1080
+		expected.FrameRate = 30
+		src, _ := buildSource(expected)
+		src = SlowDownAfterThrottle(expected.FrameRate, 1.1, time.Second)(src)
+		src = DetectChanges(time.Second, 5, func(p prop.Media) {
+			count++
+		})(src)
+		for start := time.Now(); time.Since(start) < 3*time.Second; {
+			src.Read()
+		}
+		// onChange is called once before first frame: prop.FrameRate still 0.
+		// onChange is called again after receiving frames during the specified interval: prop.FrameRate is properly calculated
+		// So if the frame rate only changes within the specified tolerance, onChange should no longer be called.
+		if count > 2 {
+			t.Fatalf("onChange was called more than twice.")
 		}
 	})
 }
