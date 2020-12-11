@@ -2,6 +2,7 @@ package video
 
 import (
 	"image"
+	"math"
 	"time"
 
 	"github.com/pion/mediadevices/pkg/prop"
@@ -9,7 +10,7 @@ import (
 
 // DetectChanges will detect frame and video property changes. For video property detection,
 // since it's time related, interval will be used to determine the sample rate.
-func DetectChanges(interval time.Duration, onChange func(prop.Media)) TransformFunc {
+func DetectChanges(interval time.Duration, fpsDiffTolerance float64, onChange func(prop.Media)) TransformFunc {
 	return func(r Reader) Reader {
 		var currentProp prop.Media
 		var lastTaken time.Time
@@ -40,11 +41,12 @@ func DetectChanges(interval time.Duration, onChange func(prop.Media)) TransformF
 			elapsed := now.Sub(lastTaken)
 			if elapsed >= interval {
 				fps := float32(float64(frames) / elapsed.Seconds())
-				// TODO: maybe add some epsilon so that small changes will not mark as dirty
-				currentProp.FrameRate = fps
 				frames = 0
 				lastTaken = now
-				dirty = true
+				if math.Abs(float64(currentProp.FrameRate-fps)) > fpsDiffTolerance {
+					currentProp.FrameRate = fps
+					dirty = true
+				}
 			}
 
 			if dirty {

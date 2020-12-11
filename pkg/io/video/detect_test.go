@@ -28,7 +28,7 @@ func BenchmarkDetectChanges(b *testing.B) {
 		src := src
 		b.Run(fmt.Sprintf("WithDetectChanges%d", n), func(b *testing.B) {
 			for i := 0; i < n; i++ {
-				src = DetectChanges(time.Microsecond, func(p prop.Media) {})(src)
+				src = DetectChanges(time.Microsecond, 0, func(p prop.Media) {})(src)
 			}
 
 			for i := 0; i < b.N; i++ {
@@ -81,7 +81,7 @@ func TestDetectChanges(t *testing.T) {
 		expected.Width = 1920
 		expected.Height = 1080
 		src, _ := buildSource(expected)
-		src = DetectChanges(time.Second, func(p prop.Media) {
+		src = DetectChanges(time.Second, 0, func(p prop.Media) {
 			actual = p
 			detectBeforeFirstFrame = true
 		})(src)
@@ -104,7 +104,7 @@ func TestDetectChanges(t *testing.T) {
 		expected.Width = 1920
 		expected.Height = 1080
 		src, update := buildSource(expected)
-		src = DetectChanges(time.Second, func(p prop.Media) {
+		src = DetectChanges(time.Second, 0, func(p prop.Media) {
 			actual = p
 		})(src)
 
@@ -137,7 +137,7 @@ func TestDetectChanges(t *testing.T) {
 		expected.FrameRate = 30
 		src, _ := buildSource(expected)
 		src = Throttle(expected.FrameRate)(src)
-		src = DetectChanges(time.Second*5, func(p prop.Media) {
+		src = DetectChanges(time.Second*5, 0, func(p prop.Media) {
 			actual = p
 			count++
 		})(src)

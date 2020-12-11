@@ -14,7 +14,7 @@ func detectCurrentVideoProp(broadcaster *video.Broadcaster) (prop.Media, error) 
 	// buffered frame or a new frame from the source. This also implies that no frame will be lost
 	// in any case.
 	metaReader := broadcaster.NewReader(false)
-	metaReader = video.DetectChanges(0, func(p prop.Media) { currentProp = p })(metaReader)
+	metaReader = video.DetectChanges(0, 0, func(p prop.Media) { currentProp = p })(metaReader)
 	_, _, err := metaReader.Read()
 
 	return currentProp, err
