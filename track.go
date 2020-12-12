@@ -58,8 +58,10 @@ type Track interface {
 	// NewRTPReader creates a new reader from the source. The reader will encode the source, and packetize
 	// the encoded data in RTP format with given mtu size.
 	NewRTPReader(codecName string, mtu int) (RTPReadCloser, error)
+	// NewEncodedReader creates a EncodedReadCloser that reads the encoded data in codecName format
+	NewEncodedReader(codecName string) (EncodedReadCloser, error)
 	// NewEncodedReader creates a new Go standard io.ReadCloser that reads the encoded data in codecName format
-	NewEncodedReader(codecName string) (io.ReadCloser, error)
+	NewEncodedIOReader(codecName string) (io.ReadCloser, error)
 }
 
 type baseTrack struct {
@@ -185,31 +187,6 @@ func (track *baseTrack) unbind(pc *webrtc.PeerConnection) error {
 	return nil
 }
 
-func (track *baseTrack) newEncodedReader(reader codec.ReadCloser) (io.ReadCloser, error) {
-	var encoded []byte
-	release := func() {}
-	return &encodedReadCloserImpl{
-		readFn: func(b []byte) (int, error) {
-			var err error
-
-			if len(encoded) == 0 {
-				release()
-				encoded, release, err = reader.Read()
-				if err != nil {
-					reader.Close()
-					track.onError(err)
-					return 0, err
-				}
-			}
-
-			n := copy(b, encoded)
-			encoded = encoded[n:]
-			return n, nil
-		},
-		closeFn: reader.Close,
-	}, nil
-}
-
 func newTrackFromDriver(d driver.Driver, constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {
 	if err := d.Open(); err != nil {
 		return nil, err
@@ -291,19 +268,51 @@ func (track *VideoTrack) Unbind(pc *webrtc.PeerConnection) error {
 	return track.unbind(pc)
 }
 
-func (track *VideoTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser, error) {
+func (track *VideoTrack) newEncodedReader(codecNames ...string) (EncodedReadCloser, *codec.RTPCodec, error) {
 	reader := track.NewReader(false)
 	inputProp, err := detectCurrentVideoProp(track.Broadcaster)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	encodedReader, selectedCodec, err := track.selector.selectVideoCodecByNames(reader, inputProp, codecName)
+	encodedReader, selectedCodec, err := track.selector.selectVideoCodecByNames(reader, inputProp, codecNames...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	sample := newVideoSampler(selectedCodec.ClockRate)
+
+	return &encodedReadCloserImpl{
+		readFn: func() (EncodedBuffer, func(), error) {
+			data, release, err := encodedReader.Read()
+			buffer := EncodedBuffer{
+				Data:    data,
+				Samples: sample(),
+			}
+			return buffer, release, err
+		},
+		closeFn: encodedReader.Close,
+	}, selectedCodec, nil
+}
+
+func (track *VideoTrack) NewEncodedReader(codecName string) (EncodedReadCloser, error) {
+	reader, _, err := track.newEncodedReader(codecName)
+	return reader, err
+}
+
+func (track *VideoTrack) NewEncodedIOReader(codecName string) (io.ReadCloser, error) {
+	encodedReader, _, err := track.newEncodedReader(codecName)
+	if err != nil {
+		return nil, err
+	}
+	return newEncodedIOReadCloserImpl(encodedReader), nil
+}
+
+func (track *VideoTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser, error) {
+	encodedReader, selectedCodec, err := track.newEncodedReader(codecName)
+	if err != nil {
+		return nil, err
+	}
 
 	// FIXME: not sure the best way to get unique ssrc. We probably should have a global keeper that can generate a random ID and does book keeping?
 	packetizer := rtp.NewPacketizer(mtu, selectedCodec.PayloadType, rand.Uint32(), selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
@@ -318,27 +327,11 @@ func (track *VideoTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser,
 			}
 			defer release()
 
-			samples := sample()
-			pkts := packetizer.Packetize(encoded, samples)
+			pkts := packetizer.Packetize(encoded.Data, encoded.Samples)
 			return pkts, release, err
 		},
 		closeFn: encodedReader.Close,
 	}, nil
-}
-
-func (track *VideoTrack) NewEncodedReader(codecName string) (io.ReadCloser, error) {
-	reader := track.NewReader(false)
-	inputProp, err := detectCurrentVideoProp(track.Broadcaster)
-	if err != nil {
-		return nil, err
-	}
-
-	encodedReader, _, err := track.selector.selectVideoCodecByNames(reader, inputProp, codecName)
-	if err != nil {
-		return nil, err
-	}
-
-	return track.newEncodedReader(encodedReader)
 }
 
 // AudioTrack is a specific track type that contains audio source which allows multiple readers to access, and
@@ -408,19 +401,51 @@ func (track *AudioTrack) Unbind(pc *webrtc.PeerConnection) error {
 	return track.unbind(pc)
 }
 
-func (track *AudioTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser, error) {
+func (track *AudioTrack) newEncodedReader(codecNames ...string) (EncodedReadCloser, *codec.RTPCodec, error) {
 	reader := track.NewReader(false)
 	inputProp, err := detectCurrentAudioProp(track.Broadcaster)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	encodedReader, selectedCodec, err := track.selector.selectAudioCodecByNames(reader, inputProp, codecName)
+	encodedReader, selectedCodec, err := track.selector.selectAudioCodecByNames(reader, inputProp, codecNames...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	sample := newAudioSampler(selectedCodec.ClockRate, inputProp.Latency)
+
+	return &encodedReadCloserImpl{
+		readFn: func() (EncodedBuffer, func(), error) {
+			data, release, err := encodedReader.Read()
+			buffer := EncodedBuffer{
+				Data:    data,
+				Samples: sample(),
+			}
+			return buffer, release, err
+		},
+		closeFn: encodedReader.Close,
+	}, selectedCodec, nil
+}
+
+func (track *AudioTrack) NewEncodedReader(codecName string) (EncodedReadCloser, error) {
+	reader, _, err := track.newEncodedReader(codecName)
+	return reader, err
+}
+
+func (track *AudioTrack) NewEncodedIOReader(codecName string) (io.ReadCloser, error) {
+	encodedReader, _, err := track.newEncodedReader(codecName)
+	if err != nil {
+		return nil, err
+	}
+	return newEncodedIOReadCloserImpl(encodedReader), nil
+}
+
+func (track *AudioTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser, error) {
+	encodedReader, selectedCodec, err := track.newEncodedReader(codecName)
+	if err != nil {
+		return nil, err
+	}
 
 	// FIXME: not sure the best way to get unique ssrc. We probably should have a global keeper that can generate a random ID and does book keeping?
 	packetizer := rtp.NewPacketizer(mtu, selectedCodec.PayloadType, rand.Uint32(), selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
@@ -435,25 +460,9 @@ func (track *AudioTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser,
 			}
 			defer release()
 
-			samples := sample()
-			pkts := packetizer.Packetize(encoded, samples)
+			pkts := packetizer.Packetize(encoded.Data, encoded.Samples)
 			return pkts, release, err
 		},
 		closeFn: encodedReader.Close,
 	}, nil
-}
-
-func (track *AudioTrack) NewEncodedReader(codecName string) (io.ReadCloser, error) {
-	reader := track.NewReader(false)
-	inputProp, err := detectCurrentAudioProp(track.Broadcaster)
-	if err != nil {
-		return nil, err
-	}
-
-	encodedReader, _, err := track.selector.selectAudioCodecByNames(reader, inputProp, codecName)
-	if err != nil {
-		return nil, err
-	}
-
-	return track.newEncodedReader(encodedReader)
 }

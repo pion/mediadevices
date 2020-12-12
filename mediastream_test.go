@@ -38,7 +38,11 @@ func (track *mockMediaStreamTrack) NewRTPReader(codecName string, mtu int) (RTPR
 	return nil, nil
 }
 
-func (track *mockMediaStreamTrack) NewEncodedReader(codecName string) (io.ReadCloser, error) {
+func (track *mockMediaStreamTrack) NewEncodedReader(codecName string) (EncodedReadCloser, error) {
+	return nil, nil
+}
+
+func (track *mockMediaStreamTrack) NewEncodedIOReader(codecName string) (io.ReadCloser, error) {
 	return nil, nil
 }
 
