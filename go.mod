@@ -11,7 +11,7 @@ require (
 	github.com/lherman-cs/opus v0.0.2
 	github.com/lxn/win v0.0.0-20201111105847-2a20daff6a55 // indirect
 	github.com/pion/logging v0.2.2
-	github.com/pion/rtp v1.6.1
+	github.com/pion/rtp v1.6.2
 	github.com/pion/webrtc/v2 v2.2.26
 	github.com/satori/go.uuid v1.2.0
 	golang.org/x/image v0.0.0-20200927104501-e162460cd6b5
