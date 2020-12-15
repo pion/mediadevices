@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/BurntSushi/xgb v0.0.0-20201008132610-5f9e7b3c49cd // indirect
 	github.com/blackjack/webcam v0.0.0-20200313125108-10ed912a8539
-	github.com/gen2brain/malgo v0.10.25
+	github.com/gen2brain/malgo v0.10.27
 	github.com/gen2brain/shm v0.0.0-20200228170931-49f9650110c5 // indirect
 	github.com/kbinani/screenshot v0.0.0-20191211154542-3a185f1ce18f
 	github.com/lherman-cs/opus v0.0.2
