@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/lherman-cs/opus"
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -13,15 +12,27 @@ import (
 	"github.com/pion/mediadevices/pkg/wave/mixer"
 )
 
+/*
+#include <opus.h>
+
+int bridge_encoder_set_bitrate(OpusEncoder *e, opus_int32 bitrate)
+{
+	return opus_encoder_ctl(e, OPUS_SET_BITRATE(bitrate));
+}
+*/
+import "C"
+
 type encoder struct {
-	engine *opus.Encoder
 	inBuff wave.Audio
 	reader audio.Reader
+	engine *C.OpusEncoder
 }
 
 var latencies = []float64{5, 10, 20, 40, 60}
 
 func newEncoder(r audio.Reader, p prop.Media, params Params) (codec.ReadCloser, error) {
+	var cerror C.int
+
 	if p.SampleRate == 0 {
 		return nil, fmt.Errorf("opus: inProp.SampleRate is required")
 	}
@@ -55,12 +66,14 @@ func newEncoder(r audio.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 
 	channels := p.ChannelCount
 
-	engine, err := opus.NewEncoder(p.SampleRate, channels, opus.AppVoIP)
-	if err != nil {
-		return nil, err
-	}
-	if err := engine.SetBitrate(params.BitRate); err != nil {
-		return nil, err
+	engine := C.opus_encoder_create(
+		C.opus_int32(p.SampleRate),
+		C.int(channels),
+		C.OPUS_APPLICATION_VOIP,
+		&cerror,
+	)
+	if cerror != C.OPUS_OK {
+		return nil, errors.New("failed to create encoder engine")
 	}
 
 	rMix := audio.NewChannelMixer(channels, params.ChannelMixer)
@@ -68,6 +81,12 @@ func newEncoder(r audio.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	e := encoder{
 		engine: engine,
 		reader: rMix(rBuf(r)),
+	}
+
+	err := e.SetBitRate(params.BitRate)
+	if err != nil {
+		e.Close()
+		return nil, err
 	}
 	return &e, nil
 }
@@ -79,20 +98,45 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	}
 
 	encoded := make([]byte, 1024)
+	var n C.opus_int32
 	switch b := buff.(type) {
 	case *wave.Int16Interleaved:
-		n, err := e.engine.Encode(b.Data, encoded)
-		return encoded[:n:n], func() {}, err
+		n = C.opus_encode(
+			e.engine,
+			(*C.opus_int16)(&b.Data[0]),
+			C.int(b.ChunkInfo().Len),
+			(*C.uchar)(&encoded[0]),
+			C.opus_int32(cap(encoded)),
+		)
 	case *wave.Float32Interleaved:
-		n, err := e.engine.EncodeFloat32(b.Data, encoded)
-		return encoded[:n:n], func() {}, err
+		n = C.opus_encode_float(
+			e.engine,
+			(*C.float)(&b.Data[0]),
+			C.int(b.ChunkInfo().Len),
+			(*C.uchar)(&encoded[0]),
+			C.opus_int32(cap(encoded)),
+		)
 	default:
-		return nil, func() {}, errors.New("unknown type of audio buffer")
+		err = errors.New("unknown type of audio buffer")
 	}
+
+	if n < 0 {
+		err = errors.New("failed to encode")
+	}
+
+	return encoded[:n:n], func() {}, err
 }
 
-func (e *encoder) SetBitRate(b int) error {
-	panic("SetBitRate is not implemented")
+func (e *encoder) SetBitRate(bitRate int) error {
+	cerror := C.bridge_encoder_set_bitrate(
+		e.engine,
+		C.int(bitRate),
+	)
+	if cerror != C.OPUS_OK {
+		return fmt.Errorf("failed to set encoder's bitrate to %d", bitRate)
+	}
+
+	return nil
 }
 
 func (e *encoder) ForceKeyFrame() error {
@@ -100,5 +144,7 @@ func (e *encoder) ForceKeyFrame() error {
 }
 
 func (e *encoder) Close() error {
+	C.opus_encoder_destroy(e.engine)
+	e.engine = nil
 	return nil
 }
