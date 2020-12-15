@@ -144,7 +144,14 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 
 		decodedChunk, err := decoder.Decode(hostEndian, chunk, inputProp.ChannelCount)
 		// FIXME: the decoder should also fill this information
-		decodedChunk.(*wave.Float32Interleaved).Size.SamplingRate = inputProp.SampleRate
+		switch decodedChunk := decodedChunk.(type) {
+		case *wave.Float32Interleaved:
+			decodedChunk.Size.SamplingRate = inputProp.SampleRate
+		case *wave.Int16Interleaved:
+			decodedChunk.Size.SamplingRate = inputProp.SampleRate
+		default:
+			panic("unsupported format")
+		}
 		return decodedChunk, func() {}, err
 	})
 
