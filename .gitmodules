@@ -1,3 +1,0 @@
-[submodule "cvendor/src/openh264"]
-	path = cvendor/src/openh264
-	url = https://github.com/cisco/openh264.git
