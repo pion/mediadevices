@@ -64,8 +64,9 @@ func (d *dummy) AudioRecord(p prop.Media) (audio.Reader, error) {
 
 		a := wave.NewFloat32Interleaved(
 			wave.ChunkInfo{
-				Channels: p.ChannelCount,
-				Len:      nSample,
+				Channels:     p.ChannelCount,
+				Len:          nSample,
+				SamplingRate: p.SampleRate,
 			},
 		)
 
