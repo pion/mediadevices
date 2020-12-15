@@ -8,7 +8,6 @@ require (
 	github.com/gen2brain/malgo v0.10.27
 	github.com/gen2brain/shm v0.0.0-20200228170931-49f9650110c5 // indirect
 	github.com/kbinani/screenshot v0.0.0-20191211154542-3a185f1ce18f
-	github.com/lherman-cs/opus v0.0.2
 	github.com/lxn/win v0.0.0-20201111105847-2a20daff6a55 // indirect
 	github.com/pion/logging v0.2.2
 	github.com/pion/rtp v1.6.2
