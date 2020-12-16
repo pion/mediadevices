@@ -2,6 +2,8 @@ package mediadevices
 
 import (
 	"sync"
+
+	"github.com/pion/webrtc/v3"
 )
 
 // MediaStream is an interface that represents a collection of existing tracks.
@@ -23,7 +25,7 @@ type mediaStream struct {
 	l      sync.RWMutex
 }
 
-const trackTypeDefault MediaDeviceType = 0
+const trackTypeDefault webrtc.RTPCodecType = 0
 
 // NewMediaStream creates a MediaStream interface that's defined in
 // https://w3c.github.io/mediacapture-main/#dom-mediastream
@@ -40,11 +42,11 @@ func NewMediaStream(tracks ...Track) (MediaStream, error) {
 }
 
 func (m *mediaStream) GetAudioTracks() []Track {
-	return m.queryTracks(AudioInput)
+	return m.queryTracks(webrtc.RTPCodecTypeAudio)
 }
 
 func (m *mediaStream) GetVideoTracks() []Track {
-	return m.queryTracks(VideoInput)
+	return m.queryTracks(webrtc.RTPCodecTypeVideo)
 }
 
 func (m *mediaStream) GetTracks() []Track {
@@ -53,7 +55,7 @@ func (m *mediaStream) GetTracks() []Track {
 
 // queryTracks returns all tracks that are the same kind as t.
 // If t is 0, which is the default, queryTracks will return all the tracks.
-func (m *mediaStream) queryTracks(t MediaDeviceType) []Track {
+func (m *mediaStream) queryTracks(t webrtc.RTPCodecType) []Track {
 	m.l.RLock()
 	defer m.l.RUnlock()
 

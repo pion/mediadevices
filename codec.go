@@ -9,7 +9,7 @@ import (
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 // CodecSelector is a container of video and audio encoder builders, which later will be used
@@ -50,14 +50,15 @@ func NewCodecSelector(opts ...CodecSelectorOption) *CodecSelector {
 // Populate lets the webrtc engine be aware of supported codecs that are contained in CodecSelector
 func (selector *CodecSelector) Populate(setting *webrtc.MediaEngine) {
 	for _, encoder := range selector.videoEncoders {
-		setting.RegisterCodec(encoder.RTPCodec().RTPCodec)
+		setting.RegisterCodec(encoder.RTPCodec().RTPCodecParameters, webrtc.RTPCodecTypeVideo)
 	}
 
 	for _, encoder := range selector.audioEncoders {
-		setting.RegisterCodec(encoder.RTPCodec().RTPCodec)
+		setting.RegisterCodec(encoder.RTPCodec().RTPCodecParameters, webrtc.RTPCodecTypeAudio)
 	}
 }
 
+// selectVideoCodecByNames selects a single codec that can be built and matched. codecNames can be formatted as "video/<codecName>" or "<codecName>"
 func (selector *CodecSelector) selectVideoCodecByNames(reader video.Reader, inputProp prop.Media, codecNames ...string) (codec.ReadCloser, *codec.RTPCodec, error) {
 	var selectedEncoder codec.VideoEncoderBuilder
 	var encodedReader codec.ReadCloser
@@ -66,8 +67,10 @@ func (selector *CodecSelector) selectVideoCodecByNames(reader video.Reader, inpu
 
 outer:
 	for _, wantCodec := range codecNames {
+		wantCodecLower := strings.ToLower(wantCodec)
 		for _, encoder := range selector.videoEncoders {
-			if encoder.RTPCodec().Name == wantCodec {
+			// MimeType is formated as "video/<codecName>"
+			if strings.HasSuffix(strings.ToLower(encoder.RTPCodec().MimeType), wantCodecLower) {
 				encodedReader, err = encoder.BuildVideoEncoder(reader, inputProp)
 				if err == nil {
 					selectedEncoder = encoder
@@ -75,7 +78,7 @@ outer:
 				}
 			}
 
-			errReasons = append(errReasons, fmt.Sprintf("%s: %s", encoder.RTPCodec().Name, err))
+			errReasons = append(errReasons, fmt.Sprintf("%s: %s", encoder.RTPCodec().MimeType, err))
 		}
 	}
 
@@ -86,16 +89,17 @@ outer:
 	return encodedReader, selectedEncoder.RTPCodec(), nil
 }
 
-func (selector *CodecSelector) selectVideoCodec(reader video.Reader, inputProp prop.Media, codecs ...*webrtc.RTPCodec) (codec.ReadCloser, *codec.RTPCodec, error) {
+func (selector *CodecSelector) selectVideoCodec(reader video.Reader, inputProp prop.Media, codecs ...webrtc.RTPCodecParameters) (codec.ReadCloser, *codec.RTPCodec, error) {
 	var codecNames []string
 
 	for _, codec := range codecs {
-		codecNames = append(codecNames, codec.Name)
+		codecNames = append(codecNames, codec.MimeType)
 	}
 
 	return selector.selectVideoCodecByNames(reader, inputProp, codecNames...)
 }
 
+// selectAudioCodecByNames selects a single codec that can be built and matched. codecNames can be formatted as "audio/<codecName>" or "<codecName>"
 func (selector *CodecSelector) selectAudioCodecByNames(reader audio.Reader, inputProp prop.Media, codecNames ...string) (codec.ReadCloser, *codec.RTPCodec, error) {
 	var selectedEncoder codec.AudioEncoderBuilder
 	var encodedReader codec.ReadCloser
@@ -104,8 +108,10 @@ func (selector *CodecSelector) selectAudioCodecByNames(reader audio.Reader, inpu
 
 outer:
 	for _, wantCodec := range codecNames {
+		wantCodecLower := strings.ToLower(wantCodec)
 		for _, encoder := range selector.audioEncoders {
-			if encoder.RTPCodec().Name == wantCodec {
+			// MimeType is formated as "audio/<codecName>"
+			if strings.HasSuffix(strings.ToLower(encoder.RTPCodec().MimeType), wantCodecLower) {
 				encodedReader, err = encoder.BuildAudioEncoder(reader, inputProp)
 				if err == nil {
 					selectedEncoder = encoder
@@ -113,7 +119,7 @@ outer:
 				}
 			}
 
-			errReasons = append(errReasons, fmt.Sprintf("%s: %s", encoder.RTPCodec().Name, err))
+			errReasons = append(errReasons, fmt.Sprintf("%s: %s", encoder.RTPCodec().MimeType, err))
 		}
 	}
 
@@ -124,11 +130,11 @@ outer:
 	return encodedReader, selectedEncoder.RTPCodec(), nil
 }
 
-func (selector *CodecSelector) selectAudioCodec(reader audio.Reader, inputProp prop.Media, codecs ...*webrtc.RTPCodec) (codec.ReadCloser, *codec.RTPCodec, error) {
+func (selector *CodecSelector) selectAudioCodec(reader audio.Reader, inputProp prop.Media, codecs ...webrtc.RTPCodecParameters) (codec.ReadCloser, *codec.RTPCodec, error) {
 	var codecNames []string
 
 	for _, codec := range codecs {
-		codecNames = append(codecNames, codec.Name)
+		codecNames = append(codecNames, codec.MimeType)
 	}
 
 	return selector.selectAudioCodecByNames(reader, inputProp, codecNames...)

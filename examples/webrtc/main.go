@@ -7,7 +7,7 @@ import (
 	"github.com/pion/mediadevices/examples/internal/signal"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/prop"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 
 	// If you don't like x264, you can also use vpx by importing as below
 	// "github.com/pion/mediadevices/pkg/codec/vpx" // This is required to use VP8/VP9 video encoder
@@ -57,10 +57,7 @@ func main() {
 
 	mediaEngine := webrtc.MediaEngine{}
 	codecSelector.Populate(&mediaEngine)
-	if err := mediaEngine.PopulateFromSDP(offer); err != nil {
-		panic(err)
-	}
-	api := webrtc.NewAPI(webrtc.WithMediaEngine(mediaEngine))
+	api := webrtc.NewAPI(webrtc.WithMediaEngine(&mediaEngine))
 	peerConnection, err := api.NewPeerConnection(config)
 	if err != nil {
 		panic(err)
@@ -86,19 +83,13 @@ func main() {
 		panic(err)
 	}
 
-	for _, tracker := range s.GetTracks() {
-		tracker.OnEnded(func(err error) {
+	for _, track := range s.GetTracks() {
+		track.OnEnded(func(err error) {
 			fmt.Printf("Track (ID: %s) ended with error: %v\n",
-				tracker.ID(), err)
+				track.ID(), err)
 		})
 
-		// In Pion/webrtc v3, bind will be called automatically after SDP negotiation
-		webrtcTrack, err := tracker.Bind(peerConnection)
-		if err != nil {
-			panic(err)
-		}
-
-		_, err = peerConnection.AddTransceiverFromTrack(webrtcTrack,
+		_, err = peerConnection.AddTransceiverFromTrack(track,
 			webrtc.RtpTransceiverInit{
 				Direction: webrtc.RTPTransceiverDirectionSendonly,
 			},
