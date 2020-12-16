@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
 
@@ -51,7 +52,7 @@ func main() {
 	videoTrack := mediaStream.GetVideoTracks()[0]
 	defer videoTrack.Close()
 
-	rtpReader, err := videoTrack.NewRTPReader(x264Params.RTPCodec().Name, mtu)
+	rtpReader, err := videoTrack.NewRTPReader(x264Params.RTPCodec().MimeType, rand.Uint32(), mtu)
 	must(err)
 
 	addr, err := net.ResolveUDPAddr("udp", dest)

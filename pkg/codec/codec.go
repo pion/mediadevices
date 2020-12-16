@@ -4,32 +4,83 @@ import (
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/rtp"
+	"github.com/pion/rtp/codecs"
+	"github.com/pion/webrtc/v3"
 )
 
 // RTPCodec wraps webrtc.RTPCodec. RTPCodec might extend webrtc.RTPCodec in the future.
 type RTPCodec struct {
-	*webrtc.RTPCodec
+	webrtc.RTPCodecParameters
+	rtp.Payloader
 }
 
 // NewRTPH264Codec is a helper to create an H264 codec
 func NewRTPH264Codec(clockrate uint32) *RTPCodec {
-	return &RTPCodec{webrtc.NewRTPH264Codec(webrtc.DefaultPayloadTypeH264, clockrate)}
+	return &RTPCodec{
+		RTPCodecParameters: webrtc.RTPCodecParameters{
+			RTPCodecCapability: webrtc.RTPCodecCapability{
+				MimeType:     webrtc.MimeTypeH264,
+				ClockRate:    90000,
+				Channels:     0,
+				SDPFmtpLine:  "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+				RTCPFeedback: nil,
+			},
+			PayloadType: 125,
+		},
+		Payloader: &codecs.H264Payloader{},
+	}
 }
 
 // NewRTPVP8Codec is a helper to create an VP8 codec
 func NewRTPVP8Codec(clockrate uint32) *RTPCodec {
-	return &RTPCodec{webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, clockrate)}
+	return &RTPCodec{
+		RTPCodecParameters: webrtc.RTPCodecParameters{
+			RTPCodecCapability: webrtc.RTPCodecCapability{
+				MimeType:     webrtc.MimeTypeVP8,
+				ClockRate:    90000,
+				Channels:     0,
+				SDPFmtpLine:  "",
+				RTCPFeedback: nil,
+			},
+			PayloadType: 96,
+		},
+		Payloader: &codecs.VP8Payloader{},
+	}
 }
 
 // NewRTPVP9Codec is a helper to create an VP9 codec
 func NewRTPVP9Codec(clockrate uint32) *RTPCodec {
-	return &RTPCodec{webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, clockrate)}
+	return &RTPCodec{
+		RTPCodecParameters: webrtc.RTPCodecParameters{
+			RTPCodecCapability: webrtc.RTPCodecCapability{
+				MimeType:     webrtc.MimeTypeVP9,
+				ClockRate:    90000,
+				Channels:     0,
+				SDPFmtpLine:  "",
+				RTCPFeedback: nil,
+			},
+			PayloadType: 98,
+		},
+		Payloader: &codecs.VP9Payloader{},
+	}
 }
 
 // NewRTPOpusCodec is a helper to create an Opus codec
 func NewRTPOpusCodec(clockrate uint32) *RTPCodec {
-	return &RTPCodec{webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, clockrate)}
+	return &RTPCodec{
+		RTPCodecParameters: webrtc.RTPCodecParameters{
+			RTPCodecCapability: webrtc.RTPCodecCapability{
+				MimeType:     webrtc.MimeTypeOpus,
+				ClockRate:    48000,
+				Channels:     2,
+				SDPFmtpLine:  "minptime=10;useinbandfec=1",
+				RTCPFeedback: nil,
+			},
+			PayloadType: 111,
+		},
+		Payloader: &codecs.OpusPayloader{},
+	}
 }
 
 // AudioEncoderBuilder is the interface that wraps basic operations that are

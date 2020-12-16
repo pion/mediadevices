@@ -4,7 +4,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 type mockMediaStreamTrack struct {
@@ -15,26 +15,37 @@ func (track *mockMediaStreamTrack) ID() string {
 	return ""
 }
 
+func (track *mockMediaStreamTrack) StreamID() string {
+	return ""
+}
+
 func (track *mockMediaStreamTrack) Close() error {
 	return nil
 }
 
-func (track *mockMediaStreamTrack) Kind() MediaDeviceType {
-	return track.kind
+func (track *mockMediaStreamTrack) Kind() webrtc.RTPCodecType {
+	switch track.kind {
+	case AudioInput:
+		return webrtc.RTPCodecTypeAudio
+	case VideoInput:
+		return webrtc.RTPCodecTypeVideo
+	default:
+		panic("invalid track kind")
+	}
 }
 
 func (track *mockMediaStreamTrack) OnEnded(handler func(error)) {
 }
 
-func (track *mockMediaStreamTrack) Bind(pc *webrtc.PeerConnection) (*webrtc.Track, error) {
-	return nil, nil
+func (track *mockMediaStreamTrack) Bind(ctx webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error) {
+	return webrtc.RTPCodecParameters{}, nil
 }
 
-func (track *mockMediaStreamTrack) Unbind(pc *webrtc.PeerConnection) error {
+func (track *mockMediaStreamTrack) Unbind(ctx webrtc.TrackLocalContext) error {
 	return nil
 }
 
-func (track *mockMediaStreamTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser, error) {
+func (track *mockMediaStreamTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (RTPReadCloser, error) {
 	return nil, nil
 }
 

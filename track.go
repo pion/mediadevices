@@ -2,19 +2,24 @@ package mediadevices
 
 import (
 	"errors"
+	"fmt"
 	"image"
 	"io"
-	"math/rand"
+	"strings"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/wave"
 	"github.com/pion/rtp"
-	"github.com/pion/webrtc/v2"
-	"github.com/pion/webrtc/v2/pkg/media"
+	"github.com/pion/webrtc/v3"
+)
+
+const (
+	rtpOutboundMTU = 1200
 )
 
 var (
@@ -48,16 +53,18 @@ type Track interface {
 	// If the error is already occured before registering, the handler will be
 	// immediately called.
 	OnEnded(func(error))
-	Kind() MediaDeviceType
+	Kind() webrtc.RTPCodecType
+	// StreamID is the group this track belongs too. This must be unique
+	StreamID() string
 	// Bind binds the current track source to the given peer connection. In Pion/webrtc v3, the bind
 	// call will happen automatically after the SDP negotiation. Users won't need to call this manually.
-	Bind(*webrtc.PeerConnection) (*webrtc.Track, error)
+	Bind(webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error)
 	// Unbind is the clean up operation that should be called after Bind. Similar to Bind, unbind will
-	// be called automatically in the future.
-	Unbind(*webrtc.PeerConnection) error
+	// be called automatically in Pion/webrtc v3.
+	Unbind(webrtc.TrackLocalContext) error
 	// NewRTPReader creates a new reader from the source. The reader will encode the source, and packetize
 	// the encoded data in RTP format with given mtu size.
-	NewRTPReader(codecName string, mtu int) (RTPReadCloser, error)
+	NewRTPReader(codecName string, ssrc uint32, mtu int) (RTPReadCloser, error)
 	// NewEncodedReader creates a EncodedReadCloser that reads the encoded data in codecName format
 	NewEncodedReader(codecName string) (EncodedReadCloser, error)
 	// NewEncodedReader creates a new Go standard io.ReadCloser that reads the encoded data in codecName format
@@ -72,7 +79,7 @@ type baseTrack struct {
 	endOnce               sync.Once
 	kind                  MediaDeviceType
 	selector              *CodecSelector
-	activePeerConnections map[*webrtc.PeerConnection]chan<- chan<- struct{}
+	activePeerConnections map[string]chan<- chan<- struct{}
 }
 
 func newBaseTrack(source Source, kind MediaDeviceType, selector *CodecSelector) *baseTrack {
@@ -80,13 +87,30 @@ func newBaseTrack(source Source, kind MediaDeviceType, selector *CodecSelector) 
 		Source:                source,
 		kind:                  kind,
 		selector:              selector,
-		activePeerConnections: make(map[*webrtc.PeerConnection]chan<- chan<- struct{}),
+		activePeerConnections: make(map[string]chan<- chan<- struct{}),
 	}
 }
 
 // Kind returns track's kind
-func (track *baseTrack) Kind() MediaDeviceType {
-	return track.kind
+func (track *baseTrack) Kind() webrtc.RTPCodecType {
+	switch track.kind {
+	case VideoInput:
+		return webrtc.RTPCodecTypeVideo
+	case AudioInput:
+		return webrtc.RTPCodecTypeAudio
+	default:
+		panic("invalid track kind: only support VideoInput and AudioInput")
+	}
+}
+
+func (track *baseTrack) StreamID() string {
+	// TODO: StreamID should be used to group multiple tracks. Should get this information from mediastream instead.
+	generator, err := uuid.NewRandom()
+	if err != nil {
+		panic(err)
+	}
+
+	return generator.String()
 }
 
 // OnEnded sets an error handler. When a track has been created and started, if an
@@ -119,20 +143,35 @@ func (track *baseTrack) onError(err error) {
 	}
 }
 
-func (track *baseTrack) bind(pc *webrtc.PeerConnection, encodedReader codec.ReadCloser, selectedCodec *codec.RTPCodec, sample samplerFunc) (*webrtc.Track, error) {
+func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Track) (webrtc.RTPCodecParameters, error) {
 	track.mu.Lock()
 	defer track.mu.Unlock()
 
-	webrtcTrack, err := pc.NewTrack(selectedCodec.PayloadType, rand.Uint32(), track.ID(), selectedCodec.MimeType)
-	if err != nil {
-		return nil, err
+	signalCh := make(chan chan<- struct{})
+	track.activePeerConnections[ctx.ID()] = signalCh
+
+	var encodedReader RTPReadCloser
+	var selectedCodec webrtc.RTPCodecParameters
+	var err error
+	var errReasons []string
+	for _, wantedCodec := range ctx.CodecParameters() {
+		logger.Debugf("trying to build %s rtp reader", wantedCodec.MimeType)
+		encodedReader, err = specializedTrack.NewRTPReader(wantedCodec.MimeType, uint32(ctx.SSRC()), rtpOutboundMTU)
+		if err == nil {
+			selectedCodec = wantedCodec
+			break
+		}
+
+		errReasons = append(errReasons, fmt.Sprintf("%s: %s", wantedCodec.MimeType, err))
 	}
 
-	signalCh := make(chan chan<- struct{})
-	track.activePeerConnections[pc] = signalCh
+	if encodedReader == nil {
+		return webrtc.RTPCodecParameters{}, errors.New(strings.Join(errReasons, "\n\n"))
+	}
 
 	go func() {
 		var doneCh chan<- struct{}
+		writer := ctx.WriteStream()
 		defer func() {
 			encodedReader.Close()
 
@@ -150,32 +189,30 @@ func (track *baseTrack) bind(pc *webrtc.PeerConnection, encodedReader codec.Read
 			default:
 			}
 
-			buff, _, err := encodedReader.Read()
+			pkts, _, err := encodedReader.Read()
 			if err != nil {
-				track.onError(err)
+				// explicitly ignore this error since the higher level should've reported this
 				return
 			}
 
-			sampleCount := sample()
-			err = webrtcTrack.WriteSample(media.Sample{
-				Data:    buff,
-				Samples: sampleCount,
-			})
-			if err != nil {
-				track.onError(err)
-				return
+			for _, pkt := range pkts {
+				_, err = writer.WriteRTP(&pkt.Header, pkt.Payload)
+				if err != nil {
+					track.onError(err)
+					return
+				}
 			}
 		}
 	}()
 
-	return webrtcTrack, nil
+	return selectedCodec, nil
 }
 
-func (track *baseTrack) unbind(pc *webrtc.PeerConnection) error {
+func (track *baseTrack) unbind(ctx webrtc.TrackLocalContext) error {
 	track.mu.Lock()
 	defer track.mu.Unlock()
 
-	ch, ok := track.activePeerConnections[pc]
+	ch, ok := track.activePeerConnections[ctx.ID()]
 	if !ok {
 		return errNotFoundPeerConnection
 	}
@@ -183,7 +220,7 @@ func (track *baseTrack) unbind(pc *webrtc.PeerConnection) error {
 	doneCh := make(chan struct{})
 	ch <- doneCh
 	<-doneCh
-	delete(track.activePeerConnections, pc)
+	delete(track.activePeerConnections, ctx.ID())
 	return nil
 }
 
@@ -248,24 +285,12 @@ func (track *VideoTrack) Transform(fns ...video.TransformFunc) {
 	track.Broadcaster.ReplaceSource(video.Merge(fns...)(src))
 }
 
-func (track *VideoTrack) Bind(pc *webrtc.PeerConnection) (*webrtc.Track, error) {
-	reader := track.NewReader(false)
-	inputProp, err := detectCurrentVideoProp(track.Broadcaster)
-	if err != nil {
-		return nil, err
-	}
-
-	wantCodecs := pc.GetRegisteredRTPCodecs(webrtc.RTPCodecTypeVideo)
-	encodedReader, selectedCodec, err := track.selector.selectVideoCodec(reader, inputProp, wantCodecs...)
-	if err != nil {
-		return nil, err
-	}
-
-	return track.bind(pc, encodedReader, selectedCodec, newVideoSampler(selectedCodec.ClockRate))
+func (track *VideoTrack) Bind(ctx webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error) {
+	return track.bind(ctx, track)
 }
 
-func (track *VideoTrack) Unbind(pc *webrtc.PeerConnection) error {
-	return track.unbind(pc)
+func (track *VideoTrack) Unbind(ctx webrtc.TrackLocalContext) error {
+	return track.unbind(ctx)
 }
 
 func (track *VideoTrack) newEncodedReader(codecNames ...string) (EncodedReadCloser, *codec.RTPCodec, error) {
@@ -308,14 +333,13 @@ func (track *VideoTrack) NewEncodedIOReader(codecName string) (io.ReadCloser, er
 	return newEncodedIOReadCloserImpl(encodedReader), nil
 }
 
-func (track *VideoTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser, error) {
+func (track *VideoTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (RTPReadCloser, error) {
 	encodedReader, selectedCodec, err := track.newEncodedReader(codecName)
 	if err != nil {
 		return nil, err
 	}
 
-	// FIXME: not sure the best way to get unique ssrc. We probably should have a global keeper that can generate a random ID and does book keeping?
-	packetizer := rtp.NewPacketizer(mtu, selectedCodec.PayloadType, rand.Uint32(), selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
+	packetizer := rtp.NewPacketizer(mtu, uint8(selectedCodec.PayloadType), ssrc, selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
 
 	return &rtpReadCloserImpl{
 		readFn: func() ([]*rtp.Packet, func(), error) {
@@ -381,24 +405,12 @@ func (track *AudioTrack) Transform(fns ...audio.TransformFunc) {
 	track.Broadcaster.ReplaceSource(audio.Merge(fns...)(src))
 }
 
-func (track *AudioTrack) Bind(pc *webrtc.PeerConnection) (*webrtc.Track, error) {
-	reader := track.NewReader(false)
-	inputProp, err := detectCurrentAudioProp(track.Broadcaster)
-	if err != nil {
-		return nil, err
-	}
-
-	wantCodecs := pc.GetRegisteredRTPCodecs(webrtc.RTPCodecTypeAudio)
-	encodedReader, selectedCodec, err := track.selector.selectAudioCodec(reader, inputProp, wantCodecs...)
-	if err != nil {
-		return nil, err
-	}
-
-	return track.bind(pc, encodedReader, selectedCodec, newAudioSampler(selectedCodec.ClockRate, inputProp.Latency))
+func (track *AudioTrack) Bind(ctx webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error) {
+	return track.bind(ctx, track)
 }
 
-func (track *AudioTrack) Unbind(pc *webrtc.PeerConnection) error {
-	return track.unbind(pc)
+func (track *AudioTrack) Unbind(ctx webrtc.TrackLocalContext) error {
+	return track.unbind(ctx)
 }
 
 func (track *AudioTrack) newEncodedReader(codecNames ...string) (EncodedReadCloser, *codec.RTPCodec, error) {
@@ -441,14 +453,13 @@ func (track *AudioTrack) NewEncodedIOReader(codecName string) (io.ReadCloser, er
 	return newEncodedIOReadCloserImpl(encodedReader), nil
 }
 
-func (track *AudioTrack) NewRTPReader(codecName string, mtu int) (RTPReadCloser, error) {
+func (track *AudioTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (RTPReadCloser, error) {
 	encodedReader, selectedCodec, err := track.newEncodedReader(codecName)
 	if err != nil {
 		return nil, err
 	}
 
-	// FIXME: not sure the best way to get unique ssrc. We probably should have a global keeper that can generate a random ID and does book keeping?
-	packetizer := rtp.NewPacketizer(mtu, selectedCodec.PayloadType, rand.Uint32(), selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
+	packetizer := rtp.NewPacketizer(mtu, uint8(selectedCodec.PayloadType), ssrc, selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
 
 	return &rtpReadCloserImpl{
 		readFn: func() ([]*rtp.Packet, func(), error) {
