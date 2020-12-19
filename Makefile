@@ -1,13 +1,3 @@
-# When there's no argument provided to make, all codecs will be built to all 
-# supported platforms. Otherwise, it'll build only the provided target.
-#
-# Usage:
-#   make [<codec_name>-<os>-<arch>]
-#
-# Examples:
-#   * make: build all codecs for all supported platforms
-#   * make opus-darwin-x64: only build opus for darwin-x64 platform
-
 docker_owner := lherman
 docker_prefix := cross
 toolchain_dockerfiles := dockerfiles
@@ -27,14 +17,18 @@ supported_platforms := \
   linux-x64 \
   windows-x64 \
   darwin-x64
+cmd_build := build
+cmd_test := test
+examples_dir := examples
 codec_dir := pkg/codec
 codec_list := $(shell ls $(codec_dir)/*/Makefile)
 codec_list := $(codec_list:$(codec_dir)/%/Makefile=%)
-targets := $(foreach codec, $(codec_list), $(addprefix $(codec)-, $(supported_platforms)))
+targets := $(foreach codec, $(codec_list), $(addprefix $(cmd_build)-$(codec)-, $(supported_platforms)))
+pkgs_without_mmal := $(shell go list ./... | grep -v mmal)
 
 define BUILD_TEMPLATE
 ifneq (,$$(findstring $(2)-$(3),$$(supported_platforms)))
-$(1)-$(2)-$(3): toolchain-$(2)-$(3)
+$$(cmd_build)-$(1)-$(2)-$(3): toolchain-$(2)-$(3)
 	$$(MAKE) --directory=$$(codec_dir)/$(1) \
 		MEDIADEVICES_TOOLCHAIN_BIN=$$(toolchain_path)/$(docker_prefix)-$(2)-$(3) \
 		MEDIADEVICES_TARGET_PLATFORM=$(2)-$(3) \
@@ -44,7 +38,18 @@ endif
 endef
 
 .PHONY: all
-all: $(targets)
+all: $(cmd_test) $(cmd_build)
+
+# Subcommand:
+# 	make build[-<codec_name>-<os>-<arch>]
+#
+# Description:
+# 	Build codec dependencies to multiple platforms.
+#
+# Examples:
+#   * make build: build all codecs for all supported platforms
+#   * make build-opus-darwin-x64: only build opus for darwin-x64 platform
+$(cmd_build): $(targets)
 
 toolchain-%: $(toolchain_dockerfiles)
 	$(MAKE) --directory=$< "$*" \
@@ -59,3 +64,18 @@ $(foreach codec, $(codec_list), \
 	$(foreach os, $(os_list), \
 		$(foreach arch, $(arch_list), \
 			$(eval $(call BUILD_TEMPLATE,$(codec),$(os),$(arch))))))
+
+# Subcommand:
+# 	make test
+#
+# Description:
+# 	Run a series of tests
+$(cmd_test):
+	go vet $(pkgs_without_mmal)
+	go build $(pkgs_without_mmal)
+	# go build without CGO
+	CGO_ENABLED=0 go build . pkg/...
+	# go build with CGO
+	CGO_ENABLED=1 go build $(pkgs_without_mmal)
+	$(MAKE) --directory=$(examples_dir)
+	go test -v -race -coverprofile=coverage.txt -covermode=atomic $(pkgs_without_mmal)
