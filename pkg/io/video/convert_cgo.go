@@ -7,6 +7,7 @@ import (
 )
 
 // #include "convert_cgo.h"
+// #cgo CFLAGS: -std=c11
 import "C"
 
 // CGO version of the functions will be selected at runtime.
