@@ -99,23 +99,24 @@ func main() {
 		}
 	}
 
-	// Set the remote SessionDescription
-	err = peerConnection.SetRemoteDescription(offer)
-	if err != nil {
-		panic(err)
-	}
-
 	// Create an answer
 	answer, err := peerConnection.CreateAnswer(nil)
 	if err != nil {
 		panic(err)
 	}
 
-	// Sets the LocalDescription, and starts our UDP listeners
-	err = peerConnection.SetLocalDescription(answer)
+	// Create channel that is blocked until ICE Gathering is complete (non-trickle ICE)
+	  gatherComplete := webrtc.GatheringCompletePromise(peerConnection)
+	  peerConnection.SetLocalDescription(answer)
+	  <-gatherComplete
+	
+	// Set the remote SessionDescription
+	err = peerConnection.SetRemoteDescription(offer)
 	if err != nil {
 		panic(err)
 	}
+
+
 
 	// Output the answer in base64 so we can paste it in browser
 	fmt.Println(signal.Encode(answer))
