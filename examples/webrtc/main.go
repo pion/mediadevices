@@ -105,10 +105,6 @@ func main() {
 		panic(err)
 	}
 
-	// Create channel that is blocked until ICE Gathering is complete (non-trickle ICE)
-	  gatherComplete := webrtc.GatheringCompletePromise(peerConnection)
-	  peerConnection.SetLocalDescription(answer)
-	  <-gatherComplete
 	
 	// Set the remote SessionDescription
 	err = peerConnection.SetRemoteDescription(offer)
@@ -116,9 +112,14 @@ func main() {
 		panic(err)
 	}
 
+        //Wait for ICE gathering to complete (non-trickle ICE)
+        <-webrtc.GatheringCompletePromise(peerConnection)
+
+        // Output the answer in base64 so we can paste it in browser
+        fmt.Println(signal.Encode(*peerConnection.LocalDescription()))
 
 
-	// Output the answer in base64 so we can paste it in browser
-	fmt.Println(signal.Encode(answer))
+	
+	
 	select {}
 }
