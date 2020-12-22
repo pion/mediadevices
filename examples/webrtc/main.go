@@ -100,7 +100,7 @@ func main() {
 	}
 
 	// Create an answer
-	answer, err := peerConnection.CreateAnswer(nil)
+	_, err := peerConnection.CreateAnswer(nil)
 	if err != nil {
 		panic(err)
 	}
