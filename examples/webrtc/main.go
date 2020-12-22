@@ -105,26 +105,23 @@ func main() {
 		panic(err)
 	}
 
-        // Set the local SessionDescription
-        err = peerConnection.SetLocalDescription(answer)
+	// Set the local SessionDescription
+	err = peerConnection.SetLocalDescription(answer)
 	if err != nil {
 		panic(err)
 	}
-	
+
 	// Set the remote SessionDescription
 	err = peerConnection.SetRemoteDescription(offer)
 	if err != nil {
 		panic(err)
 	}
 
-        //Wait for ICE gathering to complete (non-trickle ICE)
-        <-webrtc.GatheringCompletePromise(peerConnection)
+	//Wait for ICE gathering to complete (non-trickle ICE)
+	<-webrtc.GatheringCompletePromise(peerConnection)
 
-        // Output the answer in base64 so we can paste it in browser
-        fmt.Println(signal.Encode(*peerConnection.LocalDescription()))
+	// Output the answer in base64 so we can paste it in browser
+	fmt.Println(signal.Encode(*peerConnection.LocalDescription()))
 
-
-	
-	
 	select {}
 }
