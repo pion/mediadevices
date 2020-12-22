@@ -98,6 +98,12 @@ func main() {
 			panic(err)
 		}
 	}
+	
+	// Set the remote SessionDescription
+	err = peerConnection.SetRemoteDescription(offer)
+	if err != nil {
+		panic(err)
+	}
 
 	// Create an answer
 	answer, err := peerConnection.CreateAnswer(nil)
@@ -107,12 +113,6 @@ func main() {
 
 	// Set the local SessionDescription
 	err = peerConnection.SetLocalDescription(answer)
-	if err != nil {
-		panic(err)
-	}
-
-	// Set the remote SessionDescription
-	err = peerConnection.SetRemoteDescription(offer)
 	if err != nil {
 		panic(err)
 	}
