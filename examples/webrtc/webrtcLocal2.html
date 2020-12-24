@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <body>
+    <h3>Browser base64 Session Description</h3>
+    <textarea id="localSessionDescription" readonly="true"></textarea>
+
+    <h3>Golang base64 Session Description</h3>
+    <textarea id="remoteSessionDescription"></textarea>
+  <!--  <button onclick="window.startSession()">Start Session</button>  -->
+
+    <h3>Video</h3>
+    <div id="remoteVideos"></div>
+
+    <h3>Logs</h3>
+    <div id="logs"></div>
+
+
+
+
+    <table>
+    <tr><td valign="top" width="50%">
+    <p>Click "Open" to create a connection to the server,
+      "Send" to send a message to the server and "Close" to close the connection.
+      You can change the message and send multiple times.
+    </p>
+
+    <form>
+  <!-- <button id="open">Open</button>
+    <button id="close">Close</button>
+  -->
+    <input id="input" type="text" value="Hello world!">
+    <button id="send" >Send</button>
+    </form>
+    </td><td valign="top" width="50%">
+    <div id="output"></div>
+    </td></tr></table>
+  </body>
+</head>
+<meta charset="utf-8">
+
+<script>
+  window.addEventListener("load", function(evt) {
+
+      var output = document.getElementById("output");
+      var input = document.getElementById("input");
+      var ws = new WebSocket("ws://192.168.1.249:80/echo") //address to connect to, /echo triggers go echo function
+
+      var print = function(message) {
+          var d = document.createElement("div");
+          d.textContent = message;
+          output.appendChild(d);
+      };
+
+
+          ws.onopen = function(evt) {
+              print("OPEN");
+          }
+          ws.onclose = function(evt) {
+              print("CLOSE");
+              ws = null;
+          }
+          ws.onmessage = function(evt) {
+              print("RESPONSE: " + evt.data);
+              window.startSession(evt.data)
+          }
+          ws.onerror = function(evt) {
+              print("ERROR: " + evt.data);
+          }
+
+
+      document.getElementById("send").onclick = function(evt) {
+          if (!ws) {
+              return false;
+          }
+          print("SEND: " + input.value);
+          ws.send(input.value);
+          return false;
+      };
+
+/*
+      document.getElementById("close").onclick = function(evt) {
+          if (!ws) {
+              return false;
+          }
+          ws.close();
+          return false;
+      };
+*/
+        //================WEBRTC Video=======================
+        /* eslint-env browser */
+
+        const pc = new RTCPeerConnection({
+          iceServers: [{
+            urls: 'stun:stun.l.google.com:19302'
+          }]
+        })
+        const log = msg => {
+          document.getElementById('logs').innerHTML += msg + '<br>'
+        }
+
+        pc.ontrack = event => {
+          const el = document.createElement(event.track.kind)
+          el.srcObject = event.streams[0]
+          el.autoplay = true
+          el.controls = true
+          document.getElementById('remoteVideos').appendChild(el)
+        }
+
+        pc.onsignalingstatechange = e => log(pc.signalingState)
+        pc.oniceconnectionstatechange = e => log(pc.iceConnectionState)
+        pc.onicecandidate = event => {
+          if (event.candidate === null) {
+            document.getElementById('localSessionDescription').value = btoa(JSON.stringify(pc.localDescription))
+            //navigator.clipboard.writeText(JSON.stringify(pc.localDescription));
+
+
+
+              ws.send( btoa( JSON.stringify(pc.localDescription) ) );
+
+
+
+            //console.log(pc.localDescription);
+          }
+        }
+
+        // Offer to receive 1 audio, and 1 video tracks
+        pc.addTransceiver('audio', {
+          'direction': 'recvonly'
+        })
+        pc.addTransceiver('video', {
+          'direction': 'recvonly'
+        })
+
+
+        window.startSession = (sd) => {
+          //const sd = document.getElementById('remoteSessionDescription').value
+          if (sd === '') {
+            return alert('Session Description must not be empty')
+          }
+          try {
+            pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(sd)))).catch(log)
+            pc.createAnswer().then(d => pc.setLocalDescription(d)).catch(log)
+            console.log(atob(sd));
+          } catch (e) {
+            alert(e)
+          }
+        }
+
+  });
+</script>
+
+</html>
