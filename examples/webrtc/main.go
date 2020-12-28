@@ -147,5 +147,5 @@ func main() {
                         }
 
 
-                select {}  //wait until go routines done??
+                select {}  //Blocks main routine from exiting
 }
