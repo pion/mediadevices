@@ -1,9 +1,7 @@
 package main
 
 import (
-        "flag"
         "fmt"
-        "log"
 
         "github.com/pion/mediadevices"
         "github.com/pion/mediadevices/examples/internal/signal"
@@ -119,7 +117,7 @@ func main() {
         <-gatherComplete
 
         //Output the offer SDP with the final ICE candidate
-        log.Println(signal.Encode(*peerConnection.LocalDescription()))
+        fmt.Println(signal.Encode(*peerConnection.LocalDescription()))
 
         //Wait for the browser answer to be pasted in the console
         answer := webrtc.SessionDescription{}
