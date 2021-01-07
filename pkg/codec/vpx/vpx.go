@@ -229,9 +229,15 @@ func (e *encoder) Read() ([]byte, func(), error) {
 
 	if e.cfg.g_w != C.uint(width) || e.cfg.g_h != C.uint(height) {
 		e.cfg.g_w, e.cfg.g_h = C.uint(width), C.uint(height)
-		if ec := C.vpx_codec_enc_config_set(e.codec, e.cfg); ec != C.VPX_CODEC_OK {
-			return nil, func() {}, fmt.Errorf("vpx_codec_enc_config_set failed (%d)", ec)
+
+		newCodec := C.newCtx()
+		if ec := C.vpx_codec_enc_init_ver(
+			newCodec, e.codec.iface, e.cfg, 0, C.VPX_ENCODER_ABI_VERSION,
+		); ec != 0 {
+			return nil, func() {}, fmt.Errorf("vpx_codec_enc_init failed (%d)", ec)
 		}
+		e.codec = newCodec
+
 		e.raw.w, e.raw.h = C.uint(width), C.uint(height)
 		e.raw.r_w, e.raw.r_h = C.uint(width), C.uint(height)
 		e.raw.d_w, e.raw.d_h = C.uint(width), C.uint(height)
