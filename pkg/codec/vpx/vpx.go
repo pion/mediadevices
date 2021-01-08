@@ -236,6 +236,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		); ec != 0 {
 			return nil, func() {}, fmt.Errorf("vpx_codec_enc_init failed (%d)", ec)
 		}
+		C.free(unsafe.Pointer(e.codec))
 		e.codec = newCodec
 
 		e.raw.w, e.raw.h = C.uint(width), C.uint(height)
