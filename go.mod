@@ -14,7 +14,7 @@ require (
 	github.com/pion/rtp v1.6.2
 	github.com/pion/webrtc/v3 v3.0.0
 	github.com/satori/go.uuid v1.2.0
-	golang.org/x/image v0.0.0-20200927104501-e162460cd6b5
+	golang.org/x/image v0.0.0-20201208152932-35266b937fa6
 	golang.org/x/sys v0.0.0-20201029080932-201ba4db2418 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
