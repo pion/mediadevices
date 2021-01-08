@@ -18,8 +18,8 @@ $(output_path): $(src_dir)/$(lib_prefix).a | $(lib_dir)
 
 $(src_dir)/$(lib_prefix).a: | $(src_dir)
 	cd $(src_dir) && \
-		$(MEDIADEVICES_TOOLCHAIN_BIN) cmake -DOPUS_STACK_PROTECTOR=OFF && \
-		$(MEDIADEVICES_TOOLCHAIN_BIN) make
+		$(MEDIADEVICES_TOOLCHAIN_BIN) cmake -DOPUS_STACK_PROTECTOR=OFF -DCMAKE_C_FLAGS="-fpic" && \
+		$(MEDIADEVICES_TOOLCHAIN_BIN) make VERBOSE=1
 
 $(src_dir): | $(src_root_dir)
 	git clone --depth=1 --branch=$(version) $(git_url) $@
