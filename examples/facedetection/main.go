@@ -8,8 +8,8 @@ import (
 
 	pigo "github.com/esimov/pigo/core"
 	"github.com/pion/mediadevices"
-	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
 	"github.com/pion/mediadevices/pkg/frame"
+	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
@@ -77,7 +77,7 @@ func main() {
 
 	mediaStream, err := mediadevices.GetUserMedia(mediadevices.MediaStreamConstraints{
 		Video: func(c *mediadevices.MediaTrackConstraints) {
-			c.FrameFormat = prop.FrameFormatExact(frame.FormatI420)
+			c.FrameFormat = prop.FrameFormatOneOf{frame.FormatI420, frame.FormatYUY2}
 			c.Width = prop.Int(640)
 			c.Height = prop.Int(480)
 		},
@@ -97,7 +97,7 @@ func main() {
 		frame, release, err := videoReader.Read()
 		must(err)
 
-		// Since we asked the frame format to be exactly YUY2 in GetUserMedia, we can guarantee that it must be YCbCr
+		// Since we asked the frame format to be exactly I420/YUY2 in GetUserMedia, we can guarantee that it must be YCbCr
 		if detectFace(frame.(*image.YCbCr)) {
 			log.Println("Detect a face")
 		}
