@@ -133,9 +133,14 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
 
 STATUS frameFormatToFourCC(AVBindFrameFormat format, FourCharCode *pFourCC) {
     STATUS retStatus = STATUS_OK;
+    // Useful mapping reference from ffmpeg:
+    // https://github.com/FFmpeg/FFmpeg/blob/c810a9502cebe32e1dd08ee3d0d17053dde44aa9/libavdevice/avfoundation.m#L53-L80
     switch (format) {
         case AVBindFrameFormatNV21:
             *pFourCC = kCVPixelFormatType_420YpCbCr8BiPlanarFullRange;
+            break;
+        case AVBindFrameFormatNV12:
+            *pFourCC = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
             break;
         case AVBindFrameFormatUYVY:
             *pFourCC = kCVPixelFormatType_422YpCbCr8;
@@ -155,6 +160,9 @@ STATUS frameFormatFromFourCC(FourCharCode fourCC, AVBindFrameFormat *pFormat) {
     switch (fourCC) {
         case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
             *pFormat = AVBindFrameFormatNV21;
+            break;
+        case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
+            *pFormat = AVBindFrameFormatNV12;
             break;
         case kCVPixelFormatType_422YpCbCr8:
             *pFormat = AVBindFrameFormatUYVY;

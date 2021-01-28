@@ -40,6 +40,8 @@ func frameFormatToAVBind(f frame.Format) (C.AVBindFrameFormat, bool) {
 		return C.AVBindFrameFormatI420, true
 	case frame.FormatNV21:
 		return C.AVBindFrameFormatNV21, true
+	case frame.FormatNV12:
+		return C.AVBindFrameFormatNV12, true
 	case frame.FormatYUY2:
 		return C.AVBindFrameFormatYUY2, true
 	case frame.FormatUYVY:
@@ -55,6 +57,8 @@ func frameFormatFromAVBind(f C.AVBindFrameFormat) (frame.Format, bool) {
 		return frame.FormatI420, true
 	case C.AVBindFrameFormatNV21:
 		return frame.FormatNV21, true
+	case C.AVBindFrameFormatNV12:
+		return frame.FormatNV12, true
 	case C.AVBindFrameFormatYUY2:
 		return frame.FormatYUY2, true
 	case C.AVBindFrameFormatUYVY:
