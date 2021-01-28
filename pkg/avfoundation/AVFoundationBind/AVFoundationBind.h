@@ -45,6 +45,7 @@ typedef enum AVBindMediaType {
 typedef enum AVBindFrameFormat {
     AVBindFrameFormatI420,
     AVBindFrameFormatNV21,
+    AVBindFrameFormatNV12,
     AVBindFrameFormatYUY2,
     AVBindFrameFormatUYVY,
 } AVBindFrameFormat;
