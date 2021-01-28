@@ -49,3 +49,15 @@ func decodeNV21(frame []byte, width, height int) (image.Image, func(), error) {
 		Rect:           image.Rect(0, 0, width, height),
 	}, func() {}, nil
 }
+
+func decodeNV12(frame []byte, width, height int) (image.Image, func(), error) {
+	img, release, err := decodeNV21(frame, width, height)
+	if err != nil {
+		return img, release, err
+	}
+
+	// The only difference between NV21 and NV12 is the chroma order, so simply swap them
+	yuv := img.(*image.YCbCr)
+	yuv.Cb, yuv.Cr = yuv.Cr, yuv.Cb
+	return yuv, release, err
+}
