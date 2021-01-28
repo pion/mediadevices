@@ -316,6 +316,16 @@ cleanup:
     return retStatus;
 }
 
+static NSString* FourCCString(FourCharCode code) {
+    NSString *result = [NSString stringWithFormat:@"%c%c%c%c",
+                        (code >> 24) & 0xff,
+                        (code >> 16) & 0xff,
+                        (code >> 8) & 0xff,
+                        code & 0xff];
+    NSCharacterSet *characterSet = [NSCharacterSet whitespaceCharacterSet];
+    return [result stringByTrimmingCharactersInSet:characterSet];
+}
+
 STATUS AVBindSessionProperties(PAVBindSession pSession, PAVBindMediaProperty *ppProperties, int *pLen) {
     STATUS retStatus = STATUS_OK;
     NSAutoreleasePool *refPool = [[NSAutoreleasePool alloc] init];
@@ -333,12 +343,14 @@ STATUS AVBindSessionProperties(PAVBindSession pSession, PAVBindMediaProperty *pp
     for (AVCaptureDeviceFormat *refFormat in refDevice.formats) {
         // TODO: Probably gives a warn to the user
         if (len >= MAX_PROPERTIES) {
+            NSLog(@"[WARNING] skipping the rest of properties due to MAX_PROPERTIES");
             break;
         }
         
         if ([refFormat.mediaType isEqual:AVMediaTypeVideo]) {
             fourCC = CMFormatDescriptionGetMediaSubType(refFormat.formatDescription);
             if (frameFormatFromFourCC(fourCC, &pProperty->frameFormat) != STATUS_OK) {
+                NSLog(@"[WARNING] skipping %@ %dx%d since it's not supported", FourCCString(fourCC), videoDimensions.width, videoDimensions.height);
                 continue;
             }
             
