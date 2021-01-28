@@ -35,8 +35,8 @@ func decodeNV21(frame []byte, width, height int) (image.Image, func(), error) {
 
 	var cb, cr []byte
 	for i := yi; i < ci; i += 2 {
-		cb = append(cb, frame[i])
-		cr = append(cr, frame[i+1])
+		cr = append(cr, frame[i])
+		cb = append(cb, frame[i+1])
 	}
 
 	return &image.YCbCr{
