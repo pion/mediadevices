@@ -9,6 +9,8 @@ const (
 	FormatI444 Format = "I444"
 	// FormatNV21 https://www.fourcc.org/pixel-format/yuv-nv21/
 	FormatNV21 = "NV21"
+	// FormatNV12 https://www.fourcc.org/pixel-format/yuv-nv12/
+	FormatNV12 = "NV12"
 	// FormatYUY2 https://www.fourcc.org/pixel-format/yuv-yuy2/
 	FormatYUY2 = "YUY2"
 	// FormatUYVY https://www.fourcc.org/pixel-format/yuv-uyvy/
