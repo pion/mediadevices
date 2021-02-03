@@ -7,7 +7,7 @@ require (
 	github.com/blackjack/webcam v0.0.0-20200313125108-10ed912a8539
 	github.com/gen2brain/malgo v0.10.29
 	github.com/gen2brain/shm v0.0.0-20200228170931-49f9650110c5 // indirect
-	github.com/google/uuid v1.1.4
+	github.com/google/uuid v1.2.0
 	github.com/kbinani/screenshot v0.0.0-20191211154542-3a185f1ce18f
 	github.com/lxn/win v0.0.0-20201111105847-2a20daff6a55 // indirect
 	github.com/pion/logging v0.2.2
