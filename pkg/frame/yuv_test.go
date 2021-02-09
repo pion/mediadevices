@@ -27,7 +27,11 @@ func TestDecodeYUY2(t *testing.T) {
 		Rect:           image.Rect(0, 0, width, height),
 	}
 
-	img, _, err := decodeYUY2(input, width, height)
+	decoder, err := NewDecoder(FormatYUY2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, _, err := decoder.Decode(input, width, height)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +60,11 @@ func TestDecodeUYVY(t *testing.T) {
 		Rect:           image.Rect(0, 0, width, height),
 	}
 
-	img, _, err := decodeUYVY(input, width, height)
+	decoder, err := NewDecoder(FormatUYVY)
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, _, err := decoder.Decode(input, width, height)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +93,11 @@ func TestDecodeNV21(t *testing.T) {
 		Rect:           image.Rect(0, 0, width, height),
 	}
 
-	img, _, err := decodeNV21(input, width, height)
+	decoder, err := NewDecoder(FormatNV21)
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, _, err := decoder.Decode(input, width, height)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +126,11 @@ func TestDecodeNV12(t *testing.T) {
 		Rect:           image.Rect(0, 0, width, height),
 	}
 
-	img, _, err := decodeNV12(input, width, height)
+	decoder, err := NewDecoder(FormatNV12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, _, err := decoder.Decode(input, width, height)
 	if err != nil {
 		t.Fatal(err)
 	}
