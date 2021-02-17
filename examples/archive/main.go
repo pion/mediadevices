@@ -68,7 +68,7 @@ func main() {
 		})
 	}))
 
-	reader, err := videoTrack.NewEncodedIOReader(x264Params.RTPCodec().MimeType)
+	reader, _, err := videoTrack.NewEncodedIOReader(x264Params.RTPCodec().MimeType)
 	must(err)
 	defer reader.Close()
 

@@ -4,6 +4,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -49,12 +50,12 @@ func (track *mockMediaStreamTrack) NewRTPReader(codecName string, ssrc uint32, m
 	return nil, nil
 }
 
-func (track *mockMediaStreamTrack) NewEncodedReader(codecName string) (EncodedReadCloser, error) {
-	return nil, nil
+func (track *mockMediaStreamTrack) NewEncodedReader(codecName string) (EncodedReadCloser, *codec.RTPCodec, error) {
+	return nil, nil, nil
 }
 
-func (track *mockMediaStreamTrack) NewEncodedIOReader(codecName string) (io.ReadCloser, error) {
-	return nil, nil
+func (track *mockMediaStreamTrack) NewEncodedIOReader(codecName string) (io.ReadCloser, *codec.RTPCodec, error) {
+	return nil, nil, nil
 }
 
 func TestMediaStreamFilters(t *testing.T) {

@@ -66,9 +66,9 @@ type Track interface {
 	// the encoded data in RTP format with given mtu size.
 	NewRTPReader(codecName string, ssrc uint32, mtu int) (RTPReadCloser, error)
 	// NewEncodedReader creates a EncodedReadCloser that reads the encoded data in codecName format
-	NewEncodedReader(codecName string) (EncodedReadCloser, error)
+	NewEncodedReader(codecName string) (EncodedReadCloser, *codec.RTPCodec, error)
 	// NewEncodedReader creates a new Go standard io.ReadCloser that reads the encoded data in codecName format
-	NewEncodedIOReader(codecName string) (io.ReadCloser, error)
+	NewEncodedIOReader(codecName string) (io.ReadCloser, *codec.RTPCodec, error)
 }
 
 type baseTrack struct {
@@ -320,17 +320,17 @@ func (track *VideoTrack) newEncodedReader(codecNames ...string) (EncodedReadClos
 	}, selectedCodec, nil
 }
 
-func (track *VideoTrack) NewEncodedReader(codecName string) (EncodedReadCloser, error) {
-	reader, _, err := track.newEncodedReader(codecName)
-	return reader, err
+func (track *VideoTrack) NewEncodedReader(codecName string) (EncodedReadCloser, *codec.RTPCodec, error) {
+	reader, codec, err := track.newEncodedReader(codecName)
+	return reader, codec, err
 }
 
-func (track *VideoTrack) NewEncodedIOReader(codecName string) (io.ReadCloser, error) {
-	encodedReader, _, err := track.newEncodedReader(codecName)
+func (track *VideoTrack) NewEncodedIOReader(codecName string) (io.ReadCloser, *codec.RTPCodec, error) {
+	encodedReader, selectedCodec, err := track.newEncodedReader(codecName)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return newEncodedIOReadCloserImpl(encodedReader), nil
+	return newEncodedIOReadCloserImpl(encodedReader), selectedCodec, nil
 }
 
 func (track *VideoTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (RTPReadCloser, error) {
@@ -440,17 +440,17 @@ func (track *AudioTrack) newEncodedReader(codecNames ...string) (EncodedReadClos
 	}, selectedCodec, nil
 }
 
-func (track *AudioTrack) NewEncodedReader(codecName string) (EncodedReadCloser, error) {
-	reader, _, err := track.newEncodedReader(codecName)
-	return reader, err
+func (track *AudioTrack) NewEncodedReader(codecName string) (EncodedReadCloser, *codec.RTPCodec, error) {
+	reader, codec, err := track.newEncodedReader(codecName)
+	return reader, codec, err
 }
 
-func (track *AudioTrack) NewEncodedIOReader(codecName string) (io.ReadCloser, error) {
-	encodedReader, _, err := track.newEncodedReader(codecName)
+func (track *AudioTrack) NewEncodedIOReader(codecName string) (io.ReadCloser, *codec.RTPCodec, error) {
+	encodedReader, selectedCodec, err := track.newEncodedReader(codecName)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return newEncodedIOReadCloserImpl(encodedReader), nil
+	return newEncodedIOReadCloserImpl(encodedReader), selectedCodec, nil
 }
 
 func (track *AudioTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (RTPReadCloser, error) {
