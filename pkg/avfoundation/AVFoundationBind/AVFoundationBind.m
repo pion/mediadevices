@@ -1,17 +1,17 @@
 // MIT License
-// 
+//
 // Copyright (c) 2019-2020 Pion
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -76,29 +76,29 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
         !CMSampleBufferDataIsReady(sampleBuffer)) {
       return;
     }
-    
+
     CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
     if (imageBuffer == NULL) {
       return;
     }
-    
+
     imageBuffer = CVBufferRetain(imageBuffer);
     CVReturn ret =
         CVPixelBufferLockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
     if (ret != kCVReturnSuccess) {
       return;
     }
-    
+
     size_t heightY = CVPixelBufferGetHeightOfPlane(imageBuffer, 0);
     size_t bytesPerRowY = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 0);
-    
+
     size_t heightUV = CVPixelBufferGetHeightOfPlane(imageBuffer, 1);
     size_t bytesPerRowUV = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 1);
-    
+
     int len = (int)((heightY * bytesPerRowY) + (2 * heightUV * bytesPerRowUV));
     void *buf = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
     _mCallback(_mPUserData, buf, len);
-    
+
     CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
     CVBufferRelease(imageBuffer);
 }
@@ -136,6 +136,9 @@ STATUS frameFormatToFourCC(AVBindFrameFormat format, FourCharCode *pFourCC) {
     // Useful mapping reference from ffmpeg:
     // https://github.com/FFmpeg/FFmpeg/blob/c810a9502cebe32e1dd08ee3d0d17053dde44aa9/libavdevice/avfoundation.m#L53-L80
     switch (format) {
+        case AVBindFrameFormatI420:
+            *pFourCC = kCVPixelFormatType_420YpCbCr8Planar;
+            break;
         case AVBindFrameFormatNV21:
             *pFourCC = kCVPixelFormatType_420YpCbCr8BiPlanarFullRange;
             break;
@@ -158,6 +161,9 @@ STATUS frameFormatToFourCC(AVBindFrameFormat format, FourCharCode *pFourCC) {
 STATUS frameFormatFromFourCC(FourCharCode fourCC, AVBindFrameFormat *pFormat) {
     STATUS retStatus = STATUS_OK;
     switch (fourCC) {
+        case kCVPixelFormatType_420YpCbCr8Planar:
+            *pFormat = AVBindFrameFormatI420;
+            break;
         case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
             *pFormat = AVBindFrameFormatNV21;
             break;
@@ -184,7 +190,7 @@ STATUS AVBindDevices(AVBindMediaType mediaType, PAVBindDevice *ppDevices, int *p
     NSAutoreleasePool *refPool = [[NSAutoreleasePool alloc] init];
     CHK(mediaType == AVBindMediaTypeVideo || mediaType == AVBindMediaTypeAudio, STATUS_UNSUPPORTED_MEDIA_TYPE);
     CHK(ppDevices != NULL && pLen != NULL, STATUS_NULL_ARG);
-    
+
     PAVBindDevice pDevice;
     AVMediaType _mediaType = mediaType == AVBindMediaTypeVideo ? AVMediaTypeVideo : AVMediaTypeAudio;
     NSArray *refAllTypes = @[
@@ -196,22 +202,22 @@ STATUS AVBindDevices(AVBindMediaType mediaType, PAVBindDevice *ppDevices, int *p
         discoverySessionWithDeviceTypes: refAllTypes
         mediaType: _mediaType
         position: AVCaptureDevicePositionUnspecified];
-    
+
     int i = 0;
     for (AVCaptureDevice *refDevice in refSession.devices) {
         if (i >= MAX_DEVICES) {
             break;
         }
-        
+
         pDevice = devices + i;
         strncpy(pDevice->uid, refDevice.uniqueID.UTF8String, MAX_DEVICE_UID_CHARS);
         pDevice->uid[MAX_DEVICE_UID_CHARS] = '\0';
         i++;
     }
-    
+
     *ppDevices = devices;
     *pLen = i;
-    
+
 cleanup:
     [refPool drain];
     return retStatus;
@@ -231,7 +237,7 @@ STATUS AVBindSessionInit(AVBindDevice device, PAVBindSession *ppSessionResult) {
     pSession->device = device;
     pSession->refCaptureSession = NULL;
     *ppSessionResult = pSession;
-    
+
 cleanup:
     return retStatus;
 }
@@ -258,15 +264,15 @@ STATUS AVBindSessionOpen(PAVBindSession pSession,
     STATUS retStatus = STATUS_OK;
     NSAutoreleasePool *refPool = [[NSAutoreleasePool alloc] init];
     CHK(pSession != NULL && dataCallback != NULL, STATUS_NULL_ARG);
-    
+
     AVCaptureDeviceInput *refInput;
     NSError *refErr = NULL;
     NSString *refUID = [NSString stringWithUTF8String: pSession->device.uid];
     AVCaptureDevice *refDevice = [AVCaptureDevice deviceWithUniqueID: refUID];
-    
+
     refInput = [[AVCaptureDeviceInput alloc] initWithDevice: refDevice error: &refErr];
     CHK(refErr == NULL, STATUS_DEVICE_INIT_FAILED);
-    
+
     AVCaptureSession *refCaptureSession = [[AVCaptureSession alloc] init];
     refCaptureSession.sessionPreset = AVCaptureSessionPresetMedium;
     [refCaptureSession addInput: refInput];
@@ -275,7 +281,7 @@ STATUS AVBindSessionOpen(PAVBindSession pSession,
         VideoDataDelegate *pDelegate = [[VideoDataDelegate alloc]
                                         init: dataCallback
                                         withUserData: pUserData];
-        
+
         AVCaptureVideoDataOutput *pOutput = [[AVCaptureVideoDataOutput alloc] init];
         FourCharCode fourCC;
         CHK_STATUS(frameFormatToFourCC(property.frameFormat, &fourCC));
@@ -293,10 +299,10 @@ STATUS AVBindSessionOpen(PAVBindSession pSession,
     } else {
         // TODO: implement audio pipeline
     }
-    
+
     pSession->refCaptureSession = [refCaptureSession retain];
     [refCaptureSession startRunning];
-    
+
 cleanup:
     [refPool drain];
     return retStatus;
@@ -307,11 +313,11 @@ STATUS AVBindSessionClose(PAVBindSession pSession) {
     STATUS retStatus = STATUS_OK;
     CHK(pSession != NULL, STATUS_NULL_ARG);
     CHK(pSession->refCaptureSession != NULL, STATUS_OK);
-    
+
     [pSession->refCaptureSession stopRunning];
     [pSession->refCaptureSession release];
     pSession->refCaptureSession = NULL;
-        
+
 cleanup:
     return retStatus;
 }
@@ -330,7 +336,7 @@ STATUS AVBindSessionProperties(PAVBindSession pSession, PAVBindMediaProperty *pp
     STATUS retStatus = STATUS_OK;
     NSAutoreleasePool *refPool = [[NSAutoreleasePool alloc] init];
     CHK(pSession != NULL && ppProperties != NULL && pLen != NULL, STATUS_NULL_ARG);
-    
+
     NSString *refDeviceUID = [NSString stringWithUTF8String: pSession->device.uid];
     AVCaptureDevice *refDevice = [AVCaptureDevice deviceWithUniqueID: refDeviceUID];
     FourCharCode fourCC;
@@ -346,14 +352,14 @@ STATUS AVBindSessionProperties(PAVBindSession pSession, PAVBindMediaProperty *pp
             NSLog(@"[WARNING] skipping the rest of properties due to MAX_PROPERTIES");
             break;
         }
-        
+
         if ([refFormat.mediaType isEqual:AVMediaTypeVideo]) {
             fourCC = CMFormatDescriptionGetMediaSubType(refFormat.formatDescription);
             if (frameFormatFromFourCC(fourCC, &pProperty->frameFormat) != STATUS_OK) {
                 NSLog(@"[WARNING] skipping %@ %dx%d since it's not supported", FourCCString(fourCC), videoDimensions.width, videoDimensions.height);
                 continue;
             }
-            
+
             videoFormat = (CMVideoFormatDescriptionRef) refFormat.formatDescription;
             videoDimensions = CMVideoFormatDescriptionGetDimensions(videoFormat);
             pProperty->height = videoDimensions.height;
@@ -361,16 +367,16 @@ STATUS AVBindSessionProperties(PAVBindSession pSession, PAVBindMediaProperty *pp
         } else {
             // TODO: Get audio properties
         }
-        
+
         pProperty++;
         len++;
     }
-    
+
     *ppProperties = pSession->properties;
     *pLen = len;
-    
+
 cleanup:
-    
+
     [refPool drain];
     return retStatus;
 }

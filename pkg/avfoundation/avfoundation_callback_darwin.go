@@ -1,6 +1,5 @@
 package avfoundation
 
-// extern void onData(void*, void*, int);
 import "C"
 import (
 	"sync"
@@ -18,11 +17,10 @@ type handleID int
 
 //export onData
 func onData(userData unsafe.Pointer, buf unsafe.Pointer, length C.int) {
-	data := C.GoBytes(buf, length)
-
 	handleNum := (*C.int)(userData)
 	cb, ok := lookup(handleID(*handleNum))
 	if ok {
+		data := C.GoBytes(buf, length)
 		cb(data)
 	}
 }
