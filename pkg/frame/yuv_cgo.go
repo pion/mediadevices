@@ -17,7 +17,7 @@ func decodeYUY2(frame []byte, width, height int) (image.Image, func(), error) {
 	ci := yi / 2
 	fi := yi + 2*ci
 
-	if len(frame) != fi {
+	if len(frame) < fi {
 		return nil, func() {}, fmt.Errorf("frame length (%d) less than expected (%d)", len(frame), fi)
 	}
 
@@ -49,7 +49,7 @@ func decodeUYVY(frame []byte, width, height int) (image.Image, func(), error) {
 	ci := yi / 2
 	fi := yi + 2*ci
 
-	if len(frame) != fi {
+	if len(frame) < fi {
 		return nil, func() {}, fmt.Errorf("frame length (%d) less than expected (%d)", len(frame), fi)
 	}
 

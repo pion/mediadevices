@@ -89,15 +89,9 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
       return;
     }
 
-    size_t heightY = CVPixelBufferGetHeightOfPlane(imageBuffer, 0);
-    size_t bytesPerRowY = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 0);
-
-    size_t heightUV = CVPixelBufferGetHeightOfPlane(imageBuffer, 1);
-    size_t bytesPerRowUV = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 1);
-
-    int len = (int)((heightY * bytesPerRowY) + (heightUV * bytesPerRowUV));
     void *buf = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
-    _mCallback(_mPUserData, buf, len);
+    size_t dataSize = CVPixelBufferGetDataSize(imageBuffer);
+    _mCallback(_mPUserData, buf, (int)dataSize);
 
     CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
     CVBufferRelease(imageBuffer);
