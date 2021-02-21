@@ -56,7 +56,7 @@ func BenchmarkRead(b *testing.B) {
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, err := r.Read()
+				_, _, err := r.Read()
 				if err != nil {
 					b.Fatalf("Failed to read: %v", err)
 				}
