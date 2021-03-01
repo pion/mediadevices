@@ -2,22 +2,12 @@ package screen
 
 // #cgo pkg-config: x11 xext
 // #include <stdint.h>
+// #include <string.h>
 // #include <sys/shm.h>
 // #include <X11/Xlib.h>
 // #define XUTIL_DEFINE_FUNCTIONS
 // #include <X11/Xutil.h>
 // #include <X11/extensions/XShm.h>
-//
-// void copyRGB24(void *dst, char *src, size_t l) { // 64bit aligned copy
-//   uint64_t *d = (uint64_t*)dst;
-//   uint64_t *s = (uint64_t*)src;
-//   l /= 8;
-//   for (size_t i = 0; i < l; i ++) {
-//     *d = *s;
-//     d++;
-//     s++;
-//   }
-// }
 //
 // void copyBGR24(void *dst, char *src, size_t l) { // 64bit aligned copy
 //   uint64_t *d = (uint64_t*)dst;
@@ -44,17 +34,6 @@ package screen
 //     *d = 0xFF000000FF000000 |
 //          ((v & 0xF8000000) << 8)  | ((v & 0x7E00000) << 21) | ((v & 0x1F0000) << 35) |
 //          ((v & 0xF800) >> 8) | ((v & 0x7E0) << 5) | ((v & 0x1F) << 19);
-//     d++;
-//     s++;
-//   }
-// }
-//
-// void copyRGB16(void *dst, char *src, size_t l) { // 64bit aligned copy
-//   uint64_t *d = (uint64_t*)dst;
-//   uint32_t *s = (uint32_t*)src;
-//   l /= 8;
-//   for (size_t i = 0; i < l; i ++) {
-//     *d = *s;
 //     d++;
 //     s++;
 //   }
@@ -231,13 +210,13 @@ func (s *shmImage) ToRGBA(dst *image.RGBA) *image.RGBA {
 	}
 	switch s.pixFmt {
 	case pixFmtRGB24:
-		C.copyRGB24(unsafe.Pointer(&dst.Pix[0]), s.img.data, C.size_t(len(dst.Pix)))
+		C.memcpy(unsafe.Pointer(&dst.Pix[0]), unsafe.Pointer(s.img.data), C.size_t(len(dst.Pix)))
 		return dst
 	case pixFmtBGR24:
 		C.copyBGR24(unsafe.Pointer(&dst.Pix[0]), s.img.data, C.size_t(len(dst.Pix)))
 		return dst
 	case pixFmtRGB16:
-		C.copyRGB16(unsafe.Pointer(&dst.Pix[0]), s.img.data, C.size_t(len(dst.Pix)))
+		C.memcpy(unsafe.Pointer(&dst.Pix[0]), unsafe.Pointer(s.img.data), C.size_t(len(dst.Pix)))
 		return dst
 	case pixFmtBGR16:
 		C.copyBGR16(unsafe.Pointer(&dst.Pix[0]), s.img.data, C.size_t(len(dst.Pix)))
