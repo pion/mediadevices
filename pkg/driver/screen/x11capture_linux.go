@@ -179,10 +179,10 @@ func (s *shmImage) ToRGBA(dst *image.RGBA) *image.RGBA {
 	}
 	switch s.pixFmt {
 	case pixFmtBGR24:
-		C.copyBGR24(unsafe.Pointer(&dst.Pix[0]), s.img.data, C.ulong(len(dst.Pix)))
+		C.copyBGR24(unsafe.Pointer(&dst.Pix[0]), s.img.data, C.size_t(len(dst.Pix)))
 		return dst
 	case pixFmtBGR16:
-		C.copyBGR16(unsafe.Pointer(&dst.Pix[0]), s.img.data, C.ulong(len(dst.Pix)))
+		C.copyBGR16(unsafe.Pointer(&dst.Pix[0]), s.img.data, C.size_t(len(dst.Pix)))
 		return dst
 	default:
 		panic("unsupported pixel format")
@@ -209,7 +209,7 @@ func newShmImage(dp *C.Display, screen int) (*shmImage, error) {
 		return nil, errors.New("unsupported pixel format")
 	}
 
-	s.shm.shmid = C.shmget(C.IPC_PRIVATE, C.ulong(w*h*4+8), C.IPC_CREAT|0600)
+	s.shm.shmid = C.shmget(C.IPC_PRIVATE, C.size_t(w*h*4+8), C.IPC_CREAT|0600)
 	if s.shm.shmid == -1 {
 		return nil, errors.New("failed to get shared memory")
 	}
@@ -279,5 +279,5 @@ func (r *reader) Close() {
 
 // cAlign64 is fot testing
 func cAlign64(ptr uintptr) uintptr {
-	return uintptr(C.align64ForTest(C.ulong(uintptr(ptr))))
+	return uintptr(C.align64ForTest(C.size_t(uintptr(ptr))))
 }
