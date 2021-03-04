@@ -96,11 +96,11 @@ func init() {
 			discovered[reallink] = struct{}{}
 			cam := newCamera(device)
 			priority := driver.PriorityNormal
-			if label == prioritizedDevice {
+			if reallink == prioritizedDevice {
 				priority = driver.PriorityHigh
 			}
 			driver.GetManager().Register(cam, driver.Info{
-				Label:      label,
+				Label:      label + LabelSeparator + reallink,
 				DeviceType: driver.Camera,
 				Priority:   priority,
 			})

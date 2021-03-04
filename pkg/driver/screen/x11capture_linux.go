@@ -2,6 +2,7 @@ package screen
 
 // #cgo pkg-config: x11 xext
 // #include <stdint.h>
+// #include <string.h>
 // #include <sys/shm.h>
 // #include <X11/Xlib.h>
 // #define XUTIL_DEFINE_FUNCTIONS
@@ -125,11 +126,28 @@ func (c colorFunc) RGBA() (r, g, b, a uint32) {
 
 func (s *shmImage) At(x, y int) color.Color {
 	switch s.pixFmt {
+	case pixFmtRGB24:
+		addr := (x + y*int(s.img.width)) * 4
+		r := uint32(s.b[addr]) * 0x100
+		g := uint32(s.b[addr+1]) * 0x100
+		b := uint32(s.b[addr+2]) * 0x100
+		return colorFunc(func() (_, _, _, _ uint32) {
+			return r, g, b, 0xFFFF
+		})
 	case pixFmtBGR24:
 		addr := (x + y*int(s.img.width)) * 4
 		b := uint32(s.b[addr]) * 0x100
 		g := uint32(s.b[addr+1]) * 0x100
 		r := uint32(s.b[addr+2]) * 0x100
+		return colorFunc(func() (_, _, _, _ uint32) {
+			return r, g, b, 0xFFFF
+		})
+	case pixFmtRGB16:
+		addr := (x + y*int(s.img.width)) * 2
+		b1, b2 := s.b[addr], s.b[addr+1]
+		r := uint32(b1>>3) * 0x100
+		g := uint32((b1&0x7)<<3|(b2&0xE0)>>5) * 0x100
+		b := uint32(b2&0x1F) * 0x100
 		return colorFunc(func() (_, _, _, _ uint32) {
 			return r, g, b, 0xFFFF
 		})
@@ -149,11 +167,24 @@ func (s *shmImage) At(x, y int) color.Color {
 
 func (s *shmImage) RGBAAt(x, y int) color.RGBA {
 	switch s.pixFmt {
+	case pixFmtRGB24:
+		addr := (x + y*int(s.img.width)) * 4
+		r := s.b[addr]
+		g := s.b[addr+1]
+		b := s.b[addr+2]
+		return color.RGBA{R: r, G: g, B: b, A: 0xFF}
 	case pixFmtBGR24:
 		addr := (x + y*int(s.img.width)) * 4
 		b := s.b[addr]
 		g := s.b[addr+1]
 		r := s.b[addr+2]
+		return color.RGBA{R: r, G: g, B: b, A: 0xFF}
+	case pixFmtRGB16:
+		addr := (x + y*int(s.img.width)) * 2
+		b1, b2 := s.b[addr], s.b[addr+1]
+		r := b1 >> 3
+		g := (b1&0x7)<<3 | (b2&0xE0)>>5
+		b := b2 & 0x1F
 		return color.RGBA{R: r, G: g, B: b, A: 0xFF}
 	case pixFmtBGR16:
 		addr := (x + y*int(s.img.width)) * 2
@@ -178,8 +209,14 @@ func (s *shmImage) ToRGBA(dst *image.RGBA) *image.RGBA {
 		dst.Pix = dst.Pix[:l]
 	}
 	switch s.pixFmt {
+	case pixFmtRGB24:
+		C.memcpy(unsafe.Pointer(&dst.Pix[0]), unsafe.Pointer(s.img.data), C.size_t(len(dst.Pix)))
+		return dst
 	case pixFmtBGR24:
 		C.copyBGR24(unsafe.Pointer(&dst.Pix[0]), s.img.data, C.size_t(len(dst.Pix)))
+		return dst
+	case pixFmtRGB16:
+		C.memcpy(unsafe.Pointer(&dst.Pix[0]), unsafe.Pointer(s.img.data), C.size_t(len(dst.Pix)))
 		return dst
 	case pixFmtBGR16:
 		C.copyBGR16(unsafe.Pointer(&dst.Pix[0]), s.img.data, C.size_t(len(dst.Pix)))
@@ -199,8 +236,12 @@ func newShmImage(dp *C.Display, screen int) (*shmImage, error) {
 	s := &shmImage{dp: dp}
 
 	switch {
+	case v.red_mask == 0xFF && v.green_mask == 0xFF00 && v.blue_mask == 0xFF0000:
+		s.pixFmt = pixFmtRGB24
 	case v.red_mask == 0xFF0000 && v.green_mask == 0xFF00 && v.blue_mask == 0xFF:
 		s.pixFmt = pixFmtBGR24
+	case v.red_mask == 0x1F && v.green_mask == 0x7E0 && v.blue_mask == 0xF800:
+		s.pixFmt = pixFmtRGB16
 	case v.red_mask == 0xF800 && v.green_mask == 0x7E0 && v.blue_mask == 0x1F:
 		s.pixFmt = pixFmtBGR16
 	default:
