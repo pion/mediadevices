@@ -9,7 +9,7 @@ import (
 
 func decodeZ16(frame []byte, width, height int) (image.Image, func(), error) {
 	expectedSize := 2 * (width * height)
-	if 2*(width*height) != len(frame) {
+	if expectedSize  != len(frame) {
 		return nil, func() {}, fmt.Errorf("frame length (%d) not expected size (%d)", len(frame), expectedSize)
 	}
 	img := image.NewGray16(image.Rect(0, 0, width, height))
