@@ -25,6 +25,9 @@ const (
 
 	// FormatMJPEG https://www.fourcc.org/mjpg/
 	FormatMJPEG = "MJPEG"
+
+	// FormatZ16 https://www.kernel.org/doc/html/v5.9/userspace-api/media/v4l/pixfmt-z16.html
+	FormatZ16 = "Z16"
 )
 
 const FormatYUYV = FormatYUY2
@@ -36,6 +39,7 @@ var decoderMap = map[Format]decoderFunc{
 	FormatYUY2:  decodeYUY2,
 	FormatUYVY:  decodeUYVY,
 	FormatMJPEG: decodeMJPEG,
+	FormatZ16:   decodeZ16,
 }
 
 func NewDecoder(f Format) (Decoder, error) {
