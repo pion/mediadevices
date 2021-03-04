@@ -23,7 +23,7 @@ func decodeZ16(frame []byte, width, height int) (image.Image, func(), error) {
 		[Z_low(x_0,y_0), Z_high(x_0,y_0), Z_low(x_1,y_0), Z_high(x_1,y_0), Z_low(x_2,y_0), Z_high(x_2,y_0),
 		 Z_low(x_0,y_1), Z_high(x_0,y_1), Z_low(x_1,y_1), Z_high(x_1,y_1), Z_low(x_2,y_1), Z_high(x_2,y_1),
 		 Z_low(x_0,y_2), Z_high(x_0,y_2), Z_low(x_1,y_2), Z_high(x_1,y_2), Z_low(x_2,y_2), Z_high(x_2,y_2),
-		 Z_low(x_0,y_3), Z_high(x_0,y_3), Z_low(x_1,y_3), Z_high(x_1,y_3), Z_low(x_2,y_3)] Z_high(x_2,y_3),
+		 Z_low(x_0,y_3), Z_high(x_0,y_3), Z_low(x_1,y_3), Z_high(x_1,y_3), Z_low(x_2,y_3), Z_high(x_2,y_3)]
 	*/
 	for x := 0; x < width; x++ {
 		for y := 0; y < height; y++ {
