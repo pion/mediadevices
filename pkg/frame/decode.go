@@ -22,6 +22,8 @@ const (
 
 	// FormatRGBA https://www.fourcc.org/pixel-format/rgb-rgba/
 	FormatRGBA Format = "RGBA"
+	FormatARGB Format = "ARGB"
+	FormatBGRA Format = "BGRA"
 
 	// FormatMJPEG https://www.fourcc.org/mjpg/
 	FormatMJPEG = "MJPEG"
@@ -40,6 +42,8 @@ var decoderMap = map[Format]decoderFunc{
 	FormatUYVY:  decodeUYVY,
 	FormatMJPEG: decodeMJPEG,
 	FormatZ16:   decodeZ16,
+	FormatARGB:  decodeARGB,
+	FormatBGRA:  decodeBGRA,
 }
 
 func NewDecoder(f Format) (Decoder, error) {
