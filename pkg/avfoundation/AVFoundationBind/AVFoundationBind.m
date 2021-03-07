@@ -133,9 +133,6 @@ STATUS frameFormatToFourCC(AVBindFrameFormat format, FourCharCode *pFourCC) {
         case AVBindFrameFormatI420:
             *pFourCC = kCVPixelFormatType_420YpCbCr8Planar;
             break;
-        case AVBindFrameFormatNV21:
-            *pFourCC = kCVPixelFormatType_420YpCbCr8BiPlanarFullRange;
-            break;
         case AVBindFrameFormatNV12:
             *pFourCC = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
             break;
@@ -159,8 +156,6 @@ STATUS frameFormatFromFourCC(FourCharCode fourCC, AVBindFrameFormat *pFormat) {
             *pFormat = AVBindFrameFormatI420;
             break;
         case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
-            *pFormat = AVBindFrameFormatNV21;
-            break;
         case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
             *pFormat = AVBindFrameFormatNV12;
             break;
@@ -171,8 +166,8 @@ STATUS frameFormatFromFourCC(FourCharCode fourCC, AVBindFrameFormat *pFormat) {
             *pFormat = AVBindFrameFormatYUY2;
             break;
          // TODO: Add the rest of frame formats
-         default:
-             retStatus = STATUS_UNSUPPORTED_FRAME_FORMAT;
+        default:
+            retStatus = STATUS_UNSUPPORTED_FRAME_FORMAT;
      }
     return retStatus;
 }
