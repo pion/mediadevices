@@ -145,6 +145,12 @@ STATUS frameFormatToFourCC(AVBindFrameFormat format, FourCharCode *pFourCC) {
         case AVBindFrameFormatYUY2:
             *pFourCC = kCVPixelFormatType_422YpCbCr8_yuvs;
             break;
+        case AVBindFrameFormatBGRA:
+            *pFourCC = kCVPixelFormatType_32ARGB;
+            break;
+        case AVBindFrameFormatARGB:
+            *pFourCC = kCVPixelFormatType_32BGRA;
+            break;
         // TODO: Add the rest of frame formats
         default:
             retStatus = STATUS_UNSUPPORTED_FRAME_FORMAT;
@@ -169,6 +175,12 @@ STATUS frameFormatFromFourCC(FourCharCode fourCC, AVBindFrameFormat *pFormat) {
             break;
         case kCVPixelFormatType_422YpCbCr8_yuvs:
             *pFormat = AVBindFrameFormatYUY2;
+            break;
+        case kCVPixelFormatType_32ARGB:
+            *pFormat = AVBindFrameFormatBGRA;
+            break;
+        case kCVPixelFormatType_32BGRA:
+            *pFormat = AVBindFrameFormatARGB;
             break;
          // TODO: Add the rest of frame formats
          default:
