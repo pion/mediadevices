@@ -73,42 +73,40 @@ type camera struct {
 
 func init() {
 	discovered := make(map[string]struct{})
+	discover(discovered, "/dev/v4l/by-path/*")
+	discover(discovered, "/dev/video*")
+}
 
-	discover := func(pattern string) {
-		devices, err := filepath.Glob(pattern)
-		if err != nil {
-			// No v4l device.
-			return
-		}
-		for _, device := range devices {
-			label := filepath.Base(device)
-			reallink, err := os.Readlink(device)
-			if err != nil {
-				reallink = label
-			} else {
-				reallink = filepath.Base(reallink)
-			}
-
-			if _, ok := discovered[reallink]; ok {
-				continue
-			}
-
-			discovered[reallink] = struct{}{}
-			cam := newCamera(device)
-			priority := driver.PriorityNormal
-			if reallink == prioritizedDevice {
-				priority = driver.PriorityHigh
-			}
-			driver.GetManager().Register(cam, driver.Info{
-				Label:      label + LabelSeparator + reallink,
-				DeviceType: driver.Camera,
-				Priority:   priority,
-			})
-		}
+func discover(discovered map[string]struct{}, pattern string) {
+	devices, err := filepath.Glob(pattern)
+	if err != nil {
+		// No v4l device.
+		return
 	}
+	for _, device := range devices {
+		label := filepath.Base(device)
+		reallink, err := os.Readlink(device)
+		if err != nil {
+			reallink = label
+		} else {
+			reallink = filepath.Base(reallink)
+		}
+		if _, ok := discovered[reallink]; ok {
+			continue
+		}
 
-	discover("/dev/v4l/by-path/*")
-	discover("/dev/video*")
+		discovered[reallink] = struct{}{}
+		cam := newCamera(device)
+		priority := driver.PriorityNormal
+		if reallink == prioritizedDevice {
+			priority = driver.PriorityHigh
+		}
+		driver.GetManager().Register(cam, driver.Info{
+			Label:      label + LabelSeparator + reallink,
+			DeviceType: driver.Camera,
+			Priority:   priority,
+		})
+	}
 }
 
 func newCamera(path string) *camera {
