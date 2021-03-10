@@ -3,7 +3,6 @@ package opus
 import (
 	"errors"
 	"fmt"
-	"math"
 
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/io/audio"
@@ -28,17 +27,11 @@ type encoder struct {
 	engine *C.OpusEncoder
 }
 
-var latencies = []float64{5, 10, 20, 40, 60}
-
 func newEncoder(r audio.Reader, p prop.Media, params Params) (codec.ReadCloser, error) {
 	var cerror C.int
 
 	if p.SampleRate == 0 {
 		return nil, fmt.Errorf("opus: inProp.SampleRate is required")
-	}
-
-	if p.Latency == 0 {
-		p.Latency = 20
 	}
 
 	if params.BitRate == 0 {
@@ -49,19 +42,8 @@ func newEncoder(r audio.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 		params.ChannelMixer = &mixer.MonoMixer{}
 	}
 
-	// Select the nearest supported latency
-	var targetLatency float64
-	// TODO: use p.Latency.Milliseconds() after Go 1.12 EOL
-	latencyInMS := float64(p.Latency.Nanoseconds() / 1000000)
-	nearestDist := math.Inf(+1)
-	for _, latency := range latencies {
-		dist := math.Abs(latency - latencyInMS)
-		if dist >= nearestDist {
-			break
-		}
-
-		nearestDist = dist
-		targetLatency = latency
+	if !params.Latency.Validate() {
+		return nil, fmt.Errorf("opus: unsupported latency %v", params.Latency)
 	}
 
 	channels := p.ChannelCount
@@ -77,7 +59,7 @@ func newEncoder(r audio.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	}
 
 	rMix := audio.NewChannelMixer(channels, params.ChannelMixer)
-	rBuf := audio.NewBuffer(int(targetLatency * float64(p.SampleRate) / 1000))
+	rBuf := audio.NewBuffer(params.Latency.samples(p.SampleRate))
 	e := encoder{
 		engine: engine,
 		reader: rMix(rBuf(r)),

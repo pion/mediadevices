@@ -425,7 +425,7 @@ func (track *AudioTrack) newEncodedReader(codecNames ...string) (EncodedReadClos
 		return nil, nil, err
 	}
 
-	sample := newAudioSampler(selectedCodec.ClockRate, inputProp.Latency)
+	sample := newAudioSampler(selectedCodec.ClockRate, selectedCodec.Latency)
 
 	return &encodedReadCloserImpl{
 		readFn: func() (EncodedBuffer, func(), error) {
