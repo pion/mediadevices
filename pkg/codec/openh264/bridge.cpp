@@ -80,6 +80,11 @@ Slice enc_encode(Encoder *e, Frame f, int *eresult) {
   SFrameBSInfo info = {0};
   Slice payload = {0};
 
+  if(e->force_key_frame == 1) {
+    info.eFrameType = videoFrameTypeI;
+    e->force_key_frame = 0;
+  }
+
   pic.iPicWidth = f.width;
   pic.iPicHeight = f.height;
   pic.iColorFormat = videoFormatI420;

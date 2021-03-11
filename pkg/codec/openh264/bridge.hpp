@@ -27,6 +27,7 @@ typedef struct Encoder {
   ISVCEncoder *engine;
   unsigned char *buff;
   int buff_size;
+  int force_key_frame;
 } Encoder;
 
 Encoder *enc_new(const EncoderOptions params, int *eresult);
