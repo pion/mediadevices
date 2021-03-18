@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/pion/mediadevices/pkg/driver"
@@ -11,9 +13,9 @@ import (
 
 func TestDiscover(t *testing.T) {
 	const (
-		shortName  = "video0"
-		shortName2 = "video1"
-		longName   = "long-device-name:0:1:2:3"
+		shortName  = "unittest-video0"
+		shortName2 = "unittest-video1"
+		longName   = "unittest-long-device-name:0:1:2:3"
 	)
 
 	dir, err := ioutil.TempDir("", "")
@@ -41,22 +43,30 @@ func TestDiscover(t *testing.T) {
 
 	discovered := make(map[string]struct{})
 	discover(discovered, filepath.Join(byPathDir, "*"))
-	discover(discovered, filepath.Join(dir, "video*"))
+	discover(discovered, filepath.Join(dir, "unittest-video*"))
 
 	drvs := driver.GetManager().Query(func(d driver.Driver) bool {
-		return d.Info().DeviceType == driver.Camera
+		// Ignore real cameras.
+		return d.Info().DeviceType == driver.Camera && strings.Contains(d.Info().Label, "unittest")
 	})
 	if len(drvs) != 2 {
 		t.Fatalf("Expected 2 driver, got %d drivers", len(drvs))
 	}
 
+	labels := []string{
+		drvs[0].Info().Label,
+		drvs[1].Info().Label,
+	}
+	// Returned drivers are unordered. Sort to get static result.
+	sort.Sort(sort.StringSlice(labels))
+
 	expected := longName + LabelSeparator + shortName
-	if label := drvs[0].Info().Label; label != expected {
+	if label := labels[0]; label != expected {
 		t.Errorf("Expected label: %s, got: %s", expected, label)
 	}
 
 	expectedNoLink := shortName2 + LabelSeparator + shortName2
-	if label := drvs[1].Info().Label; label != expectedNoLink {
+	if label := labels[1]; label != expectedNoLink {
 		t.Errorf("Expected label: %s, got: %s", expectedNoLink, label)
 	}
 }
