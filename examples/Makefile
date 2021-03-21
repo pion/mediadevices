@@ -5,4 +5,4 @@ examples := $(filter-out internal,$(examples))
 all: $(examples)
 
 $(examples):
-	cd $@ && go build
+	cd $@ && go build -mod=mod
