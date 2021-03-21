@@ -144,9 +144,11 @@ func newInt16InterleavedDecoder() (Decoder, Format) {
 		container := NewInt16Interleaved(chunkInfo)
 
 		if endian == hostEndian {
+			data := container.Data
+			dst := *(*[]byte)(unsafe.Pointer(&data))
+			hdr := (*reflect.SliceHeader)(unsafe.Pointer(&dst))
 			n := len(chunk)
-			h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[0])), Len: n, Cap: n}
-			dst := *(*[]byte)(unsafe.Pointer(&h))
+			hdr.Len, hdr.Cap = n, n
 			copy(dst, chunk)
 			return container, nil
 		}
@@ -188,9 +190,11 @@ func newInt16NonInterleavedDecoder() (Decoder, Format) {
 
 		if endian == hostEndian {
 			for ch := 0; ch < channels; ch++ {
+				data := container.Data[ch]
+				dst := *(*[]byte)(unsafe.Pointer(&data))
+				hdr := (*reflect.SliceHeader)(unsafe.Pointer(&dst))
+				hdr.Len, hdr.Cap = chunkLen, chunkLen
 				offset := ch * chunkLen
-				h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[ch][0])), Len: chunkLen, Cap: chunkLen}
-				dst := *(*[]byte)(unsafe.Pointer(&h))
 				copy(dst, chunk[offset:offset+chunkLen])
 			}
 			return container, nil
@@ -228,9 +232,11 @@ func newFloat32InterleavedDecoder() (Decoder, Format) {
 		container := NewFloat32Interleaved(chunkInfo)
 
 		if endian == hostEndian {
+			data := container.Data
+			dst := *(*[]byte)(unsafe.Pointer(&data))
+			hdr := (*reflect.SliceHeader)(unsafe.Pointer(&dst))
 			n := len(chunk)
-			h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[0])), Len: n, Cap: n}
-			dst := *(*[]byte)(unsafe.Pointer(&h))
+			hdr.Len, hdr.Cap = n, n
 			copy(dst, chunk)
 			return container, nil
 		}
@@ -272,9 +278,11 @@ func newFloat32NonInterleavedDecoder() (Decoder, Format) {
 
 		if endian == hostEndian {
 			for ch := 0; ch < channels; ch++ {
+				data := container.Data[ch]
+				dst := *(*[]byte)(unsafe.Pointer(&data))
+				hdr := (*reflect.SliceHeader)(unsafe.Pointer(&dst))
+				hdr.Len, hdr.Cap = chunkLen, chunkLen
 				offset := ch * chunkLen
-				h := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(&container.Data[ch][0])), Len: chunkLen, Cap: chunkLen}
-				dst := *(*[]byte)(unsafe.Pointer(&h))
 				copy(dst, chunk[offset:offset+chunkLen])
 			}
 			return container, nil
