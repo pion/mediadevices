@@ -1,6 +1,8 @@
 package codec
 
 import (
+	"time"
+
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -13,6 +15,9 @@ import (
 type RTPCodec struct {
 	webrtc.RTPCodecParameters
 	rtp.Payloader
+
+	// Latency of static frame size codec.
+	Latency time.Duration
 }
 
 // NewRTPH264Codec is a helper to create an H264 codec
