@@ -124,9 +124,8 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	return encoded, func() {}, err
 }
 
-func (e *encoder) SetBitRate(b int) error {
-	panic("SetBitRate is not implemented")
-}
+// TODO: Implement bit rate control
+//var _ codec.BitRateController = (*encoder)(nil)
 
 func (e *encoder) ForceKeyFrame() error {
 	e.engine.force_key_frame = C.int(1)
