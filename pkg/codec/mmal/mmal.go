@@ -97,6 +97,10 @@ func (e *encoder) Read() ([]byte, func(), error) {
 // TODO: Implement Key Frame control
 //var _ codec.KeyFrameController = (*encoder)(nil)
 
+func (e *encoder) Controller() codec.EncoderController {
+	return nil
+}
+
 func (e *encoder) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

@@ -368,8 +368,8 @@ func (track *VideoTrack) newEncodedReader(codecNames ...string) (EncodedReadClos
 			}
 			return buffer, release, err
 		},
-		closeFn:    encodedReader.Close,
-		controller: encodedReader,
+		closeFn:      encodedReader.Close,
+		controllerFn: encodedReader.Controller,
 	}, selectedCodec, nil
 }
 
@@ -407,8 +407,8 @@ func (track *VideoTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (R
 			pkts := packetizer.Packetize(encoded.Data, encoded.Samples)
 			return pkts, release, err
 		},
-		closeFn:    encodedReader.Close,
-		controller: encodedReader.Controller(),
+		closeFn:      encodedReader.Close,
+		controllerFn: encodedReader.Controller,
 	}, nil
 }
 
