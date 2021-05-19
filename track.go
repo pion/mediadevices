@@ -209,19 +209,28 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 }
 
 func (track *baseTrack) unbind(ctx webrtc.TrackLocalContext) error {
-	track.mu.Lock()
-	defer track.mu.Unlock()
-
-	ch, ok := track.activePeerConnections[ctx.ID()]
-	if !ok {
-		return errNotFoundPeerConnection
+	ch, err := track.removeActivePeerConnection(ctx.ID())
+	if err != err {
+		return err
 	}
 
 	doneCh := make(chan struct{})
 	ch <- doneCh
 	<-doneCh
-	delete(track.activePeerConnections, ctx.ID())
 	return nil
+}
+
+func (track *baseTrack) removeActivePeerConnection(id string) (chan<- chan<- struct{}, error) {
+	track.mu.Lock()
+	defer track.mu.Unlock()
+
+	ch, ok := track.activePeerConnections[id]
+	if !ok {
+		return nil, errNotFoundPeerConnection
+	}
+	delete(track.activePeerConnections, id)
+
+	return ch, nil
 }
 
 func newTrackFromDriver(d driver.Driver, constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {
