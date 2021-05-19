@@ -476,12 +476,8 @@ func (e *encoderVP9) Read() ([]byte, func(), error) {
 	return encoded, func() {}, err
 }
 
-func (e *encoderVP9) SetBitRate(b int) error {
-	panic("SetBitRate is not implemented")
-}
-
-func (e *encoderVP9) ForceKeyFrame() error {
-	panic("ForceKeyFrame is not implemented")
+func (e *encoderVP9) Controller() codec.EncoderController {
+	return e
 }
 
 func (e *encoderVP9) Close() error {

@@ -90,13 +90,13 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	return encoded, func() {}, nil
 }
 
-func (e *encoder) SetBitRate(b int) error {
-	panic("SetBitRate is not implemented")
-}
-
 func (e *encoder) ForceKeyFrame() error {
 	e.engine.force_key_frame = C.int(1)
 	return nil
+}
+
+func (e *encoder) Controller() codec.EncoderController {
+	return e
 }
 
 func (e *encoder) Close() error {

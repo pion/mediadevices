@@ -1,5 +1,7 @@
 package mediadevices
 
+import "github.com/pion/mediadevices/pkg/codec"
+
 type EncodedBuffer struct {
 	Data    []byte
 	Samples uint32
@@ -8,11 +10,13 @@ type EncodedBuffer struct {
 type EncodedReadCloser interface {
 	Read() (EncodedBuffer, func(), error)
 	Close() error
+	codec.Controllable
 }
 
 type encodedReadCloserImpl struct {
-	readFn  func() (EncodedBuffer, func(), error)
-	closeFn func() error
+	readFn       func() (EncodedBuffer, func(), error)
+	closeFn      func() error
+	controllerFn func() codec.EncoderController
 }
 
 func (r *encodedReadCloserImpl) Read() (EncodedBuffer, func(), error) {
@@ -23,9 +27,14 @@ func (r *encodedReadCloserImpl) Close() error {
 	return r.closeFn()
 }
 
+func (r *encodedReadCloserImpl) Controller() codec.EncoderController {
+	return r.controllerFn()
+}
+
 type encodedIOReadCloserImpl struct {
-	readFn  func([]byte) (int, error)
-	closeFn func() error
+	readFn     func([]byte) (int, error)
+	closeFn    func() error
+	controller func() codec.EncoderController
 }
 
 func newEncodedIOReadCloserImpl(reader EncodedReadCloser) *encodedIOReadCloserImpl {
@@ -48,7 +57,8 @@ func newEncodedIOReadCloserImpl(reader EncodedReadCloser) *encodedIOReadCloserIm
 			encoded.Data = encoded.Data[n:]
 			return n, nil
 		},
-		closeFn: reader.Close,
+		closeFn:    reader.Close,
+		controller: reader.Controller,
 	}
 }
 
@@ -58,4 +68,8 @@ func (r *encodedIOReadCloserImpl) Read(b []byte) (int, error) {
 
 func (r *encodedIOReadCloserImpl) Close() error {
 	return r.closeFn()
+}
+
+func (r *encodedIOReadCloserImpl) Controller() codec.EncoderController {
+	return r.controller()
 }
