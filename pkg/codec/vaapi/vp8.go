@@ -546,6 +546,10 @@ func (e *encoderVP8) Read() ([]byte, func(), error) {
 // TODO: Implement key frame control
 //var _ codec.KeyFrameController = (*encoderVP8)(nil)
 
+func (e *encoder) Controller() codec.EncoderController {
+	return nil
+}
+
 func (e *encoderVP8) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

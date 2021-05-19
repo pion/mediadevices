@@ -10,14 +10,13 @@ type EncodedBuffer struct {
 type EncodedReadCloser interface {
 	Read() (EncodedBuffer, func(), error)
 	Close() error
-	// FIXME: Use a Controllable interface
-	Controller() codec.EncoderController
+	codec.Controllable
 }
 
 type encodedReadCloserImpl struct {
-	readFn     func() (EncodedBuffer, func(), error)
-	closeFn    func() error
-	controller codec.EncoderController
+	readFn       func() (EncodedBuffer, func(), error)
+	closeFn      func() error
+	controllerFn func() codec.EncoderController
 }
 
 func (r *encodedReadCloserImpl) Read() (EncodedBuffer, func(), error) {
@@ -29,13 +28,13 @@ func (r *encodedReadCloserImpl) Close() error {
 }
 
 func (r *encodedReadCloserImpl) Controller() codec.EncoderController {
-	return r.controller
+	return r.controllerFn()
 }
 
 type encodedIOReadCloserImpl struct {
 	readFn     func([]byte) (int, error)
 	closeFn    func() error
-	controller codec.EncoderController
+	controller func() codec.EncoderController
 }
 
 func newEncodedIOReadCloserImpl(reader EncodedReadCloser) *encodedIOReadCloserImpl {
@@ -59,7 +58,7 @@ func newEncodedIOReadCloserImpl(reader EncodedReadCloser) *encodedIOReadCloserIm
 			return n, nil
 		},
 		closeFn:    reader.Close,
-		controller: reader.Controller(),
+		controller: reader.Controller,
 	}
 }
 
@@ -72,5 +71,5 @@ func (r *encodedIOReadCloserImpl) Close() error {
 }
 
 func (r *encodedIOReadCloserImpl) Controller() codec.EncoderController {
-	return r.controller
+	return r.controller()
 }

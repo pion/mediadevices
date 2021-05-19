@@ -292,6 +292,10 @@ func (e *encoder) ForceKeyFrame() error {
 	panic("ForceKeyFrame is not implemented")
 }
 
+func (e *encoder) Controller() codec.EncoderController {
+	return e
+}
+
 func (e *encoder) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
