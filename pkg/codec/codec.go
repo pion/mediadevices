@@ -112,16 +112,23 @@ type VideoEncoderBuilder interface {
 	BuildVideoEncoder(r video.Reader, p prop.Media) (ReadCloser, error)
 }
 
-// ReadCloser is an io.ReadCloser with methods for rate limiting: SetBitRate and ForceKeyFrame
+// ReadCloser is an io.ReadCloser with a controller
 type ReadCloser interface {
 	Read() (b []byte, release func(), err error)
 	Close() error
+	Controllable
 }
 
 // EncoderController is the interface allowing to control the encoder behaviour after it's initialisation
 // It will will possibly have common control method in the future.
 // A controller can have optional methods represented by *Controller interfaces
 type EncoderController interface{}
+
+// Controllable is a interface representing a encoder which can be controlled
+// after it's initialisation with an EncoderController
+type Controllable interface {
+	Controller() EncoderController
+}
 
 // KeyFrameController is a interface representing an encoder that can be forced to produce key frame on demand
 type KeyFrameController interface {

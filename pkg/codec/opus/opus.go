@@ -126,6 +126,10 @@ func (e *encoder) SetBitRate(bitRate int) error {
 // TODO: Implement key frame controller
 //var _ codec.KeyFrameController = (*encoder)(nil)
 
+func (e *encoder) Controller() codec.EncoderController {
+	return e
+}
+
 func (e *encoder) Close() error {
 	if e.engine == nil {
 		return nil

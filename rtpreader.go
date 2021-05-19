@@ -8,14 +8,13 @@ import (
 type RTPReadCloser interface {
 	Read() (pkts []*rtp.Packet, release func(), err error)
 	Close() error
-	// FIXME: Use a Controllable interface
-	Controller() codec.EncoderController
+	codec.Controllable
 }
 
 type rtpReadCloserImpl struct {
-	readFn     func() ([]*rtp.Packet, func(), error)
-	closeFn    func() error
-	controller codec.EncoderController
+	readFn       func() ([]*rtp.Packet, func(), error)
+	closeFn      func() error
+	controllerFn func() codec.EncoderController
 }
 
 func (r *rtpReadCloserImpl) Read() ([]*rtp.Packet, func(), error) {
@@ -27,5 +26,5 @@ func (r *rtpReadCloserImpl) Close() error {
 }
 
 func (r *rtpReadCloserImpl) Controller() codec.EncoderController {
-	return r.controller
+	return r.controllerFn()
 }

@@ -89,6 +89,10 @@ func (e *encoder) ForceKeyFrame() error {
 	return nil
 }
 
+func (e *encoder) Controller() codec.EncoderController {
+	return e
+}
+
 func (e *encoder) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
