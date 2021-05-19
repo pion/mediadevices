@@ -109,6 +109,8 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	return encoded[:n:n], func() {}, err
 }
 
+var _ codec.BitRateController = (*encoder)(nil)
+
 func (e *encoder) SetBitRate(bitRate int) error {
 	cerror := C.bridge_encoder_set_bitrate(
 		e.engine,
@@ -121,9 +123,8 @@ func (e *encoder) SetBitRate(bitRate int) error {
 	return nil
 }
 
-func (e *encoder) ForceKeyFrame() error {
-	panic("ForceKeyFrame is not implemented")
-}
+// TODO: Implement key frame controller
+//var _ codec.KeyFrameController = (*encoder)(nil)
 
 func (e *encoder) Close() error {
 	C.opus_encoder_destroy(e.engine)
