@@ -121,8 +121,8 @@ func (e *encoder) SetBitRate(bitRate int) error {
 	return nil
 }
 
-func (e *encoder) ForceKeyFrame() error {
-	panic("ForceKeyFrame is not implemented")
+func (e *encoder) Controller() codec.EncoderController {
+	return e
 }
 
 func (e *encoder) Close() error {

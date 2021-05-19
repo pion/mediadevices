@@ -193,7 +193,7 @@ func TestRequestKeyFrame(t *testing.T) {
 				t.Fatal(err)
 			}
 			rel()
-			r.ForceKeyFrame()
+			r.Controller().(codec.KeyFrameController).ForceKeyFrame()
 			_, rel, err = r.Read()
 			if err != nil {
 				t.Fatal(err)
@@ -208,5 +208,21 @@ func TestRequestKeyFrame(t *testing.T) {
 			}
 		})
 
+	}
+}
+
+func TestShouldImplementBitRateControl(t *testing.T) {
+	t.SkipNow() // TODO: Implement bit rate control
+
+	e := &encoder{}
+	if _, ok := e.Controller().(codec.BitRateController); !ok {
+		t.Error()
+	}
+}
+
+func TestShouldImplementKeyFrameControl(t *testing.T) {
+	e := &encoder{}
+	if _, ok := e.Controller().(codec.KeyFrameController); !ok {
+		t.Error()
 	}
 }

@@ -295,15 +295,15 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	return encoded, func() {}, err
 }
 
-func (e *encoder) SetBitRate(b int) error {
-	panic("SetBitRate is not implemented")
-}
-
 func (e *encoder) ForceKeyFrame() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.requireKeyFrame = true
 	return nil
+}
+
+func (e *encoder) Controller() codec.EncoderController {
+	return e
 }
 
 func (e *encoder) Close() error {
