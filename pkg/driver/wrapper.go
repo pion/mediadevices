@@ -2,6 +2,7 @@ package driver
 
 import (
 	"github.com/google/uuid"
+
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"

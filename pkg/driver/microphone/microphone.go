@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"github.com/gen2brain/malgo"
+
 	"github.com/pion/mediadevices/internal/logging"
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/io/audio"
@@ -57,9 +58,12 @@ func init() {
 				priority = driver.PriorityHigh
 			}
 			driver.GetManager().Register(newMicrophone(info), driver.Info{
-				Label:      device.ID.String(),
-				DeviceType: driver.Microphone,
-				Priority:   priority,
+				Label:        device.ID.String(),
+				Name:         device.Name(),
+				Manufacturer: "",
+				ModelID:      "",
+				DeviceType:   driver.Microphone,
+				Priority:     priority,
 			})
 		}
 	}

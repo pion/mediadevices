@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/blackjack/webcam"
+
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
@@ -102,9 +103,12 @@ func discover(discovered map[string]struct{}, pattern string) {
 			priority = driver.PriorityHigh
 		}
 		driver.GetManager().Register(cam, driver.Info{
-			Label:      label + LabelSeparator + reallink,
-			DeviceType: driver.Camera,
-			Priority:   priority,
+			Label:        label + LabelSeparator + reallink,
+			Name:         label + LabelSeparator + reallink, //TODO: replace with real info
+			Manufacturer: label + LabelSeparator + reallink,
+			ModelID:      label + LabelSeparator + reallink,
+			DeviceType:   driver.Camera,
+			Priority:     priority,
 		})
 	}
 }

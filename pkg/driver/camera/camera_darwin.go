@@ -24,8 +24,11 @@ func init() {
 	for _, device := range devices {
 		cam := newCamera(device)
 		driver.GetManager().Register(cam, driver.Info{
-			Label:      device.UID,
-			DeviceType: driver.Camera,
+			Label:        device.UID,
+			Name:         device.Name,
+			Manufacturer: device.Manufacturer,
+			ModelID:      device.ModelID,
+			DeviceType:   driver.Camera,
 		})
 	}
 }
