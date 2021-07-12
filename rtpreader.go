@@ -1,6 +1,6 @@
 package mediadevices
 
-import "github.com/pion/rtp"
+import "github.com/pion/rtp/v2"
 
 type RTPReadCloser interface {
 	Read() (pkts []*rtp.Packet, release func(), err error)

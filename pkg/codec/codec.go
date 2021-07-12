@@ -6,8 +6,8 @@ import (
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
-	"github.com/pion/rtp"
-	"github.com/pion/rtp/codecs"
+	"github.com/pion/rtp/v2"
+	"github.com/pion/rtp/v2/codecs"
 	"github.com/pion/webrtc/v3"
 )
 

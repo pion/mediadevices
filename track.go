@@ -14,7 +14,7 @@ import (
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/wave"
-	"github.com/pion/rtp"
+	"github.com/pion/rtp/v2"
 	"github.com/pion/webrtc/v3"
 )
 
