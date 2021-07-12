@@ -2,7 +2,7 @@ package mediadevices
 
 import (
 	"github.com/pion/mediadevices/pkg/codec"
-	"github.com/pion/rtp"
+	"github.com/pion/rtp/v2"
 )
 
 type RTPReadCloser interface {
