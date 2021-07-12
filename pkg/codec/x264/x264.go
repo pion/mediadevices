@@ -124,12 +124,14 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	return encoded, func() {}, err
 }
 
-func (e *encoder) SetBitRate(b int) error {
-	panic("SetBitRate is not implemented")
-}
+// TODO: Implement bit rate control
+//var _ codec.BitRateController = (*encoder)(nil)
 
-func (e *encoder) ForceKeyFrame() error {
-	panic("ForceKeyFrame is not implemented")
+// TODO: Implement key frame control
+//var _ codec.KeyFrameController = (*encoder)(nil)
+
+func (e *encoder) Controller() codec.EncoderController {
+	return nil
 }
 
 func (e *encoder) Close() error {
