@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/blackjack/webcam v0.0.0-20200313125108-10ed912a8539
 	github.com/gen2brain/malgo v0.10.29
-	github.com/google/uuid v1.2.0
+	github.com/google/uuid v1.3.0
 	github.com/kbinani/screenshot v0.0.0-20210326165202-b96eb3309bb0
 	github.com/pion/logging v0.2.2
 	github.com/pion/rtp v1.6.5
