@@ -233,7 +233,7 @@ func (track *baseTrack) removeActivePeerConnection(id string) (chan<- chan<- str
 	return ch, nil
 }
 
-func newTrackFromDriver(d driver.Driver, constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {
+func NewTrackFromDriver(d driver.Driver, constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {
 	if err := d.Open(); err != nil {
 		return nil, err
 	}
@@ -242,7 +242,7 @@ func newTrackFromDriver(d driver.Driver, constraints MediaTrackConstraints, sele
 	case driver.VideoRecorder:
 		return newVideoTrackFromDriver(d, recorder, constraints, selector)
 	case driver.AudioRecorder:
-		return newAudioTrackFromDriver(d, recorder, constraints, selector)
+		return NewAudioTrackFromDriver(d, recorder, constraints, selector)
 	default:
 		panic(errInvalidDriverType)
 	}
@@ -399,7 +399,7 @@ func newAudioTrackFromReader(source Source, reader audio.Reader, selector *Codec
 }
 
 // newAudioTrackFromDriver is an internal audio track creation from driver
-func newAudioTrackFromDriver(d driver.Driver, recorder driver.AudioRecorder, constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {
+func NewAudioTrackFromDriver(d driver.Driver, recorder driver.AudioRecorder, constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {
 	reader, err := recorder.AudioRecord(constraints.selectedMedia)
 	if err != nil {
 		return nil, err
