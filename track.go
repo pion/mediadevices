@@ -374,7 +374,7 @@ type AudioTrack struct {
 	*audio.Broadcaster
 }
 
-// NewAudioTrack constructs a new VideoTrack
+// NewAudioTrack constructs a new AudioTrack
 func NewAudioTrack(source AudioSource, selector *CodecSelector) Track {
 	return newAudioTrackFromReader(source, source, selector)
 }
