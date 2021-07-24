@@ -18,6 +18,16 @@ int bridge_encoder_set_bitrate(OpusEncoder *e, opus_int32 bitrate)
 {
 	return opus_encoder_ctl(e, OPUS_SET_BITRATE(bitrate));
 }
+
+int bridge_encoder_set_inband_fec(OpusEncoder *e, int enable)
+{
+	return opus_encoder_ctl(e, OPUS_SET_INBAND_FEC(enable));
+}
+
+int bridge_encoder_set_packet_loss_perc(OpusEncoder *e, int pct)
+{
+	return opus_encoder_ctl(e, OPUS_SET_PACKET_LOSS_PERC(pct));
+}
 */
 import "C"
 
@@ -63,6 +73,24 @@ func newEncoder(r audio.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	e := encoder{
 		engine: engine,
 		reader: rMix(rBuf(r)),
+	}
+
+	cerror = C.bridge_encoder_set_inband_fec(
+		engine,
+		C.int(1),
+	)
+	if cerror != C.OPUS_OK {
+		e.Close()
+		return nil, fmt.Errorf("failed to set inband fec")
+	}
+
+	cerror = C.bridge_encoder_set_packet_loss_perc(
+		engine,
+		C.int(100),
+	)
+	if cerror != C.OPUS_OK {
+		e.Close()
+		return nil, fmt.Errorf("failed to set loss perc")
 	}
 
 	err := e.SetBitRate(params.BitRate)
