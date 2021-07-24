@@ -15,6 +15,12 @@ import (
 	"github.com/pion/webrtc/v3"
 )
 
+const (
+	sampleRate = 48000
+	channels   = 2
+	sampleSize = 2
+)
+
 type AudioFile struct {
 	rawReader      *os.File
 	bufferedReader *bufio.Reader
@@ -25,18 +31,18 @@ type AudioFile struct {
 
 func NewAudioFile(path string) (*AudioFile, error) {
 	// Assume 48000 sample rate, mono channel, and S16LE interleaved
-	latency := time.Millisecond * 20
+	latency := time.Millisecond * 120
 	readFrequency := time.Second / latency
-	readLen := 48000 / readFrequency * 1 * 2
+	readLen := sampleRate * channels * sampleSize / int(readFrequency)
 	decoder, err := wave.NewDecoder(&wave.RawFormat{
-		SampleSize:  2,
+		SampleSize:  sampleSize,
 		IsFloat:     false,
 		Interleaved: true,
 	})
 
 	fmt.Printf(`
 Latency: %s
-Read Delay: %d Hz
+Read Frequency: %d Hz
 Buffer Len: %d bytes
 `, latency, readFrequency, readLen)
 	if err != nil {
@@ -68,13 +74,13 @@ func (file *AudioFile) Read() (chunk wave.Audio, release func(), err error) {
 		}
 	}
 
-	chunk, err = file.decoder.Decode(binary.LittleEndian, file.rawBuffer, 1)
+	chunk, err = file.decoder.Decode(binary.LittleEndian, file.rawBuffer, channels)
 	if err != nil {
 		return
 	}
 
 	int16Chunk := chunk.(*wave.Int16Interleaved)
-	int16Chunk.Size.SamplingRate = 48000
+	int16Chunk.Size.SamplingRate = sampleRate
 
 	// Slow down reading so that it matches 48 KHz
 	<-file.ticker.C
