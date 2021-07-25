@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	rtpOutboundMTU = 1200
+	rtpOutboundMTU = 1000
 )
 
 var (
