@@ -64,6 +64,8 @@ type Track interface {
 	Unbind(webrtc.TrackLocalContext) error
 	// NewRTPReader creates a new reader from the source. The reader will encode the source, and packetize
 	// the encoded data in RTP format with given mtu size.
+	//
+	// Note: `mtu int` will be changed to `mtu uint16` in a future update.
 	NewRTPReader(codecName string, ssrc uint32, mtu int) (RTPReadCloser, error)
 	// NewEncodedReader creates a EncodedReadCloser that reads the encoded data in codecName format
 	NewEncodedReader(codecName string) (EncodedReadCloser, error)
