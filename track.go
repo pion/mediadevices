@@ -64,6 +64,8 @@ type Track interface {
 	Unbind(webrtc.TrackLocalContext) error
 	// NewRTPReader creates a new reader from the source. The reader will encode the source, and packetize
 	// the encoded data in RTP format with given mtu size.
+	//
+	// Note: `mtu int` will be changed to `mtu uint16` in a future update.
 	NewRTPReader(codecName string, ssrc uint32, mtu int) (RTPReadCloser, error)
 	// NewEncodedReader creates a EncodedReadCloser that reads the encoded data in codecName format
 	NewEncodedReader(codecName string) (EncodedReadCloser, error)
@@ -348,7 +350,7 @@ func (track *VideoTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (R
 		return nil, err
 	}
 
-	packetizer := rtp.NewPacketizer(mtu, uint8(selectedCodec.PayloadType), ssrc, selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
+	packetizer := rtp.NewPacketizer(uint16(mtu), uint8(selectedCodec.PayloadType), ssrc, selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
 
 	return &rtpReadCloserImpl{
 		readFn: func() ([]*rtp.Packet, func(), error) {
@@ -468,7 +470,7 @@ func (track *AudioTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (R
 		return nil, err
 	}
 
-	packetizer := rtp.NewPacketizer(mtu, uint8(selectedCodec.PayloadType), ssrc, selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
+	packetizer := rtp.NewPacketizer(uint16(mtu), uint8(selectedCodec.PayloadType), ssrc, selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
 
 	return &rtpReadCloserImpl{
 		readFn: func() ([]*rtp.Packet, func(), error) {
