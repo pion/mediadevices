@@ -4,10 +4,27 @@ import (
 	"image"
 	"testing"
 
+	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/codec/internal/codectest"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/prop"
 )
+
+func TestShouldImplementBitRateControl(t *testing.T) {
+	t.SkipNow() // TODO: Implement bit rate control
+
+	e := &encoder{}
+	if _, ok := e.Controller().(codec.BitRateController); !ok {
+		t.Error()
+	}
+}
+
+func TestShouldImplementKeyFrameControl(t *testing.T) {
+	e := &encoder{}
+	if _, ok := e.Controller().(codec.KeyFrameController); !ok {
+		t.Error()
+	}
+}
 
 func TestEncoder(t *testing.T) {
 	t.Run("SimpleRead", func(t *testing.T) {

@@ -541,14 +541,8 @@ func (e *encoderVP8) Read() ([]byte, func(), error) {
 	return encoded, func() {}, err
 }
 
-// TODO: Implement bit rate control
-//var _ codec.BitRateController = (*encoderVP8)(nil)
-
-// TODO: Implement key frame control
-//var _ codec.KeyFrameController = (*encoderVP8)(nil)
-
 func (e *encoder) Controller() codec.EncoderController {
-	return nil
+	return e
 }
 
 func (e *encoderVP8) Close() error {
