@@ -109,8 +109,6 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	return encoded[:n:n], func() {}, err
 }
 
-var _ codec.BitRateController = (*encoder)(nil)
-
 func (e *encoder) SetBitRate(bitRate int) error {
 	cerror := C.bridge_encoder_set_bitrate(
 		e.engine,
@@ -122,9 +120,6 @@ func (e *encoder) SetBitRate(bitRate int) error {
 
 	return nil
 }
-
-// TODO: Implement key frame controller
-//var _ codec.KeyFrameController = (*encoder)(nil)
 
 func (e *encoder) Controller() codec.EncoderController {
 	return e

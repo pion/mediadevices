@@ -79,11 +79,6 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	return encoded, func() {}, nil
 }
 
-// TODO: Implement Bit rate control
-// var _ codec.BitRateController = (*encoder)(nil)
-
-var _ codec.KeyFrameController = (*encoder)(nil)
-
 func (e *encoder) ForceKeyFrame() error {
 	e.engine.force_key_frame = C.int(1)
 	return nil
