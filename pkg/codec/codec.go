@@ -119,8 +119,8 @@ type ReadCloser interface {
 	Controllable
 }
 
-// EncoderController is the interface allowing to control the encoder behaviour after it's initialisation
-// It will will possibly have common control method in the future.
+// EncoderController is the interface allowing to control the encoder behaviour after it's initialisation.
+// It will possibly have common control method in the future.
 // A controller can have optional methods represented by *Controller interfaces
 type EncoderController interface{}
 
