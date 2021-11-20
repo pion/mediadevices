@@ -74,7 +74,7 @@ $(cmd_test):
 	go vet $(pkgs_without_mmal)
 	go build $(pkgs_without_mmal)
 	# go build without CGO
-	CGO_ENABLED=0 go build . pkg/...
+	CGO_ENABLED=0 go build . ./pkg/...
 	# go build with CGO
 	CGO_ENABLED=1 go build $(pkgs_without_mmal)
 	$(MAKE) --directory=$(examples_dir)
