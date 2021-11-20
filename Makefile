@@ -25,6 +25,7 @@ codec_list := $(shell ls $(codec_dir)/*/Makefile)
 codec_list := $(codec_list:$(codec_dir)/%/Makefile=%)
 targets := $(foreach codec, $(codec_list), $(addprefix $(cmd_build)-$(codec)-, $(supported_platforms)))
 pkgs_without_mmal := $(shell go list ./... | grep -v mmal)
+pkgs_without_cgo := $(shell go list ./... | grep -v pkg/codec | grep -v pkg/driver | grep -v pkg/avfoundation)
 
 define BUILD_TEMPLATE
 ifneq (,$$(findstring $(2)-$(3),$$(supported_platforms)))
@@ -74,7 +75,7 @@ $(cmd_test):
 	go vet $(pkgs_without_mmal)
 	go build $(pkgs_without_mmal)
 	# go build without CGO
-	CGO_ENABLED=0 go build . pkg/...
+	CGO_ENABLED=0 go build $(pkgs_without_cgo)
 	# go build with CGO
 	CGO_ENABLED=1 go build $(pkgs_without_mmal)
 	$(MAKE) --directory=$(examples_dir)
