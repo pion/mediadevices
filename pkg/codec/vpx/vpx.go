@@ -310,6 +310,10 @@ func (e *encoder) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	if e.closed {
+		return nil
+	}
+
 	e.closed = true
 
 	C.free(unsafe.Pointer(e.raw))

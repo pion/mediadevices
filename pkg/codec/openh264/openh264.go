@@ -92,6 +92,10 @@ func (e *encoder) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	if e.closed {
+		return nil
+	}
+
 	e.closed = true
 
 	var rv C.int
