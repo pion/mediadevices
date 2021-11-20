@@ -1,7 +1,11 @@
+//go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
+// +build dragonfly freebsd linux netbsd openbsd solaris
+
 package vaapi
 
 import (
 	"errors"
+	"image"
 	"os"
 	"testing"
 
@@ -28,6 +32,25 @@ func TestEncoder(t *testing.T) {
 	} {
 		factory := factory
 		t.Run(name, func(t *testing.T) {
+			t.Run("SimpleRead", func(t *testing.T) {
+				p, err := factory()
+				if err != nil {
+					t.Fatal(err)
+				}
+				codectest.VideoEncoderSimpleReadTest(t, p,
+					prop.Media{
+						Video: prop.Video{
+							Width:       256,
+							Height:      144,
+							FrameFormat: frame.FormatI420,
+						},
+					},
+					image.NewYCbCr(
+						image.Rect(0, 0, 256, 144),
+						image.YCbCrSubsampleRatio420,
+					),
+				)
+			})
 			t.Run("CloseTwice", func(t *testing.T) {
 				p, err := factory()
 				if err != nil {

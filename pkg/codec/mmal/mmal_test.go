@@ -1,6 +1,7 @@
 package mmal
 
 import (
+	"image"
 	"testing"
 
 	"github.com/pion/mediadevices/pkg/codec/internal/codectest"
@@ -9,6 +10,25 @@ import (
 )
 
 func TestEncoder(t *testing.T) {
+	t.Run("SimpleRead", func(t *testing.T) {
+		p, err := NewParams()
+		if err != nil {
+			t.Fatal(err)
+		}
+		codectest.VideoEncoderSimpleReadTest(t, &p,
+			prop.Media{
+				Video: prop.Video{
+					Width:       256,
+					Height:      144,
+					FrameFormat: frame.FormatI420,
+				},
+			},
+			image.NewYCbCr(
+				image.Rect(0, 0, 256, 144),
+				image.YCbCrSubsampleRatio420,
+			),
+		)
+	})
 	t.Run("CloseTwice", func(t *testing.T) {
 		p, err := NewParams()
 		if err != nil {
