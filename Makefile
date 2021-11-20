@@ -78,4 +78,9 @@ $(cmd_test):
 	# go build with CGO
 	CGO_ENABLED=1 go build $(pkgs_without_mmal)
 	$(MAKE) --directory=$(examples_dir)
-	go test -v -race -coverprofile=coverage.txt -covermode=atomic $(pkgs_without_mmal)
+	go test \
+		-v -race \
+		-coverprofile=coverage.txt \
+		-covermode=atomic \
+		-coverpkg=$(shell echo $(pkgs_without_mmal) | tr ' ' ',') \
+		$(pkgs_without_mmal)
