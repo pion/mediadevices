@@ -1,10 +1,11 @@
 package opus
 
 import (
+	"testing"
+
 	"github.com/pion/mediadevices/pkg/codec/internal/codectest"
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/mediadevices/pkg/wave"
-	"testing"
 )
 
 func TestEncoder(t *testing.T) {
@@ -26,5 +27,17 @@ func TestEncoder(t *testing.T) {
 				Channels:     2,
 			}),
 		)
+	})
+	t.Run("CloseTwice", func(t *testing.T) {
+		p, err := NewParams()
+		if err != nil {
+			t.Fatal(err)
+		}
+		codectest.AudioEncoderCloseTwiceTest(t, &p, prop.Media{
+			Audio: prop.Audio{
+				SampleRate:   48000,
+				ChannelCount: 2,
+			},
+		})
 	})
 }

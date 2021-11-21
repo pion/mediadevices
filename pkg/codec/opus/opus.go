@@ -126,6 +126,9 @@ func (e *encoder) ForceKeyFrame() error {
 }
 
 func (e *encoder) Close() error {
+	if e.engine == nil {
+		return nil
+	}
 	C.opus_encoder_destroy(e.engine)
 	e.engine = nil
 	return nil

@@ -1,3 +1,4 @@
+//go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build dragonfly freebsd linux netbsd openbsd solaris
 
 package vaapi
@@ -551,6 +552,10 @@ func (e *encoderVP8) ForceKeyFrame() error {
 func (e *encoderVP8) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+
+	if e.closed {
+		return nil
+	}
 
 	C.vaDestroySurfaces(e.display, &e.surfs[0], C.int(len(e.surfs)))
 	C.vaDestroyContext(e.display, e.ctxID)
