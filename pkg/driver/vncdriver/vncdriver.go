@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	//"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -33,21 +32,25 @@ func NewVnc(vncAddr string) *vncDevice {
 	return &vncDevice{vncAddr: vncAddr}
 }
 func (d *vncDevice) PointerEvent(mask uint8, x, y uint16) {
-	d.vClient.PointerEvent(vnc.ButtonMask(mask), x, y)
+	if d.vClient!=nil{
+		d.vClient.PointerEvent(vnc.ButtonMask(mask), x, y)
+	}
 }
 func (d *vncDevice) KeyEvent(keysym uint32, down bool) {
-	d.vClient.KeyEvent(keysym, down)
+	if d.vClient!=nil {
+		d.vClient.KeyEvent(keysym, down)
+	}
 }
 func (d *vncDevice) Open() error {
-	ctx, cancel := context.WithCancel(context.Background())
-	d.closed = ctx.Done()
-	d.cancel = cancel
 	if d.vClient != nil {
 		return nil
 	}
-	c := make(chan vnc.ServerMessage, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	d.closed = ctx.Done()
+	d.cancel = cancel
+	msg := make(chan vnc.ServerMessage, 1)
 	conf := vnc.ClientConfig{
-		ServerMessageCh: c,
+		ServerMessageCh: msg,
 		Exclusive:       false,
 	}
 	d.mutex.Lock()
@@ -69,19 +72,18 @@ func (d *vncDevice) Open() error {
 
 	d.rawPixel = make([]byte, d.h*d.w*4)
 
-	capCtx, _ := context.WithCancel(ctx)
 	go func(ctx context.Context) {
-		fmt.Println("Begin FramebufferUpdate")
+		c, cancel := context.WithCancel(ctx)
+		defer cancel()
 		if d.vClient == nil {
 			return
 		}
 		d.vClient.FramebufferUpdateRequest(true, 0, 0, uint16(d.w), uint16(d.h))
 		for {
 			select {
-			case <-ctx.Done():
-				fmt.Println("Stop Record Video By FBUpdate")
+			case <-c.Done():
 				return
-			case msg := <-c:
+			case msg := <-msg:
 				switch t := msg.(type) {
 				case *vnc.FramebufferUpdateMessage:
 					for _, rect := range t.Rectangles {
@@ -115,7 +117,7 @@ func (d *vncDevice) Open() error {
 
 			}
 		}
-	}(capCtx)
+	}(ctx)
 	return nil
 }
 
@@ -162,13 +164,13 @@ func (d *vncDevice) VideoRecord(p prop.Media) (video.Reader, error) {
 	return r, nil
 }
 
-func (d vncDevice) Properties() []prop.Media {
+func (d *vncDevice) Properties() []prop.Media {
 	return []prop.Media{
 		{
 			Video: prop.Video{
 				Width:       d.w,
 				Height:      d.h,
-				FrameFormat: frame.FormatI444,
+				FrameFormat: frame.FormatRGBA,
 			},
 		},
 	}

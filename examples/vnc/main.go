@@ -21,7 +21,6 @@ import (
 	//       you can always swap your adapters with our dummy adapters below.
 	// _ "github.com/pion/mediadevices/pkg/driver/videotest"
 	// _ "github.com/pion/mediadevices/pkg/driver/audiotest"
-	_ "github.com/pion/mediadevices/pkg/driver/vncdriver"     // This is required to register camera adapter
 )
 
 func main() {
