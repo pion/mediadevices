@@ -13,6 +13,7 @@ import (
 type camera struct {
 	device  avfoundation.Device
 	session *avfoundation.Session
+	rcClose func()
 }
 
 func init() {
@@ -43,6 +44,9 @@ func (cam *camera) Open() error {
 }
 
 func (cam *camera) Close() error {
+	if cam.rcClose != nil {
+		cam.rcClose()
+	}
 	return cam.session.Close()
 }
 
@@ -56,6 +60,7 @@ func (cam *camera) VideoRecord(property prop.Media) (video.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
+	cam.rcClose = rc.Close
 	r := video.ReaderFunc(func() (image.Image, func(), error) {
 		frame, _, err := rc.Read()
 		if err != nil {
