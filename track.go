@@ -56,6 +56,8 @@ type Track interface {
 	Kind() webrtc.RTPCodecType
 	// StreamID is the group this track belongs too. This must be unique
 	StreamID() string
+	// RID is the RTP Stearm ID for this track. This is only used for Simulcast
+	RID() string
 	// Bind binds the current track source to the given peer connection. In Pion/webrtc v3, the bind
 	// call will happen automatically after the SDP negotiation. Users won't need to call this manually.
 	Bind(webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error)
@@ -113,6 +115,11 @@ func (track *baseTrack) StreamID() string {
 	}
 
 	return generator.String()
+}
+
+// RID is only relevant if you wish to use Simulcast
+func (track *baseTrack) RID() string {
+	return ""
 }
 
 // OnEnded sets an error handler. When a track has been created and started, if an
