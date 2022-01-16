@@ -19,6 +19,10 @@ func (track *mockMediaStreamTrack) StreamID() string {
 	return ""
 }
 
+func (track *mockMediaStreamTrack) RID() string {
+	return ""
+}
+
 func (track *mockMediaStreamTrack) Close() error {
 	return nil
 }
