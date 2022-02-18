@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/pion/mediadevices/pkg/driver/vncdriver/vnc"
 	"image"
 	"io"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/pion/mediadevices/pkg/driver/vncdriver/vnc"
 
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
@@ -50,7 +51,7 @@ func (d *vncDevice) Open() error {
 	d.cancel = cancel
 	msg := make(chan vnc.ServerMessage, 1)
 	//auth:=new(vnc.PasswordAuth)
-	//auth.Password="zzj1978!"
+	//auth.Password="helloworld"
 	conf := vnc.ClientConfig{
 		//Auth: []vnc.ClientAuth{auth},
 		ServerMessageCh: msg,
