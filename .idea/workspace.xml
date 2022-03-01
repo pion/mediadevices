@@ -4,12 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="f7ebfbe9-b12a-476a-b589-9772702c7e43" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/codec/mmal/mmal_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/codec/mmal/mmal_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/codec/x264/x264_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/codec/x264/x264_test.go" afterDir="false" />
-    </list>
+    <list default="true" id="f7ebfbe9-b12a-476a-b589-9772702c7e43" name="Changes" comment="Write test instead of type checking hack" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
