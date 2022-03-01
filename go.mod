@@ -2,7 +2,7 @@ module github.com/pion/mediadevices
 
 go 1.13
 
-replace github.com/pion/webrtc/v3 => github.com/EmrysMyrddin/webrtc/v3 v3.0.30-0.20220301133300-cf76910357bd
+replace github.com/pion/webrtc/v3 => github.com/EmrysMyrddin/webrtc/v3 v3.1.25-0.20220301142221-d92d68ff068f
 
 require (
 	github.com/blackjack/webcam v0.0.0-20200313125108-10ed912a8539

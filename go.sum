@@ -1,5 +1,5 @@
-github.com/EmrysMyrddin/webrtc/v3 v3.0.30-0.20220301133300-cf76910357bd h1:LMu4e+BuBW8N1TnzXXz4bB/O47fQzw0CqfyROgzMSx8=
-github.com/EmrysMyrddin/webrtc/v3 v3.0.30-0.20220301133300-cf76910357bd/go.mod h1:mO/yv7fBN3Lp7YNlnYcTj1jtpvNvssJG+7eh6itZ4xM=
+github.com/EmrysMyrddin/webrtc/v3 v3.1.25-0.20220301142221-d92d68ff068f h1:o7MCxR85nZxyOgjkmjtnXHsmPmchX3AEbWb/Bgpy3aI=
+github.com/EmrysMyrddin/webrtc/v3 v3.1.25-0.20220301142221-d92d68ff068f/go.mod h1:mO/yv7fBN3Lp7YNlnYcTj1jtpvNvssJG+7eh6itZ4xM=
 github.com/blackjack/webcam v0.0.0-20200313125108-10ed912a8539 h1:1aIqYfg9s9RETAJHGfVKZW4ok0b22p4QTwk8MsdRtPs=
 github.com/blackjack/webcam v0.0.0-20200313125108-10ed912a8539/go.mod h1:G0X+rEqYPWSq0dG8OMf8M446MtKytzpPjgS3HbdOJZ4=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
