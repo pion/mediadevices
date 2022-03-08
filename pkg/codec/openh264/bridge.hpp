@@ -12,6 +12,8 @@ typedef struct Slice {
 
 typedef struct Frame {
   void *y, *u, *v;
+  int ystride;
+  int cstride;
   int height;
   int width;
 } Frame;

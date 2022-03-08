@@ -65,11 +65,13 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	bounds := yuvImg.Bounds()
 	var rv C.int
 	s := C.enc_encode(e.engine, C.Frame{
-		y:      unsafe.Pointer(&yuvImg.Y[0]),
-		u:      unsafe.Pointer(&yuvImg.Cb[0]),
-		v:      unsafe.Pointer(&yuvImg.Cr[0]),
-		height: C.int(bounds.Max.Y - bounds.Min.Y),
-		width:  C.int(bounds.Max.X - bounds.Min.X),
+		y:       unsafe.Pointer(&yuvImg.Y[0]),
+		u:       unsafe.Pointer(&yuvImg.Cb[0]),
+		v:       unsafe.Pointer(&yuvImg.Cr[0]),
+		ystride: C.int(yuvImg.YStride),
+		cstride: C.int(yuvImg.CStride),
+		height:  C.int(bounds.Max.Y - bounds.Min.Y),
+		width:   C.int(bounds.Max.X - bounds.Min.X),
 	}, &rv)
 	if err := errResult(rv); err != nil {
 		return nil, func() {}, fmt.Errorf("failed in encoding: %v", err)
