@@ -29,7 +29,7 @@ void fastBoxSampling(
     const int sw, const int sh, const int sstride,
     uint32_t* tmp)
 {
-  memset(tmp, 0, dw * dh * ch);
+  memset(tmp, 0, dw * dh * ch * sizeof(tmp[0]));
 
   for (int sy = 0; sy < sh; sy++)
   {
