@@ -30,10 +30,18 @@ func (p *rgbLikeYCbCr) At(x, y int) color.Color {
 }
 
 func (p *rgbLikeYCbCr) Set(x, y int, c color.Color) {
-	rgb := c.(*color.RGBA64)
-	p.y.SetGray(x, y, color.Gray{uint8(rgb.R / 0x100)})
-	if (image.Point{x, y}.In(p.cb.Rect)) {
-		p.cb.SetGray(x, y, color.Gray{uint8(rgb.G / 0x100)})
-		p.cr.SetGray(x, y, color.Gray{uint8(rgb.B / 0x100)})
+	switch v := c.(type) {
+	case color.RGBA:
+		p.y.SetGray(x, y, color.Gray{v.R})
+		if (image.Point{x, y}.In(p.cb.Rect)) {
+			p.cb.SetGray(x, y, color.Gray{v.G})
+			p.cr.SetGray(x, y, color.Gray{v.B})
+		}
+	case *color.RGBA64:
+		p.y.SetGray(x, y, color.Gray{uint8(v.R / 0x100)})
+		if (image.Point{x, y}.In(p.cb.Rect)) {
+			p.cb.SetGray(x, y, color.Gray{uint8(v.G / 0x100)})
+			p.cr.SetGray(x, y, color.Gray{uint8(v.B / 0x100)})
+		}
 	}
 }
