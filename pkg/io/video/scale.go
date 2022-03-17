@@ -109,7 +109,7 @@ func Scale(width, height int, scaler Scaler) TransformFunc {
 			yDy := rect.Dy()
 			cRect := fixedRect(rect, i1.SubsampleRatio)
 			cDx := cRect.Dx()
-			cDy := cRect.Dx()
+			cDy := cRect.Dy()
 			yLen := yDx * yDy
 			cLen := cDx * cDy
 			if len(imgDst.Y) < yLen {
