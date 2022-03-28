@@ -129,7 +129,8 @@ func (e *encoder) SetBitRate(b int) error {
 }
 
 func (e *encoder) ForceKeyFrame() error {
-	panic("ForceKeyFrame is not implemented")
+	e.engine.force_key_frame = C.int(1)
+	return nil
 }
 
 func (e *encoder) Close() error {
