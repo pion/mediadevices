@@ -11,6 +11,7 @@ package avfoundation
 // }
 import "C"
 import (
+	"context"
 	"fmt"
 	"io"
 	"unsafe"
@@ -93,9 +94,11 @@ func Devices(mediaType MediaType) ([]Device, error) {
 // ReadCloser is a wrapper around the data callback from AVFoundation. The data received from the
 // the underlying callback can be retrieved by calling Read.
 type ReadCloser struct {
-	dataChan chan []byte
-	id       handleID
-	onClose  func()
+	dataChan   chan []byte
+	id         handleID
+	onClose    func()
+	cancelCtx  context.Context
+	cancelFunc func()
 }
 
 func newReadCloser(onClose func()) *ReadCloser {
@@ -103,12 +106,22 @@ func newReadCloser(onClose func()) *ReadCloser {
 	rc.dataChan = make(chan []byte, 1)
 	rc.onClose = onClose
 	rc.id = register(rc.dataCb)
+	cancelCtx, cancelFunc := context.WithCancel(context.Background())
+	rc.cancelCtx = cancelCtx
+	rc.cancelFunc = cancelFunc
 	return &rc
 }
 
 func (rc *ReadCloser) dataCb(data []byte) {
 	// TODO: add a policy for slow reader
-	rc.dataChan <- data
+	if rc.cancelCtx.Err() != nil {
+		return
+	}
+	select {
+	case <-rc.cancelCtx.Done():
+		close(rc.dataChan)
+	case rc.dataChan <- data:
+	}
 }
 
 // Read reads raw data, the format is determined by the media type and property:
@@ -127,7 +140,7 @@ func (rc *ReadCloser) Close() {
 	if rc.onClose != nil {
 		rc.onClose()
 	}
-	close(rc.dataChan)
+	rc.cancelFunc()
 	unregister(rc.id)
 }
 
