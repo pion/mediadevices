@@ -18,13 +18,32 @@ type Encoding interface {
 	// the proper data.
 	Read(*ClientConn, *Rectangle, io.Reader) (Encoding, error)
 }
+type CursorEncoding struct {
+}
+
+func (*CursorEncoding) Type() int32 {
+	return -239
+}
+func (*CursorEncoding) Read(c *ClientConn, rect *Rectangle, r io.Reader) (Encoding, error) {
+	size := int(rect.Height) * int(rect.Width) * int(c.PixelFormat.BPP) / 8
+	pixelBytes := make([]uint8, size)
+	if _, err := io.ReadFull(r, pixelBytes); err != nil {
+		return nil, err
+	}
+	mask := ((int(rect.Width) + 7) / 8) * int(rect.Height)
+	maskBytes := make([]uint8, mask)
+	if _, err := io.ReadFull(r, maskBytes); err != nil {
+		return nil, err
+	}
+	return &CursorEncoding{}, nil
+}
 
 // RawEncoding is raw pixel data sent by the server.
 //
 // See RFC 6143 Section 7.7.1
 type RawEncoding struct {
-	Colors []Color
-	RawPixel []uint32	//RGBA
+	Colors   []Color
+	RawPixel []uint32 //RGBA
 }
 
 func (*RawEncoding) Type() int32 {
@@ -32,6 +51,7 @@ func (*RawEncoding) Type() int32 {
 }
 
 func (*RawEncoding) Read(c *ClientConn, rect *Rectangle, r io.Reader) (Encoding, error) {
+	//fmt.Println("RawEncoding")
 	bytesPerPixel := c.PixelFormat.BPP / 8
 	pixelBytes := make([]uint8, bytesPerPixel)
 
@@ -41,7 +61,7 @@ func (*RawEncoding) Read(c *ClientConn, rect *Rectangle, r io.Reader) (Encoding,
 	}
 
 	colors := make([]Color, int(rect.Height)*int(rect.Width))
-	rawPixels:=make([]uint32,int(rect.Height)*int(rect.Width))
+	rawPixels := make([]uint32, int(rect.Height)*int(rect.Width))
 	for y := uint16(0); y < rect.Height; y++ {
 		for x := uint16(0); x < rect.Width; x++ {
 			if _, err := io.ReadFull(r, pixelBytes); err != nil {
@@ -62,24 +82,30 @@ func (*RawEncoding) Read(c *ClientConn, rect *Rectangle, r io.Reader) (Encoding,
 				color.R = uint16((rawPixel >> c.PixelFormat.RedShift) & uint32(c.PixelFormat.RedMax))
 				color.G = uint16((rawPixel >> c.PixelFormat.GreenShift) & uint32(c.PixelFormat.GreenMax))
 				color.B = uint16((rawPixel >> c.PixelFormat.BlueShift) & uint32(c.PixelFormat.BlueMax))
+				if c.PixelFormat.BPP == 16 {
+					color.B = color.B<<3 | color.B>>2
+					color.G = color.G<<2 | color.G>>2
+					color.R = color.R<<3 | color.R>>2
+				}
 			} else {
 				*color = c.ColorMap[rawPixel]
 			}
-			rawPixels[int(y)*int(rect.Width)+int(x)]=uint32(color.B)<<16 | uint32(color.G)<<8 | uint32(color.R)
+			rawPixels[int(y)*int(rect.Width)+int(x)] = uint32(0xff)<<24 | uint32(color.B)<<16 | uint32(color.G)<<8 | uint32(color.R)
 			//fmt.Printf("%x %x",rawPixel,rawPixels[int(y)*int(rect.Width)+int(x)])
 		}
 	}
 
-	return &RawEncoding{colors,rawPixels}, nil
+	return &RawEncoding{colors, rawPixels}, nil
 }
+
 // ZlibEncoding is raw pixel data sent by the server compressed by Zlib.
 //
 // A single Zlib stream is created. There is only a single header for a framebuffer request response.
 type ZlibEncoding struct {
-	Colors  []Color
-	RawPixel[] uint32
-	ZStream *bytes.Buffer
-	ZReader io.ReadCloser
+	Colors   []Color
+	RawPixel []uint32
+	ZStream  *bytes.Buffer
+	ZReader  io.ReadCloser
 }
 
 func (*ZlibEncoding) Type() int32 {
@@ -87,6 +113,7 @@ func (*ZlibEncoding) Type() int32 {
 }
 
 func (ze *ZlibEncoding) Read(c *ClientConn, rect *Rectangle, r io.Reader) (Encoding, error) {
+	//fmt.Println("ZlibEncoding")
 	bytesPerPixel := c.PixelFormat.BPP / 8
 	pixelBytes := make([]uint8, bytesPerPixel)
 
@@ -98,7 +125,6 @@ func (ze *ZlibEncoding) Read(c *ClientConn, rect *Rectangle, r io.Reader) (Encod
 	// Format
 	// 4 bytes        | uint32 | length
 	// 'length' bytes | []byte | zlibData
-
 	// Read zlib length
 	var zipLength uint32
 	err := binary.Read(r, binary.BigEndian, &zipLength)
@@ -146,7 +172,7 @@ func (ze *ZlibEncoding) Read(c *ClientConn, rect *Rectangle, r io.Reader) (Encod
 	colorReader := bytes.NewReader(colorBytes)
 
 	colors := make([]Color, int(rect.Height)*int(rect.Width))
-	rawPixels:=make([]uint32,int(rect.Height)*int(rect.Width))
+	rawPixels := make([]uint32, int(rect.Height)*int(rect.Width))
 	for y := uint16(0); y < rect.Height; y++ {
 		for x := uint16(0); x < rect.Width; x++ {
 			if _, err := io.ReadFull(colorReader, pixelBytes); err != nil {
@@ -167,14 +193,19 @@ func (ze *ZlibEncoding) Read(c *ClientConn, rect *Rectangle, r io.Reader) (Encod
 				color.R = uint16((rawPixel >> c.PixelFormat.RedShift) & uint32(c.PixelFormat.RedMax))
 				color.G = uint16((rawPixel >> c.PixelFormat.GreenShift) & uint32(c.PixelFormat.GreenMax))
 				color.B = uint16((rawPixel >> c.PixelFormat.BlueShift) & uint32(c.PixelFormat.BlueMax))
+				if c.PixelFormat.BPP == 16 {
+					color.B = color.B<<3 | color.B>>2
+					color.G = color.G<<2 | color.G>>2
+					color.R = color.R<<3 | color.R>>2
+				}
 			} else {
 				*color = c.ColorMap[rawPixel]
 			}
-			rawPixels[int(y)*int(rect.Width)+int(x)]=uint32(color.B)<<16 | uint32(color.G)<<8 | uint32(color.R)
+			rawPixels[int(y)*int(rect.Width)+int(x)] = uint32(0xff)<<24 | uint32(color.B)<<16 | uint32(color.G)<<8 | uint32(color.R)
 		}
 	}
 
-	return &ZlibEncoding{Colors: colors,RawPixel: rawPixels}, nil
+	return &ZlibEncoding{Colors: colors, RawPixel: rawPixels}, nil
 }
 
 func (ze *ZlibEncoding) Close() {

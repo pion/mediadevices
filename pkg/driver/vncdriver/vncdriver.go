@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/pion/mediadevices/pkg/driver/vncdriver/vnc"
 	"image"
 	"io"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/pion/mediadevices/pkg/driver/vncdriver/vnc"
 
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
@@ -32,12 +33,12 @@ func NewVnc(vncAddr string) *vncDevice {
 	return &vncDevice{vncAddr: vncAddr}
 }
 func (d *vncDevice) PointerEvent(mask uint8, x, y uint16) {
-	if d.vClient!=nil{
+	if d.vClient != nil {
 		d.vClient.PointerEvent(vnc.ButtonMask(mask), x, y)
 	}
 }
 func (d *vncDevice) KeyEvent(keysym uint32, down bool) {
-	if d.vClient!=nil {
+	if d.vClient != nil {
 		d.vClient.KeyEvent(keysym, down)
 	}
 }
@@ -49,7 +50,10 @@ func (d *vncDevice) Open() error {
 	d.closed = ctx.Done()
 	d.cancel = cancel
 	msg := make(chan vnc.ServerMessage, 1)
+	//auth:=new(vnc.PasswordAuth)
+	//auth.Password="####"
 	conf := vnc.ClientConfig{
+		//Auth: []vnc.ClientAuth{auth},
 		ServerMessageCh: msg,
 		Exclusive:       false,
 	}
@@ -66,6 +70,7 @@ func (d *vncDevice) Open() error {
 	d.vClient.SetEncodings([]vnc.Encoding{
 		&vnc.ZlibEncoding{},
 		&vnc.RawEncoding{},
+		&vnc.CursorEncoding{},
 	})
 	d.w = int(d.vClient.FrameBufferWidth)
 	d.h = int(d.vClient.FrameBufferHeight)
@@ -89,6 +94,9 @@ func (d *vncDevice) Open() error {
 					for _, rect := range t.Rectangles {
 						var pix []uint32
 						switch t := rect.Enc.(type) {
+						case *vnc.CursorEncoding:
+							//ignore remote cursor messages
+							continue
 						case *vnc.RawEncoding:
 							pix = t.RawPixel
 						case *vnc.ZlibEncoding:
@@ -97,19 +105,16 @@ func (d *vncDevice) Open() error {
 						for y := int(rect.Y); y < int(rect.Height+rect.Y); y++ {
 							for x := int(rect.X); x < int(rect.Width+rect.X); x++ {
 								binary.LittleEndian.PutUint32(d.rawPixel[(y*d.w+x)*4:], pix[(y-int(rect.Y))*int(rect.Width)+(x-int(rect.X))])
-								//BigEndian
 							}
 						}
 
 					}
-					//time.Sleep(33 * time.Millisecond)
 					d.vClient.FramebufferUpdateRequest(true, 0, 0, uint16(d.w), uint16(d.h))
 					break
 				default:
 
 				}
 			case <-time.After(10 * time.Second):
-				//fmt.Println("Timeout FramebufferUpdate")
 				if d.vClient.FramebufferUpdateRequest(true, 0, 0, uint16(d.w), uint16(d.h)) != nil {
 					d.cancel()
 					return
@@ -137,13 +142,12 @@ func (d *vncDevice) Close() error {
 
 func (d *vncDevice) VideoRecord(p prop.Media) (video.Reader, error) {
 	if p.FrameRate == 0 {
-		p.FrameRate = 15
+		p.FrameRate = 30
 	}
 
 	tick := time.NewTicker(time.Duration(float32(time.Second) / p.FrameRate))
 	d.tick = tick
 	closed := d.closed
-	pixs := make([]byte, d.h*d.w*4)
 	r := video.ReaderFunc(func() (image.Image, func(), error) {
 		select {
 		case <-closed:
@@ -153,9 +157,8 @@ func (d *vncDevice) VideoRecord(p prop.Media) (video.Reader, error) {
 		}
 
 		<-tick.C
-		copy(pixs, d.rawPixel)
 		return &image.RGBA{
-			Pix:    pixs,
+			Pix:    d.rawPixel,
 			Stride: 4,
 			Rect:   image.Rect(0, 0, d.w, d.h),
 		}, func() {}, nil
