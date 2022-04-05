@@ -18,6 +18,7 @@ typedef struct Encoder {
   x264_t *h;
   x264_picture_t pic_in;
   x264_param_t param;
+  int force_key_frame;
 } Encoder;
 
 Encoder *enc_new(x264_param_t param, char *preset, int *rc) {
@@ -85,8 +86,14 @@ Slice enc_encode(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr, int *rc) {
   e->pic_in.img.plane[0] = y;
   e->pic_in.img.plane[1] = cb;
   e->pic_in.img.plane[2] = cr;
+  if (e->force_key_frame) {
+    e->pic_in.i_type = X264_TYPE_IDR;
+  } else {
+    e->pic_in.i_type = X264_TYPE_AUTO;
+  }
 
   int frame_size = x264_encoder_encode(e->h, &nal, &i_nal, &e->pic_in, &pic_out);
+  e->force_key_frame = 0;
   Slice s = {.data_len = frame_size};
   if (frame_size <= 0) {
     *rc = ERR_ENCODE;
