@@ -81,7 +81,7 @@ Slice enc_encode(Encoder *e, Frame f, int *eresult) {
   Slice payload = {0};
 
   if(e->force_key_frame == 1) {
-    info.eFrameType = videoFrameTypeI;
+    e->engine->ForceIntraFrame(true);
     e->force_key_frame = 0;
   }
 
