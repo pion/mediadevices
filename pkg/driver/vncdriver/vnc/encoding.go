@@ -195,7 +195,7 @@ func (ze *ZlibEncoding) Read(c *ClientConn, rect *Rectangle, r io.Reader) (Encod
 				color.B = uint16((rawPixel >> c.PixelFormat.BlueShift) & uint32(c.PixelFormat.BlueMax))
 				if c.PixelFormat.BPP == 16 {
 					color.B = color.B<<3 | color.B>>2
-					color.G = color.G<<2 | color.G>>4
+					color.G = color.G<<2 | color.G>>2
 					color.R = color.R<<3 | color.R>>2
 				}
 			} else {

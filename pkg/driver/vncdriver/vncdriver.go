@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/pion/mediadevices/pkg/driver/vncdriver/vnc"
 	"image"
 	"io"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/pion/mediadevices/pkg/driver/vncdriver/vnc"
 
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
@@ -94,7 +95,7 @@ func (d *vncDevice) Open() error {
 						var pix []uint32
 						switch t := rect.Enc.(type) {
 						case *vnc.CursorEncoding:
-							//获取到远端鼠标图像
+							//ignore remote cursor messages
 							continue
 						case *vnc.RawEncoding:
 							pix = t.RawPixel
@@ -104,7 +105,6 @@ func (d *vncDevice) Open() error {
 						for y := int(rect.Y); y < int(rect.Height+rect.Y); y++ {
 							for x := int(rect.X); x < int(rect.Width+rect.X); x++ {
 								binary.LittleEndian.PutUint32(d.rawPixel[(y*d.w+x)*4:], pix[(y-int(rect.Y))*int(rect.Width)+(x-int(rect.X))])
-								//BigEndian
 							}
 						}
 
