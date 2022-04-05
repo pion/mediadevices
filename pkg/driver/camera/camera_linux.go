@@ -179,6 +179,13 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 		return nil, err
 	}
 
+	if p.FrameRate > 0 {
+		err = c.cam.SetFramerate(float32(p.FrameRate))
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if err := c.cam.StartStreaming(); err != nil {
 		return nil, err
 	}

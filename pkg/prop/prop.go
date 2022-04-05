@@ -145,6 +145,7 @@ func (p *MediaConstraints) FitnessDistance(o Media) (float64, bool) {
 	cmps.add(p.Width, o.Width)
 	cmps.add(p.Height, o.Height)
 	cmps.add(p.FrameFormat, o.FrameFormat)
+	cmps.add(p.FrameRate, o.FrameRate)
 	cmps.add(p.SampleRate, o.SampleRate)
 	cmps.add(p.Latency, o.Latency)
 	cmps.add(p.ChannelCount, o.ChannelCount)
