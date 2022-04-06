@@ -6,7 +6,6 @@ import "C"
 import (
 	"context"
 	"errors"
-	"fmt"
 	"image"
 	"io"
 	"os"
@@ -184,16 +183,6 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 		err = c.cam.SetFramerate(float32(p.FrameRate))
 		if err != nil {
 			return nil, err
-		}
-
-		framerate, err := c.cam.GetFramerate()
-		if err != nil {
-			return nil, err
-		}
-
-		if framerate != p.FrameRate {
-			// workaround to force a framerate constraint without using the MediaConstraints FitnessDistance function
-			return nil, fmt.Errorf("incompatible camera framerate: wants %f but got %f\n", p.FrameRate, framerate)
 		}
 	}
 
