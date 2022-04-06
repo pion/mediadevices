@@ -125,18 +125,6 @@ func TestSelectBestDriverConstraintsResultIsSetProperly(t *testing.T) {
 			frameFormat: frame.FormatI420,
 			frameRate:   expectedProp.FrameRate,
 		},
-		"DifferentFrameRate": {
-			width:       expectedProp.Width,
-			height:      expectedProp.Height,
-			frameFormat: expectedProp.FrameFormat,
-			frameRate:   expectedProp.FrameRate - 1,
-		},
-		"NoFrameRateConstraints": {
-			width:       expectedProp.Width,
-			height:      expectedProp.Height,
-			frameFormat: expectedProp.FrameFormat,
-			frameRate:   -1,
-		},
 	}
 
 	for name, c := range cases {
@@ -228,12 +216,6 @@ func TestSelectBestDriverConstraintsNoFit(t *testing.T) {
 			height:      expectedProp.Height,
 			frameFormat: frame.FormatI420,
 			frameRate:   expectedProp.FrameRate,
-		},
-		"DifferentFrameRate": {
-			width:       expectedProp.Width,
-			height:      expectedProp.Height,
-			frameFormat: expectedProp.FrameFormat,
-			frameRate:   expectedProp.FrameRate - 1,
 		},
 	}
 
