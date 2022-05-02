@@ -32,7 +32,7 @@ jobs:
             libx264-dev
       - name: Run Test Suite
         run: make test
-      - uses: codecov/codecov-action@v2	
+      - uses: codecov/codecov-action@v3	
         if: matrix.go == '1.16'
   build-darwin:
     runs-on: macos-latest
