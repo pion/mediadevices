@@ -16,7 +16,8 @@ supported_platforms := \
   linux-arm64 \
   linux-x64 \
   windows-x64 \
-  darwin-x64
+  darwin-x64 \
+  darwin-arm64
 cmd_build := build
 cmd_test := test
 examples_dir := examples
