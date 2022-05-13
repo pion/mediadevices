@@ -261,6 +261,7 @@ func newTrackFromDriver(d driver.Driver, constraints MediaTrackConstraints, sele
 type VideoTrack struct {
 	*baseTrack
 	*video.Broadcaster
+	ShouldCopyFrames bool
 }
 
 // NewVideoTrack constructs a new VideoTrack
@@ -312,7 +313,7 @@ func (track *VideoTrack) Unbind(ctx webrtc.TrackLocalContext) error {
 }
 
 func (track *VideoTrack) newEncodedReader(codecNames ...string) (EncodedReadCloser, *codec.RTPCodec, error) {
-	reader := track.NewReader(false)
+	reader := track.NewReader(track.ShouldCopyFrames)
 	inputProp, err := detectCurrentVideoProp(track.Broadcaster)
 	if err != nil {
 		return nil, nil, err
