@@ -192,6 +192,23 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 
 	cam := c.cam
 
+	// initialization
+	err = cam.WaitForFrame(5) // 5 seconds
+	switch err.(type) {
+	case nil:
+	case *webcam.Timeout:
+		return nil, errReadTimeout
+	default:
+		// Camera has been stopped.
+		return nil, err
+	}
+
+	// default to 5 seconds
+	var readTimeoutSec uint32 = 5
+	if p.ReadTimeoutSec > 0 {
+		readTimeoutSec = uint32(p.ReadTimeoutSec)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
 	var buf []byte
@@ -207,7 +224,7 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 				return nil, func() {}, io.EOF
 			}
 
-			err := cam.WaitForFrame(5) // 5 seconds
+			err := cam.WaitForFrame(readTimeoutSec)
 			switch err.(type) {
 			case nil:
 			case *webcam.Timeout:
