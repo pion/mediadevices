@@ -192,13 +192,11 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 
 	cam := c.cam
 
-	// initialization
-	err = cam.WaitForFrame(5) // 5 seconds
-	switch err.(type) {
-	case nil:
-	case *webcam.Timeout:
-		return nil, errReadTimeout
-	default:
+	// wait up to 5 seconds to read the first frame
+	if err := cam.WaitForFrame(5); err != nil {
+		if _, ok := err.(*webcam.Timeout); ok {
+			return nil, errReadTimeout
+		}
 		// Camera has been stopped.
 		return nil, err
 	}
