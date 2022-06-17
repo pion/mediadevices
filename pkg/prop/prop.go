@@ -229,18 +229,16 @@ func (c *comparisons) fitnessDistance() (float64, bool) {
 
 // VideoConstraints represents a video's constraints
 type VideoConstraints struct {
-	Width, Height  IntConstraint
-	FrameRate      FloatConstraint
-	FrameFormat    FrameFormatConstraint
-	ReadTimeoutSec IntConstraint
+	Width, Height IntConstraint
+	FrameRate     FloatConstraint
+	FrameFormat   FrameFormatConstraint
 }
 
 // Video represents a video's constraints
 type Video struct {
-	Width, Height  int
-	FrameRate      float32
-	FrameFormat    frame.Format
-	ReadTimeoutSec int
+	Width, Height int
+	FrameRate     float32
+	FrameFormat   frame.Format
 }
 
 // AudioConstraints represents an audio's constraints
