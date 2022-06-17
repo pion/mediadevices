@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	"github.com/blackjack/webcam"
@@ -133,6 +134,19 @@ func newCamera(path string) *camera {
 	return c
 }
 
+func getCameraReadTimeout() uint32 {
+	// default to 5 seconds
+	var readTimeoutSec uint32 = 5
+	if val, ok := os.LookupEnv("CAMERA_READ_TIMEOUT"); ok {
+		if valInt, err := strconv.Atoi(val); err == nil {
+			if valInt > 0 {
+				readTimeoutSec = uint32(valInt)
+			}
+		}
+	}
+	return readTimeoutSec
+}
+
 func (c *camera) Open() error {
 	cam, err := webcam.Open(c.path)
 	if err != nil {
@@ -200,12 +214,7 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 		// Camera has been stopped.
 		return nil, err
 	}
-
-	// default to 5 seconds
-	var readTimeoutSec uint32 = 5
-	if p.ReadTimeoutSec > 0 {
-		readTimeoutSec = uint32(p.ReadTimeoutSec)
-	}
+	readTimeoutSec := getCameraReadTimeout()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
