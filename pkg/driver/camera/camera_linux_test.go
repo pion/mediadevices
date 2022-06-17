@@ -78,19 +78,20 @@ func TestGetCameraReadTimeout(t *testing.T) {
 		t.Errorf("Expected: %d, got: %d", expected, value)
 	}
 
-	os.Setenv("CAMERA_READ_TIMEOUT", "text")
+	envVarName := "PION_MEDIADEVICES_CAMERA_READ_TIMEOUT"
+	os.Setenv(envVarName, "text")
 	value = getCameraReadTimeout()
 	if value != expected {
 		t.Errorf("Expected: %d, got: %d", expected, value)
 	}
 
-	os.Setenv("CAMERA_READ_TIMEOUT", "-1")
+	os.Setenv(envVarName, "-1")
 	value = getCameraReadTimeout()
 	if value != expected {
 		t.Errorf("Expected: %d, got: %d", expected, value)
 	}
 
-	os.Setenv("CAMERA_READ_TIMEOUT", "1")
+	os.Setenv(envVarName, "1")
 	expected = 1
 	value = getCameraReadTimeout()
 	if value != expected {

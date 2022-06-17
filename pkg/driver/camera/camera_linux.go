@@ -137,7 +137,7 @@ func newCamera(path string) *camera {
 func getCameraReadTimeout() uint32 {
 	// default to 5 seconds
 	var readTimeoutSec uint32 = 5
-	if val, ok := os.LookupEnv("CAMERA_READ_TIMEOUT"); ok {
+	if val, ok := os.LookupEnv("PION_MEDIADEVICES_CAMERA_READ_TIMEOUT"); ok {
 		if valInt, err := strconv.Atoi(val); err == nil {
 			if valInt > 0 {
 				readTimeoutSec = uint32(valInt)
