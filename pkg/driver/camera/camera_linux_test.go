@@ -70,3 +70,31 @@ func TestDiscover(t *testing.T) {
 		t.Errorf("Expected label: %s, got: %s", expectedNoLink, label)
 	}
 }
+
+func TestGetCameraReadTimeout(t *testing.T) {
+	var expected uint32 = 5
+	value := getCameraReadTimeout()
+	if value != expected {
+		t.Errorf("Expected: %d, got: %d", expected, value)
+	}
+
+	envVarName := "PION_MEDIADEVICES_CAMERA_READ_TIMEOUT"
+	os.Setenv(envVarName, "text")
+	value = getCameraReadTimeout()
+	if value != expected {
+		t.Errorf("Expected: %d, got: %d", expected, value)
+	}
+
+	os.Setenv(envVarName, "-1")
+	value = getCameraReadTimeout()
+	if value != expected {
+		t.Errorf("Expected: %d, got: %d", expected, value)
+	}
+
+	os.Setenv(envVarName, "1")
+	expected = 1
+	value = getCameraReadTimeout()
+	if value != expected {
+		t.Errorf("Expected: %d, got: %d", expected, value)
+	}
+}
