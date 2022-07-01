@@ -10,6 +10,6 @@ require (
 	github.com/pion/logging v0.2.2
 	github.com/pion/rtp v1.7.13
 	github.com/pion/webrtc/v3 v3.1.34
-	golang.org/x/image v0.0.0-20220413100746-70e8d0d3baa9
+	golang.org/x/image v0.0.0-20220617043117-41969df76e82
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
