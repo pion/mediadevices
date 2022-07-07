@@ -33,10 +33,19 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 
 	var rv C.int
 	cEncoder := C.enc_new(C.EncoderOptions{
-		width:          C.int(p.Width),
-		height:         C.int(p.Height),
-		target_bitrate: C.int(params.BitRate),
-		max_fps:        C.float(p.FrameRate),
+		width:                 C.int(p.Width),
+		height:                C.int(p.Height),
+		target_bitrate:        C.int(params.BitRate),
+		max_fps:               C.float(p.FrameRate),
+		usage_type:            C.EUsageType(params.UsageType),
+		rc_mode:               C.RC_MODES(params.RCMode),
+		enable_frame_skip:     C.bool(params.EnableFrameSkip),
+		max_nal_size:          C.uint(params.MaxNalSize),
+		intra_period:          C.uint(params.IntraPeriod),
+		multiple_thread_idc:   C.int(params.MultipleThreadIdc),
+		slice_num:             C.uint(params.SliceNum),
+		slice_mode:            C.SliceModeEnum(params.SliceMode),
+		slice_size_constraint: C.uint(params.SliceSizeConstraint),
 	}, &rv)
 	if err := errResult(rv); err != nil {
 		return nil, fmt.Errorf("failed in creating encoder: %v", err)

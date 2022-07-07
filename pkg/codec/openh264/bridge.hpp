@@ -22,6 +22,15 @@ typedef struct EncoderOptions {
   int width, height;
   int target_bitrate;
   float max_fps;
+  EUsageType usage_type;
+  RC_MODES rc_mode;
+  bool enable_frame_skip;
+  unsigned int max_nal_size;
+  unsigned int intra_period;
+  int multiple_thread_idc;
+  unsigned int slice_num;
+  SliceModeEnum slice_mode;
+  unsigned int slice_size_constraint;
 } EncoderOptions;
 
 typedef struct Encoder {
