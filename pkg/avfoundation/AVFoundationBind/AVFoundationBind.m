@@ -345,7 +345,7 @@ STATUS AVBindSessionProperties(PAVBindSession pSession, PAVBindMediaProperty *pp
         if ([refFormat.mediaType isEqual:AVMediaTypeVideo]) {
             fourCC = CMFormatDescriptionGetMediaSubType(refFormat.formatDescription);
             if (frameFormatFromFourCC(fourCC, &pProperty->frameFormat) != STATUS_OK) {
-                NSLog(@"[WARNING] skipping %@ %dx%d since it's not supported", FourCCString(fourCC), videoDimensions.width, videoDimensions.height);
+                NSLog(@"[WARNING] skipping %@(%d) %dx%d since it's not supported", FourCCString(fourCC), fourCC, videoDimensions.width, videoDimensions.height);
                 continue;
             }
 

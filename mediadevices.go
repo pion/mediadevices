@@ -2,6 +2,7 @@ package mediadevices
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"strings"
 
@@ -157,6 +158,7 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 	constraints.selectedMedia = prop.Media{}
 	constraints.selectedMedia.MergeConstraints(constraints.MediaConstraints)
 	constraints.selectedMedia.Merge(bestProp)
+	log.Println("selected media:", constraints.selectedMedia)
 	return bestDriver, constraints, nil
 }
 
