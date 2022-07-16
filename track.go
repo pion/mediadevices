@@ -188,7 +188,8 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 			close(stopRead)
 			encodedReader.Close()
 
-			// When there's another call to unbind, it won't block since we mark the signalCh to be closed
+			// When there's another call to unbind, it won't block since we remove the current ctx from active connections
+			track.removeActivePeerConnection(ctx.ID())
 			close(signalCh)
 			if doneCh != nil {
 				close(doneCh)
@@ -256,9 +257,10 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 }
 
 func (track *baseTrack) unbind(ctx webrtc.TrackLocalContext) error {
-	ch, err := track.removeActivePeerConnection(ctx.ID())
-	if err != err {
-		return err
+	ch := track.removeActivePeerConnection(ctx.ID())
+	// If there isn't a registered chanel for this ctx, it means it has already been unbound
+	if ch == nil {
+		return nil
 	}
 
 	doneCh := make(chan struct{})
@@ -267,17 +269,17 @@ func (track *baseTrack) unbind(ctx webrtc.TrackLocalContext) error {
 	return nil
 }
 
-func (track *baseTrack) removeActivePeerConnection(id string) (chan<- chan<- struct{}, error) {
+func (track *baseTrack) removeActivePeerConnection(id string) chan<- chan<- struct{} {
 	track.mu.Lock()
 	defer track.mu.Unlock()
 
 	ch, ok := track.activePeerConnections[id]
 	if !ok {
-		return nil, errNotFoundPeerConnection
+		return nil
 	}
 	delete(track.activePeerConnections, id)
 
-	return ch, nil
+	return ch
 }
 
 func newTrackFromDriver(d driver.Driver, constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {

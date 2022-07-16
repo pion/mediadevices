@@ -118,8 +118,8 @@ func (rc *ReadCloser) dataCb(data []byte) {
 		return
 	}
 	select {
+	// Use the Done channel to avoid waiting for new data from closed camera
 	case <-rc.cancelCtx.Done():
-		close(rc.dataChan)
 	case rc.dataChan <- data:
 	}
 }
@@ -141,6 +141,7 @@ func (rc *ReadCloser) Close() {
 		rc.onClose()
 	}
 	rc.cancelFunc()
+	close(rc.dataChan)
 	unregister(rc.id)
 }
 
