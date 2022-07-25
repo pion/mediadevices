@@ -299,11 +299,22 @@ func newTrackFromDriver(d driver.Driver, constraints MediaTrackConstraints, sele
 type VideoTrack struct {
 	*baseTrack
 	*video.Broadcaster
+	shouldCopyFrames bool
 }
 
 // NewVideoTrack constructs a new VideoTrack
 func NewVideoTrack(source VideoSource, selector *CodecSelector) Track {
 	return newVideoTrackFromReader(source, source, selector)
+}
+
+// ShouldCopyFrames indicates if readers on this track should receive a clopy of the read buffer instead of sharing one.
+func (track *VideoTrack) ShouldCopyFrames() bool {
+	return track.shouldCopyFrames
+}
+
+// SetShouldCopyFrames enables frame copy for this track, sending each reader a different read buffer instead of sharing one.
+func (track *VideoTrack) SetShouldCopyFrames(shouldCopyFrames bool) {
+	track.shouldCopyFrames = shouldCopyFrames
 }
 
 func newVideoTrackFromReader(source Source, reader video.Reader, selector *CodecSelector) Track {
@@ -350,7 +361,7 @@ func (track *VideoTrack) Unbind(ctx webrtc.TrackLocalContext) error {
 }
 
 func (track *VideoTrack) newEncodedReader(codecNames ...string) (EncodedReadCloser, *codec.RTPCodec, error) {
-	reader := track.NewReader(false)
+	reader := track.NewReader(track.shouldCopyFrames)
 	inputProp, err := detectCurrentVideoProp(track.Broadcaster)
 	if err != nil {
 		return nil, nil, err
