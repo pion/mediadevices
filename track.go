@@ -269,10 +269,12 @@ func NewVideoTrack(source VideoSource, selector *CodecSelector) Track {
 	return newVideoTrackFromReader(source, source, selector)
 }
 
+// ShouldCopyFrames indicates if readers on this track should receive a clopy of the read buffer instead of sharing one.
 func (track *VideoTrack) ShouldCopyFrames() bool {
 	return track.shouldCopyFrames
 }
 
+// SetShouldCopyFrames enables frame copy for this track, sending each reader a different read buffer instead of sharing one.
 func (track *VideoTrack) SetShouldCopyFrames(shouldCopyFrames bool) {
 	track.shouldCopyFrames = shouldCopyFrames
 }
