@@ -147,9 +147,9 @@ func (rc *ReadCloser) Close() {
 		rc.onClose()
 	}
 	rc.cancelFunc()
+	unregister(rc.id)
 	rc.closeWG.Wait()
 	close(rc.dataChan)
-	unregister(rc.id)
 }
 
 // Session represents a capturing session.
