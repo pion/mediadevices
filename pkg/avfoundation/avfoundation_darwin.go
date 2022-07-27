@@ -14,6 +14,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/frame"
@@ -99,6 +100,7 @@ type ReadCloser struct {
 	onClose    func()
 	cancelCtx  context.Context
 	cancelFunc func()
+	closeWG    *sync.WaitGroup
 }
 
 func newReadCloser(onClose func()) *ReadCloser {
@@ -109,10 +111,14 @@ func newReadCloser(onClose func()) *ReadCloser {
 	cancelCtx, cancelFunc := context.WithCancel(context.Background())
 	rc.cancelCtx = cancelCtx
 	rc.cancelFunc = cancelFunc
+	rc.closeWG = &sync.WaitGroup{}
 	return &rc
 }
 
 func (rc *ReadCloser) dataCb(data []byte) {
+	rc.closeWG.Add(1)
+	defer rc.closeWG.Done()
+
 	// TODO: add a policy for slow reader
 	if rc.cancelCtx.Err() != nil {
 		return
@@ -141,6 +147,7 @@ func (rc *ReadCloser) Close() {
 		rc.onClose()
 	}
 	rc.cancelFunc()
+	rc.closeWG.Wait()
 	close(rc.dataChan)
 	unregister(rc.id)
 }
