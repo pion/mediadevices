@@ -14,6 +14,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/frame"
@@ -99,6 +100,7 @@ type ReadCloser struct {
 	onClose    func()
 	cancelCtx  context.Context
 	cancelFunc func()
+	closeWG    *sync.WaitGroup
 }
 
 func newReadCloser(onClose func()) *ReadCloser {
@@ -109,17 +111,21 @@ func newReadCloser(onClose func()) *ReadCloser {
 	cancelCtx, cancelFunc := context.WithCancel(context.Background())
 	rc.cancelCtx = cancelCtx
 	rc.cancelFunc = cancelFunc
+	rc.closeWG = &sync.WaitGroup{}
 	return &rc
 }
 
 func (rc *ReadCloser) dataCb(data []byte) {
+	rc.closeWG.Add(1)
+	defer rc.closeWG.Done()
+
 	// TODO: add a policy for slow reader
 	if rc.cancelCtx.Err() != nil {
 		return
 	}
 	select {
+	// Use the Done channel to avoid waiting for new data from closed camera
 	case <-rc.cancelCtx.Done():
-		close(rc.dataChan)
 	case rc.dataChan <- data:
 	}
 }
@@ -142,6 +148,8 @@ func (rc *ReadCloser) Close() {
 	}
 	rc.cancelFunc()
 	unregister(rc.id)
+	rc.closeWG.Wait()
+	close(rc.dataChan)
 }
 
 // Session represents a capturing session.
