@@ -71,13 +71,20 @@ func ToI420(r Reader) Reader {
 
 		imageToYCbCr(&yuvImg, img)
 
+		if yuvImg.SubsampleRatio == image.YCbCrSubsampleRatio420 {
+			return &yuvImg, func() {}, nil
+		}
+
+		// pixel format conversion functions modify the image internals, we have to make a copy to
+		// avoid concurrent encoders to convert multiple times the same frame
+		yuvImg := makeCopy(yuvImg, yuvImg.Cb, yuvImg.Cr)
+
 		// Covert pixel format to I420
 		switch yuvImg.SubsampleRatio {
 		case image.YCbCrSubsampleRatio444:
 			i444ToI420(&yuvImg)
 		case image.YCbCrSubsampleRatio422:
 			i422ToI420(&yuvImg)
-		case image.YCbCrSubsampleRatio420:
 		default:
 			return nil, func() {}, fmt.Errorf("unsupported pixel format: %s", yuvImg.SubsampleRatio)
 		}
@@ -85,6 +92,15 @@ func ToI420(r Reader) Reader {
 		yuvImg.SubsampleRatio = image.YCbCrSubsampleRatio420
 		return &yuvImg, func() {}, nil
 	})
+}
+
+func makeCopy(img image.YCbCr, cb, cr []uint8) image.YCbCr {
+	// We need to copy only Cb and Cr since this are the only data modify during resampling
+	img.Cb = make([]uint8, len(cb))
+	img.Cr = make([]uint8, len(cr))
+	copy(img.Cb, cb)
+	copy(img.Cr, cr)
+	return img
 }
 
 // imageToRGBA converts src to *image.RGBA and store it to dst
