@@ -1,7 +1,7 @@
 package video
 
 import (
-	"fmt"
+	"errors"
 	"image"
 	"reflect"
 	"testing"
@@ -50,7 +50,7 @@ func TestBroadcast(t *testing.T) {
 }
 
 func TestBroadcastWithCopyOnReadError(t *testing.T) {
-	expectedError := fmt.Errorf("expected error")
+	expectedError := errors.New("expected error")
 	source := ReaderFunc(func() (image.Image, func(), error) {
 		return nil, func() {}, expectedError
 	})
