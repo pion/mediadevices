@@ -15,7 +15,13 @@ func imageToYCbCr(dst *image.YCbCr, src image.Image) {
 
 	yuvImg, ok := src.(*image.YCbCr)
 	if ok {
-		*dst = *yuvImg
+		// pixel format conversion functions modify the image internals, we have to make a copy to
+		// avoid concurrent encoders to convert multiple times the same frame
+		if yuvImg.SubsampleRatio == image.YCbCrSubsampleRatio420 {
+			*dst = *yuvImg
+		} else {
+			*dst = makeCopy(*yuvImg, yuvImg.Cb, yuvImg.Cr)
+		}
 		return
 	}
 
@@ -71,16 +77,10 @@ func ToI420(r Reader) Reader {
 
 		imageToYCbCr(&yuvImg, img)
 
-		if yuvImg.SubsampleRatio == image.YCbCrSubsampleRatio420 {
-			return &yuvImg, func() {}, nil
-		}
-
-		// pixel format conversion functions modify the image internals, we have to make a copy to
-		// avoid concurrent encoders to convert multiple times the same frame
-		yuvImg := makeCopy(yuvImg, yuvImg.Cb, yuvImg.Cr)
-
 		// Covert pixel format to I420
 		switch yuvImg.SubsampleRatio {
+		case image.YCbCrSubsampleRatio420:
+			return &yuvImg, func() {}, nil
 		case image.YCbCrSubsampleRatio444:
 			i444ToI420(&yuvImg)
 		case image.YCbCrSubsampleRatio422:
