@@ -1,9 +1,13 @@
 void i444ToI420CGO(
+    unsigned char *cb_dst,
+    unsigned char *cr_dst,
     unsigned char* cb,
     unsigned char* cr,
     const int stride, const int h);
 
 void i422ToI420CGO(
+    unsigned char *cb_dst,
+    unsigned char *cr_dst,
     unsigned char* cb,
     unsigned char* cr,
     const int stride, const int h);
