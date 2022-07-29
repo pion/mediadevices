@@ -101,6 +101,7 @@ type ReadCloser struct {
 	cancelCtx  context.Context
 	cancelFunc func()
 	closeWG    *sync.WaitGroup
+	lock       *sync.Mutex
 }
 
 func newReadCloser(onClose func()) *ReadCloser {
@@ -112,6 +113,7 @@ func newReadCloser(onClose func()) *ReadCloser {
 	rc.cancelCtx = cancelCtx
 	rc.cancelFunc = cancelFunc
 	rc.closeWG = &sync.WaitGroup{}
+	rc.lock = &sync.Mutex{}
 	return &rc
 }
 
@@ -143,6 +145,13 @@ func (rc *ReadCloser) Read() ([]byte, func(), error) {
 
 // Close closes the capturing session, and no data will flow anymore
 func (rc *ReadCloser) Close() {
+	rc.lock.Lock()
+	defer rc.lock.Unlock()
+
+	if rc.cancelCtx.Err() != nil {
+		return // already closed
+	}
+
 	if rc.onClose != nil {
 		rc.onClose()
 	}
@@ -156,11 +165,13 @@ func (rc *ReadCloser) Close() {
 type Session struct {
 	device   Device
 	cSession C.PAVBindSession
+	lock     *sync.Mutex
+	closed   bool
 }
 
 // NewSession creates a new capturing session
 func NewSession(device Device) (*Session, error) {
-	var session Session
+	session := Session{lock: &sync.Mutex{}}
 
 	status := C.AVBindSessionInit(device.cDevice, &session.cSession)
 	if status != nil {
@@ -173,6 +184,13 @@ func NewSession(device Device) (*Session, error) {
 
 // Close stops capturing session and frees up resources
 func (session *Session) Close() error {
+	session.lock.Lock()
+	defer session.lock.Unlock()
+	if session.closed {
+		return nil
+	}
+	session.closed = true
+
 	if session.cSession == nil {
 		return nil
 	}
