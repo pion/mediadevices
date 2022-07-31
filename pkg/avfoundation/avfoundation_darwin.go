@@ -100,8 +100,8 @@ type ReadCloser struct {
 	onClose    func()
 	cancelCtx  context.Context
 	cancelFunc func()
-	closeWG    *sync.WaitGroup
-	lock       *sync.Mutex
+	closeWG    sync.WaitGroup
+	lock       sync.Mutex
 }
 
 func newReadCloser(onClose func()) *ReadCloser {
@@ -112,8 +112,6 @@ func newReadCloser(onClose func()) *ReadCloser {
 	cancelCtx, cancelFunc := context.WithCancel(context.Background())
 	rc.cancelCtx = cancelCtx
 	rc.cancelFunc = cancelFunc
-	rc.closeWG = &sync.WaitGroup{}
-	rc.lock = &sync.Mutex{}
 	return &rc
 }
 
@@ -165,13 +163,13 @@ func (rc *ReadCloser) Close() {
 type Session struct {
 	device   Device
 	cSession C.PAVBindSession
-	lock     *sync.Mutex
+	lock     sync.Mutex
 	closed   bool
 }
 
 // NewSession creates a new capturing session
 func NewSession(device Device) (*Session, error) {
-	session := Session{lock: &sync.Mutex{}}
+	session := Session{}
 
 	status := C.AVBindSessionInit(device.cDevice, &session.cSession)
 	if status != nil {
