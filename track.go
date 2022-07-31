@@ -223,41 +223,43 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 	keyFrameController, ok := encodedReader.Controller().(codec.KeyFrameController)
 	if ok {
 		stopRead = make(chan struct{})
-		readerBuffer := make([]byte, rtcpInboundMTU)
-		go func() {
-			reader := ctx.RTCPReader()
-			defer func() {
-				track.Close()
-			}()
-			for {
-				select {
-				case <-stopRead:
-					return
-				default:
-				}
-
-				_, _, err := reader.Read(readerBuffer, interceptor.Attributes{})
-				if err != nil {
-					track.onError(err)
-					return
-				}
-
-				pkts, err := rtcp.Unmarshal(readerBuffer)
-
-				for _, pkt := range pkts {
-					switch pkt.(type) {
-					case *rtcp.PictureLossIndication, *rtcp.FullIntraRequest:
-						if err := keyFrameController.ForceKeyFrame(); err != nil {
-							track.onError(err)
-							return
-						}
-					}
-				}
-			}
-		}()
+		go track.rtcpReadLoop(ctx.RTCPReader(), keyFrameController, stopRead)
 	}
 
 	return selectedCodec, nil
+}
+
+func (track *baseTrack) rtcpReadLoop(reader interceptor.RTCPReader, keyFrameController codec.KeyFrameController, stopRead chan struct{}) {
+	readerBuffer := make([]byte, rtcpInboundMTU)
+	for {
+		select {
+		case <-stopRead:
+			return
+		default:
+		}
+
+		readLength, _, err := reader.Read(readerBuffer, interceptor.Attributes{})
+		if err != nil {
+			track.onError(err)
+			return
+		}
+
+		pkts, err := rtcp.Unmarshal(readerBuffer[:readLength])
+		if err != nil {
+			track.onError(err)
+			return
+		}
+
+		for _, pkt := range pkts {
+			switch pkt.(type) {
+			case *rtcp.PictureLossIndication, *rtcp.FullIntraRequest:
+				if err := keyFrameController.ForceKeyFrame(); err != nil {
+					track.onError(err)
+					return
+				}
+			}
+		}
+	}
 }
 
 func (track *baseTrack) unbind(ctx webrtc.TrackLocalContext) error {
