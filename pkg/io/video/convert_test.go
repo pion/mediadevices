@@ -222,8 +222,8 @@ func BenchmarkToI420(b *testing.B) {
 			"RGBA": image.NewRGBA(image.Rect(0, 0, sz[0], sz[1])),
 		}
 		b.Run(name, func(b *testing.B) {
-			for name, img := range cases {
-				img := img
+			for _, name := range [...]string{"I444", "I422", "I420", "RGBA"} {
+				img := cases[name]
 				b.Run(name, func(b *testing.B) {
 					r := ToI420(ReaderFunc(func() (image.Image, func(), error) {
 						return img, func() {}, nil

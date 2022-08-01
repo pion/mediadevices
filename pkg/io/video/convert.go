@@ -73,16 +73,15 @@ func ToI420(r Reader) Reader {
 
 		// Covert pixel format to I420
 		switch yuvImg.SubsampleRatio {
-		case image.YCbCrSubsampleRatio444:
-			i444ToI420(&yuvImg)
-		case image.YCbCrSubsampleRatio422:
-			i422ToI420(&yuvImg)
 		case image.YCbCrSubsampleRatio420:
+		case image.YCbCrSubsampleRatio444:
+			yuvImg = i444ToI420(yuvImg)
+		case image.YCbCrSubsampleRatio422:
+			yuvImg = i422ToI420(yuvImg)
 		default:
 			return nil, func() {}, fmt.Errorf("unsupported pixel format: %s", yuvImg.SubsampleRatio)
 		}
 
-		yuvImg.SubsampleRatio = image.YCbCrSubsampleRatio420
 		return &yuvImg, func() {}, nil
 	})
 }

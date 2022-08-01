@@ -3,6 +3,8 @@
 #include "_cgo_export.h"
 
 void i444ToI420CGO(
+    unsigned char *cb_dst,
+    unsigned char *cr_dst,
     unsigned char* cb,
     unsigned char* cr,
     const int stride, const int h)
@@ -22,8 +24,8 @@ void i444ToI420CGO(
           ((uint16_t)cr[isrc0] + (uint16_t)cr[isrc1] +
            (uint16_t)cr[isrc0 + 1] + (uint16_t)cr[isrc1 + 1]) /
           4;
-      cb[idst] = cb2;
-      cr[idst] = cr2;
+      cb_dst[idst] = cb2;
+      cr_dst[idst] = cr2;
       isrc0 += 2;
       isrc1 += 2;
       idst++;
@@ -34,6 +36,8 @@ void i444ToI420CGO(
 }
 
 void i422ToI420CGO(
+    unsigned char *cb_dst,
+    unsigned char *cr_dst,
     unsigned char* cb,
     unsigned char* cr,
     const int stride, const int h)
@@ -46,8 +50,8 @@ void i422ToI420CGO(
     {
       const uint8_t cb2 = ((uint16_t)cb[isrc] + (uint16_t)cb[isrc + stride]) / 2;
       const uint8_t cr2 = ((uint16_t)cr[isrc] + (uint16_t)cr[isrc + stride]) / 2;
-      cb[idst] = cb2;
-      cr[idst] = cr2;
+      cb_dst[idst] = cb2;
+      cr_dst[idst] = cr2;
       isrc++;
       idst++;
     }
