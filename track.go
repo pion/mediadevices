@@ -246,16 +246,14 @@ func (track *baseTrack) rtcpReadLoop(reader interceptor.RTCPReader, keyFrameCont
 
 		pkts, err := rtcp.Unmarshal(readerBuffer[:readLength])
 		if err != nil {
-			track.onError(err)
-			return
+			logger.Warnf("failed to unmarshal rtcp packet: %s", err)
 		}
 
 		for _, pkt := range pkts {
 			switch pkt.(type) {
 			case *rtcp.PictureLossIndication, *rtcp.FullIntraRequest:
 				if err := keyFrameController.ForceKeyFrame(); err != nil {
-					track.onError(err)
-					return
+					logger.Warnf("failed to force key frame: %s", err)
 				}
 			}
 		}
