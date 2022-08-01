@@ -169,7 +169,7 @@ type Session struct {
 
 // NewSession creates a new capturing session
 func NewSession(device Device) (*Session, error) {
-	session := Session{}
+	var session Session
 
 	status := C.AVBindSessionInit(device.cDevice, &session.cSession)
 	if status != nil {
