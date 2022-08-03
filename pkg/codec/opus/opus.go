@@ -14,7 +14,7 @@ import (
 /*
 #include <opus.h>
 
-int set_encoder_bitrate(OpusEncoder *e, opus_int32 bitrate)
+int pion_set_encoder_bitrate(OpusEncoder *e, opus_int32 bitrate)
 {
 	return opus_encoder_ctl(e, OPUS_SET_BITRATE(bitrate));
 }
