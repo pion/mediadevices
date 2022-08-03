@@ -110,7 +110,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 }
 
 func (e *encoder) SetBitRate(bitRate int) error {
-	cerror := C.set_encoder_bitrate(
+	cerror := C.pion_set_encoder_bitrate(
 		e.engine,
 		C.int(bitRate),
 	)
