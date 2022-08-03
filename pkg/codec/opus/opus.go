@@ -14,7 +14,7 @@ import (
 /*
 #include <opus.h>
 
-int bridge_encoder_set_bitrate(OpusEncoder *e, opus_int32 bitrate)
+int pion_set_encoder_bitrate(OpusEncoder *e, opus_int32 bitrate)
 {
 	return opus_encoder_ctl(e, OPUS_SET_BITRATE(bitrate));
 }
@@ -110,7 +110,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 }
 
 func (e *encoder) SetBitRate(bitRate int) error {
-	cerror := C.bridge_encoder_set_bitrate(
+	cerror := C.pion_set_encoder_bitrate(
 		e.engine,
 		C.int(bitRate),
 	)
