@@ -3,12 +3,13 @@ package mediadevices
 import (
 	"errors"
 	"fmt"
-	"github.com/pion/interceptor"
-	"github.com/pion/rtcp"
 	"image"
 	"io"
 	"strings"
 	"sync"
+
+	"github.com/pion/interceptor"
+	"github.com/pion/rtcp"
 
 	"github.com/google/uuid"
 	"github.com/pion/mediadevices/pkg/codec"
@@ -494,7 +495,8 @@ func (track *AudioTrack) newEncodedReader(codecNames ...string) (EncodedReadClos
 			}
 			return buffer, release, err
 		},
-		closeFn: encodedReader.Close,
+		closeFn:      encodedReader.Close,
+		controllerFn: encodedReader.Controller,
 	}, selectedCodec, nil
 }
 
@@ -532,6 +534,7 @@ func (track *AudioTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (R
 			pkts := packetizer.Packetize(encoded.Data, encoded.Samples)
 			return pkts, release, err
 		},
-		closeFn: encodedReader.Close,
+		closeFn:      encodedReader.Close,
+		controllerFn: encodedReader.Controller,
 	}, nil
 }
