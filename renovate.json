@@ -12,5 +12,9 @@
       "packagePatterns": ["^golang.org/x/"],
       "schedule": ["on the first day of the month"]
     }
+  ],
+  "ignorePaths": [],
+  "ignoreDeps": [
+    "github.com/pion/mediadevices"
   ]
 }
