@@ -231,6 +231,8 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 
 func (track *baseTrack) rtcpReadLoop(reader interceptor.RTCPReader, keyFrameController codec.KeyFrameController, stopRead chan struct{}) {
 	readerBuffer := make([]byte, rtcpInboundMTU)
+
+readLoop:
 	for {
 		select {
 		case <-stopRead:
@@ -240,13 +242,17 @@ func (track *baseTrack) rtcpReadLoop(reader interceptor.RTCPReader, keyFrameCont
 
 		readLength, _, err := reader.Read(readerBuffer, interceptor.Attributes{})
 		if err != nil {
-			track.onError(err)
-			return
+			if errors.Is(err, io.EOF) {
+				return
+			}
+			logger.Warnf("failed to read rtcp packet: %s", err)
+			continue
 		}
 
 		pkts, err := rtcp.Unmarshal(readerBuffer[:readLength])
 		if err != nil {
 			logger.Warnf("failed to unmarshal rtcp packet: %s", err)
+			continue
 		}
 
 		for _, pkt := range pkts {
@@ -254,6 +260,7 @@ func (track *baseTrack) rtcpReadLoop(reader interceptor.RTCPReader, keyFrameCont
 			case *rtcp.PictureLossIndication, *rtcp.FullIntraRequest:
 				if err := keyFrameController.ForceKeyFrame(); err != nil {
 					logger.Warnf("failed to force key frame: %s", err)
+					continue readLoop
 				}
 			}
 		}
