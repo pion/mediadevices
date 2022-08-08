@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -32,7 +33,8 @@ var (
 
 type microphone struct {
 	malgo.DeviceInfo
-	chunkChan chan []byte
+	chunkChan       chan []byte
+	deviceCloseFunc func()
 }
 
 func init() {
@@ -87,6 +89,9 @@ func (m *microphone) Open() error {
 }
 
 func (m *microphone) Close() error {
+	if m.deviceCloseFunc != nil {
+		m.deviceCloseFunc()
+	}
 	if m.chunkChan != nil {
 		close(m.chunkChan)
 		m.chunkChan = nil
@@ -136,11 +141,35 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 		return nil, err
 	}
 
+	var closeDeviceOnce sync.Once
+	m.deviceCloseFunc = func() {
+		closeDeviceOnce.Do(func() {
+			closeDone := make(chan struct{})
+			// we may be waiting on a chunk so keep reading until we can stop
+			// the malgo device.
+			go func() {
+				for {
+					select {
+					case <-closeDone:
+						return
+					default:
+					}
+					select {
+					case <-m.chunkChan:
+					case <-closeDone:
+					}
+				}
+			}()
+			device.Stop()
+			device.Uninit()
+			close(closeDone)
+		})
+	}
+
 	var reader audio.Reader = audio.ReaderFunc(func() (wave.Audio, func(), error) {
 		chunk, ok := <-m.chunkChan
 		if !ok {
-			device.Stop()
-			device.Uninit()
+			m.deviceCloseFunc()
 			return nil, func() {}, io.EOF
 		}
 
