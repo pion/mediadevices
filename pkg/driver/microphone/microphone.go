@@ -1,6 +1,7 @@
 package microphone
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -126,43 +127,33 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 		return nil, errUnsupportedFormat
 	}
 
+	cancelCtx, cancel := context.WithCancel(context.Background())
 	onRecvChunk := func(_, chunk []byte, framecount uint32) {
-		m.chunkChan <- chunk
+		select {
+		case <-cancelCtx.Done():
+		case m.chunkChan <- chunk:
+		}
 	}
 	callbacks.Data = onRecvChunk
 
 	device, err := malgo.InitDevice(ctx.Context, config, callbacks)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
 	err = device.Start()
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
 	var closeDeviceOnce sync.Once
 	m.deviceCloseFunc = func() {
 		closeDeviceOnce.Do(func() {
-			closeDone := make(chan struct{})
-			// we may be waiting on a chunk so keep reading until we can stop
-			// the malgo device.
-			go func() {
-				for {
-					select {
-					case <-closeDone:
-						return
-					default:
-					}
-					select {
-					case <-m.chunkChan:
-					case <-closeDone:
-					}
-				}
-			}()
+			cancel() // Unblock onRecvChunk
 			device.Stop()
 			device.Uninit()
-			close(closeDone)
 		})
 	}
 
