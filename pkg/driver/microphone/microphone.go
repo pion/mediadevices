@@ -1,10 +1,12 @@
 package microphone
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -32,7 +34,8 @@ var (
 
 type microphone struct {
 	malgo.DeviceInfo
-	chunkChan chan []byte
+	chunkChan       chan []byte
+	deviceCloseFunc func()
 }
 
 func init() {
@@ -87,9 +90,8 @@ func (m *microphone) Open() error {
 }
 
 func (m *microphone) Close() error {
-	if m.chunkChan != nil {
-		close(m.chunkChan)
-		m.chunkChan = nil
+	if m.deviceCloseFunc != nil {
+		m.deviceCloseFunc()
 	}
 	return nil
 }
@@ -121,26 +123,44 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 		return nil, errUnsupportedFormat
 	}
 
+	cancelCtx, cancel := context.WithCancel(context.Background())
 	onRecvChunk := func(_, chunk []byte, framecount uint32) {
-		m.chunkChan <- chunk
+		select {
+		case <-cancelCtx.Done():
+		case m.chunkChan <- chunk:
+		}
 	}
 	callbacks.Data = onRecvChunk
 
 	device, err := malgo.InitDevice(ctx.Context, config, callbacks)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
 	err = device.Start()
 	if err != nil {
+		cancel()
 		return nil, err
+	}
+
+	var closeDeviceOnce sync.Once
+	m.deviceCloseFunc = func() {
+		closeDeviceOnce.Do(func() {
+			cancel() // Unblock onRecvChunk
+			device.Uninit()
+
+			if m.chunkChan != nil {
+				close(m.chunkChan)
+				m.chunkChan = nil
+			}
+		})
 	}
 
 	var reader audio.Reader = audio.ReaderFunc(func() (wave.Audio, func(), error) {
 		chunk, ok := <-m.chunkChan
 		if !ok {
-			device.Stop()
-			device.Uninit()
+			m.deviceCloseFunc()
 			return nil, func() {}, io.EOF
 		}
 
