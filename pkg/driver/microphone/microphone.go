@@ -152,7 +152,6 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 	m.deviceCloseFunc = func() {
 		closeDeviceOnce.Do(func() {
 			cancel() // Unblock onRecvChunk
-			device.Stop()
 			device.Uninit()
 		})
 	}
