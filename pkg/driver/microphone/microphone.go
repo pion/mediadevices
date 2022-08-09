@@ -93,10 +93,6 @@ func (m *microphone) Close() error {
 	if m.deviceCloseFunc != nil {
 		m.deviceCloseFunc()
 	}
-	if m.chunkChan != nil {
-		close(m.chunkChan)
-		m.chunkChan = nil
-	}
 	return nil
 }
 
@@ -153,6 +149,11 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 		closeDeviceOnce.Do(func() {
 			cancel() // Unblock onRecvChunk
 			device.Uninit()
+
+			if m.chunkChan != nil {
+				close(m.chunkChan)
+				m.chunkChan = nil
+			}
 		})
 	}
 
