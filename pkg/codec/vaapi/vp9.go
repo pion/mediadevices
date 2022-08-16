@@ -92,6 +92,8 @@ type encoderVP9 struct {
 
 	rate *framerateDetector
 
+	forceKeyFrame bool
+
 	mu     sync.Mutex
 	closed bool
 }
@@ -305,7 +307,7 @@ func (e *encoderVP9) Read() ([]byte, func(), error) {
 
 	e.frParam.data.framerate = C.uint(e.rate.Calc())
 
-	if kf {
+	if kf || e.forceKeyFrame {
 		C.setForceKFFlag9(&e.picParam, 1)
 		C.setFrameTypeFlagVP9(&e.picParam, 0)
 		e.picParam.refresh_frame_flags = 0
@@ -479,6 +481,10 @@ func (e *encoderVP9) Read() ([]byte, func(), error) {
 
 func (e *encoderVP9) Controller() codec.EncoderController {
 	return e
+}
+
+func (e *encoderVP9) ForceKeyFrame() {
+	e.forceKeyFrame = true
 }
 
 func (e *encoderVP9) Close() error {
