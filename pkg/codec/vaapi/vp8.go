@@ -100,6 +100,8 @@ type encoderVP8 struct {
 
 	rate *framerateDetector
 
+	forceKeyFrame bool
+
 	mu     sync.Mutex
 	closed bool
 }
@@ -315,7 +317,7 @@ func (e *encoderVP8) Read() ([]byte, func(), error) {
 
 	e.frParam.data.framerate = C.uint(e.rate.Calc())
 
-	if kf {
+	if kf || e.forceKeyFrame {
 		// Key frame
 		C.setForceKFFlagVP8(&e.picParam, 1)
 		C.setFrameTypeFlagVP8(&e.picParam, 0)
@@ -543,6 +545,10 @@ func (e *encoderVP8) Read() ([]byte, func(), error) {
 
 func (e *encoderVP8) Controller() codec.EncoderController {
 	return e
+}
+
+func (e *encoderVP8) ForceKeyFrame() error {
+	e.forceKeyFrame = true
 }
 
 func (e *encoderVP8) Close() error {
