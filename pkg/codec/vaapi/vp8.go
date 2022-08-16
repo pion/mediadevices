@@ -548,7 +548,7 @@ func (e *encoderVP8) Controller() codec.EncoderController {
 	return e
 }
 
-func (e *encoderVP8) ForceKeyFrame() error {
+func (e *encoderVP8) ForceKeyFrame() {
 	e.forceKeyFrame = true
 }
 
