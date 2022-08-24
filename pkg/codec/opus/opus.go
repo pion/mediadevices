@@ -3,6 +3,8 @@ package opus
 import (
 	"errors"
 	"fmt"
+	"io"
+	"sync"
 
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/io/audio"
@@ -25,6 +27,8 @@ type encoder struct {
 	inBuff wave.Audio
 	reader audio.Reader
 	engine *C.OpusEncoder
+
+	mu sync.Mutex
 }
 
 func newEncoder(r audio.Reader, p prop.Media, params Params) (codec.ReadCloser, error) {
@@ -79,6 +83,12 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		return nil, func() {}, err
 	}
 
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.engine == nil {
+		return nil, nil, io.EOF
+	}
+
 	encoded := make([]byte, 1024)
 	var n C.opus_int32
 	switch b := buff.(type) {
@@ -126,6 +136,8 @@ func (e *encoder) Controller() codec.EncoderController {
 }
 
 func (e *encoder) Close() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	if e.engine == nil {
 		return nil
 	}
