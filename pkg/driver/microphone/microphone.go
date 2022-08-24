@@ -113,6 +113,7 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 	config.PerformanceProfile = malgo.LowLatency
 	config.Capture.Channels = uint32(inputProp.ChannelCount)
 	config.SampleRate = uint32(inputProp.SampleRate)
+	config.PeriodSizeInMilliseconds = uint32(inputProp.Latency.Milliseconds())
 	//FIX: Turn on the microphone with the current device id
 	config.Capture.DeviceID = m.ID.Pointer()
 	if inputProp.SampleSize == 4 && inputProp.IsFloat {
