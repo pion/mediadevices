@@ -31,10 +31,9 @@ jobs:
             libvpx-dev \
             libx264-dev
       - name: Debug
-        run: |
-          id
-          ls -la /dev/dri/*
-          sudo chmod o+rw /dev/dri/card*
+        run: sudo vainfo
+      - name: Fix DRI permission
+        run: sudo chmod o+rw /dev/dri/card*
       - name: Run Test Suite
         run: make test
       - uses: codecov/codecov-action@v3	
