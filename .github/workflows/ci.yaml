@@ -30,6 +30,10 @@ jobs:
             libva-dev \
             libvpx-dev \
             libx264-dev
+      - name: Debug
+        run: |
+          id
+          ls -la /dev/dri/*
       - name: Run Test Suite
         run: make test
       - uses: codecov/codecov-action@v3	
