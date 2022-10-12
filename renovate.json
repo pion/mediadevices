@@ -11,6 +11,12 @@
     {
       "packagePatterns": ["^golang.org/x/"],
       "schedule": ["on the first day of the month"]
+    },
+    {
+      "description": "Disable updating minimum Go version: https://github.com/renovatebot/renovate/issues/16715",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["golang"],
+      "enabled": false
     }
   ],
   "ignorePaths": [],
