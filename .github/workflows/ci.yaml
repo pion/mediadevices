@@ -29,12 +29,7 @@ jobs:
             libopus-dev \
             libva-dev \
             libvpx-dev \
-            libx264-dev \
-            vainfo
-      - name: Debug
-        run: sudo vainfo
-      - name: Fix DRI permission
-        run: sudo chmod o+rw /dev/dri/card*
+            libx264-dev
       - name: Run Test Suite
         run: make test
       - uses: codecov/codecov-action@v3	
