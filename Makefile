@@ -25,7 +25,7 @@ codec_dir := pkg/codec
 codec_list := $(shell ls $(codec_dir)/*/Makefile)
 codec_list := $(codec_list:$(codec_dir)/%/Makefile=%)
 targets := $(foreach codec, $(codec_list), $(addprefix $(cmd_build)-$(codec)-, $(supported_platforms)))
-pkgs_without_mmal := $(shell go list ./... | grep -v mmal)
+pkgs_without_ext_device := $(shell go list ./... | grep -v mmal | grep -v vaapi)
 pkgs_without_cgo := $(shell go list ./... | grep -v pkg/codec | grep -v pkg/driver | grep -v pkg/avfoundation)
 
 define BUILD_TEMPLATE
@@ -73,11 +73,11 @@ $(foreach codec, $(codec_list), \
 # Description:
 # 	Run a series of tests
 $(cmd_test):
-	go vet $(pkgs_without_mmal)
-	go build $(pkgs_without_mmal)
+	go vet $(pkgs_without_ext_device)
+	go build $(pkgs_without_ext_device)
 	# go build without CGO
 	CGO_ENABLED=0 go build $(pkgs_without_cgo)
 	# go build with CGO
-	CGO_ENABLED=1 go build $(pkgs_without_mmal)
+	CGO_ENABLED=1 go build $(pkgs_without_ext_device)
 	$(MAKE) --directory=$(examples_dir)
-	go test -v -race -coverprofile=coverage.txt -covermode=atomic $(pkgs_without_mmal)
+	go test -v -race -coverprofile=coverage.txt -covermode=atomic $(pkgs_without_ext_device)
