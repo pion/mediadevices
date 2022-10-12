@@ -29,7 +29,8 @@ jobs:
             libopus-dev \
             libva-dev \
             libvpx-dev \
-            libx264-dev
+            libx264-dev \
+            vainfo
       - name: Debug
         run: sudo vainfo
       - name: Fix DRI permission
