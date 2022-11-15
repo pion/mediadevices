@@ -16,7 +16,7 @@ type videoCmdSource struct {
 	cmdSource
 }
 
-func AddVideoCmdSource(command string, mediaProperties []prop.Media, readTimeout uint32) error {
+func AddVideoCmdSource(label string, command string, mediaProperties []prop.Media, readTimeout uint32) error {
 	videoCmdSource := &videoCmdSource{
 		cmdSource: newCmdSource(command, mediaProperties, readTimeout),
 	}
@@ -24,7 +24,6 @@ func AddVideoCmdSource(command string, mediaProperties []prop.Media, readTimeout
 		return errInvalidCommand // no command specified
 	}
 
-	label := videoCmdSource.getCmdLabel()
 	err := driver.GetManager().Register(videoCmdSource, driver.Info{
 		Label:      label,
 		DeviceType: driver.CmdSource,

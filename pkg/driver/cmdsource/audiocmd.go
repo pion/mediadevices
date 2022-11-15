@@ -17,7 +17,7 @@ type audioCmdSource struct {
 	bufferSampleCount int
 }
 
-func AddAudioCmdSource(command string, mediaProperties []prop.Media, readTimeout uint32, sampleBufferSize int) error {
+func AddAudioCmdSource(label string, command string, mediaProperties []prop.Media, readTimeout uint32, sampleBufferSize int) error {
 	audioCmdSource := &audioCmdSource{
 		cmdSource:         newCmdSource(command, mediaProperties, readTimeout),
 		bufferSampleCount: sampleBufferSize,
@@ -25,8 +25,6 @@ func AddAudioCmdSource(command string, mediaProperties []prop.Media, readTimeout
 	if len(audioCmdSource.cmdArgs) == 0 || audioCmdSource.cmdArgs[0] == "" {
 		return errInvalidCommand // no command specified
 	}
-
-	label := audioCmdSource.getCmdLabel()
 
 	// register this audio source with the driver manager
 	err := driver.GetManager().Register(audioCmdSource, driver.Info{

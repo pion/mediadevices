@@ -22,7 +22,7 @@ var ffmpegFrameFormatMap = map[frame.Format]string{
 }
 
 func RunVideoCmdTest(t *testing.T, width int, height int, frameRate float32, frameFormat frame.Format, inputColor string, expectedColor color.Color) {
-	command := fmt.Sprintf("sh -c \"ffmpeg -f lavfi -i color=c=%s:size=%dx%d:rate=%f -vf realtime -f rawvideo -pix_fmt %s -\"", inputColor, width, height, frameRate, ffmpegFrameFormatMap[frameFormat])
+	command := fmt.Sprintf("ffmpeg -f lavfi -i color=c=%s:size=%dx%d:rate=%f -vf realtime -f rawvideo -pix_fmt %s -", inputColor, width, height, frameRate, ffmpegFrameFormatMap[frameFormat])
 	timeout := uint32(10) // 10 seconds
 	properties := []prop.Media{
 		{
@@ -35,6 +35,8 @@ func RunVideoCmdTest(t *testing.T, width int, height int, frameRate float32, fra
 			},
 		},
 	}
+
+	print("Testing video source command: " + command)
 
 	// Make sure ffmpeg is installed before continuting the test
 	err := exec.Command("ffmpeg", "-version").Run()
