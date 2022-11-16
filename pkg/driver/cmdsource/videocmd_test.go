@@ -36,7 +36,7 @@ func RunVideoCmdTest(t *testing.T, width int, height int, frameRate float32, fra
 		},
 	}
 
-	print("Testing video source command: " + command)
+	fmt.Println("Testing video source command: " + command)
 
 	// Make sure ffmpeg is installed before continuting the test
 	err := exec.Command("ffmpeg", "-version").Run()

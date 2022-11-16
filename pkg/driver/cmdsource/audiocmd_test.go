@@ -55,6 +55,8 @@ func RunAudioCmdTest(t *testing.T, freq int, duration float32, sampleRate int, c
 		},
 	}
 
+	fmt.Println("Testing audio source command: " + command)
+
 	// Make sure ffmpeg is installed before continuting the test
 	err := exec.Command("ffmpeg", "-version").Run()
 	if err != nil {

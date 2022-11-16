@@ -1,9 +1,10 @@
 package cmdsource
 
 import (
+	"bufio"
+	"fmt"
 	"image"
 	"io"
-	"os"
 	"time"
 
 	"github.com/pion/mediadevices/pkg/driver"
@@ -47,8 +48,28 @@ func (c *videoCmdSource) VideoRecord(inputProp prop.Media) (video.Reader, error)
 		return nil, err
 	}
 
-	// send standard error straight to the console
-	c.execCmd.Stderr = os.Stderr
+	// get the command's standard error
+	stdErr, err := c.execCmd.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+
+	// send standard error to the console as debug logs prefixed with (<command> stderr)
+	go func() {
+		stderrPrefix := fmt.Sprintf("(%s stderr): ", c.cmdArgs[0])
+		reader := bufio.NewReader(stdErr)
+		for {
+			if line, err := reader.ReadBytes('\n'); err == nil {
+				logger.Debug(stderrPrefix + string(line))
+			} else if err == io.EOF || err == io.ErrUnexpectedEOF {
+				logger.Debug(stderrPrefix + string(line))
+				break
+			} else if err != nil {
+				logger.Error(err.Error())
+				break
+			}
+		}
+	}()
 
 	// get the command's standard output
 	stdOut, err := c.execCmd.StdoutPipe()

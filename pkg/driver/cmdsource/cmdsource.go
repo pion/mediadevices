@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/shlex"
+	"github.com/pion/mediadevices/internal/logging"
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
@@ -18,7 +19,9 @@ var (
 	errUnsupportedFormat = errors.New("Unsupported frame format, no frame size function found")
 )
 
-var cmdSourceLabelCounts map[string]uint = make(map[string]uint)
+var logger = logging.NewLogger("mediadevices/driver/cmdsource")
+
+// var cmdSourceLabelCounts map[string]uint = make(map[string]uint)
 
 type cmdSource struct {
 	cmdArgs     []string
@@ -32,7 +35,6 @@ func init() {
 }
 
 func newCmdSource(command string, mediaProperties []prop.Media, readTimeout uint32) cmdSource {
-	fmt.Println("New Command Source: " + command)
 	cmdArgs, err := shlex.Split(command) // split command string on whitespace, respecting quotes & comments
 	if err != nil {
 		panic(errInvalidCommand)
@@ -85,12 +87,12 @@ func (c *cmdSource) addEnvVarsFromStruct(props interface{}) {
 	}
 }
 
-func (c *cmdSource) getCmdLabel() string {
-	programName := c.cmdArgs[0]
-	if _, ok := cmdSourceLabelCounts[programName]; ok {
-		cmdSourceLabelCounts[programName]++
-	} else {
-		cmdSourceLabelCounts[programName] = 0
-	}
-	return programName + "_" + fmt.Sprintf("%d", cmdSourceLabelCounts[programName])
-}
+// func (c *cmdSource) getCmdLabel() string {
+// 	programName := c.cmdArgs[0]
+// 	if _, ok := cmdSourceLabelCounts[programName]; ok {
+// 		cmdSourceLabelCounts[programName]++
+// 	} else {
+// 		cmdSourceLabelCounts[programName] = 0
+// 	}
+// 	return programName + "_" + fmt.Sprintf("%d", cmdSourceLabelCounts[programName])
+// }
