@@ -2,10 +2,11 @@ package mediadevices
 
 import (
 	"errors"
-	"github.com/pion/interceptor"
 	"io"
 	"testing"
 	"time"
+
+	"github.com/pion/interceptor"
 )
 
 func TestOnEnded(t *testing.T) {
@@ -83,6 +84,15 @@ func (mock *fakeKeyFrameController) ForceKeyFrame() error {
 	return nil
 }
 
+type fakeBitRateController struct {
+	rateUpdate chan int
+}
+
+func (mock *fakeBitRateController) SetBitRate(bitRate int) error {
+	mock.rateUpdate <- bitRate
+	return nil
+}
+
 func TestRtcpHandler(t *testing.T) {
 
 	t.Run("ShouldStopReading", func(t *testing.T) {
@@ -90,7 +100,7 @@ func TestRtcpHandler(t *testing.T) {
 		stop := make(chan struct{}, 1)
 		stopped := make(chan struct{})
 		go func() {
-			tr.rtcpReadLoop(&fakeRTCPReader{end: stop}, &fakeKeyFrameController{}, stop)
+			tr.rtcpReadLoop(&fakeRTCPReader{end: stop}, &fakeKeyFrameController{}, &fakeBitRateController{}, stop)
 			stopped <- struct{}{}
 		}()
 
@@ -140,7 +150,7 @@ func TestRtcpHandler(t *testing.T) {
 				mockKeyFrameController := &fakeKeyFrameController{called: make(chan struct{}, 1)}
 				mockRTCPReader := &fakeRTCPReader{end: stop, mockReturn: make(chan []byte, 1)}
 
-				go tr.rtcpReadLoop(mockRTCPReader, mockKeyFrameController, stop)
+				go tr.rtcpReadLoop(mockRTCPReader, mockKeyFrameController, nil, stop)
 
 				mockRTCPReader.mockReturn <- packet
 
@@ -148,6 +158,43 @@ func TestRtcpHandler(t *testing.T) {
 				case <-time.After(1000 * time.Millisecond):
 					t.Error("Timeout")
 				case <-mockKeyFrameController.called:
+				}
+			})
+		}
+	})
+
+	t.Run("ShouldChangeBitrate", func(t *testing.T) {
+		for packetType, packet := range map[string][]byte{
+			"REMB": {
+				// source: https://github.com/pion/rtcp/blob/master/receiver_estimated_maximum_bitrate_test.go#L21
+				143, 206, 0, 5, 0, 0, 0, 1, 0, 0, 0, 0, 82, 69, 77, 66, 1, 26, 32, 223, 72, 116, 237, 22,
+			},
+		} {
+			t.Run(packetType, func(t *testing.T) {
+				tr := &baseTrack{}
+				tr.OnEnded(func(err error) {
+					if err != io.EOF {
+						t.Error(err)
+					}
+				})
+				stop := make(chan struct{}, 1)
+				defer func() {
+					stop <- struct{}{}
+				}()
+				mockBitRateController := &fakeBitRateController{rateUpdate: make(chan int, 1)}
+				mockRTCPReader := &fakeRTCPReader{end: stop, mockReturn: make(chan []byte, 1)}
+
+				go tr.rtcpReadLoop(mockRTCPReader, nil, mockBitRateController, stop)
+
+				mockRTCPReader.mockReturn <- packet
+
+				select {
+				case <-time.After(1000 * time.Millisecond):
+					t.Error("Timeout")
+				case bitRate := <-mockBitRateController.rateUpdate:
+					if bitRate != 8927168 {
+						t.Errorf("Got Unexpected bitrate: %d", bitRate)
+					}
 				}
 			})
 		}

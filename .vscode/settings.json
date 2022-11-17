@@ -1,0 +1,8 @@
+{
+    "go.testFlags": [
+        "-buildmode=pie"
+    ],
+    "go.testEnvVars": {
+        "PION_LOG_DEBUG": "all"
+    },
+}

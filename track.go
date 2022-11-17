@@ -221,16 +221,17 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 		}
 	}()
 
-	keyFrameController, ok := encodedReader.Controller().(codec.KeyFrameController)
-	if ok {
+	keyFrameController, keyCtlOk := encodedReader.Controller().(codec.KeyFrameController)
+	bitRateController, bitCtlOk := encodedReader.Controller().(codec.BitRateController)
+	if keyCtlOk || bitCtlOk {
 		stopRead = make(chan struct{})
-		go track.rtcpReadLoop(ctx.RTCPReader(), keyFrameController, stopRead)
+		go track.rtcpReadLoop(ctx.RTCPReader(), keyFrameController, bitRateController, stopRead)
 	}
 
 	return selectedCodec, nil
 }
 
-func (track *baseTrack) rtcpReadLoop(reader interceptor.RTCPReader, keyFrameController codec.KeyFrameController, stopRead chan struct{}) {
+func (track *baseTrack) rtcpReadLoop(reader interceptor.RTCPReader, keyFrameController codec.KeyFrameController, bitRateController codec.BitRateController, stopRead chan struct{}) {
 	readerBuffer := make([]byte, rtcpInboundMTU)
 
 readLoop:
@@ -259,9 +260,20 @@ readLoop:
 		for _, pkt := range pkts {
 			switch pkt.(type) {
 			case *rtcp.PictureLossIndication, *rtcp.FullIntraRequest:
-				if err := keyFrameController.ForceKeyFrame(); err != nil {
-					logger.Warnf("failed to force key frame: %s", err)
-					continue readLoop
+				if keyFrameController != nil {
+					if err := keyFrameController.ForceKeyFrame(); err != nil {
+						logger.Warnf("failed to force key frame: %s", err)
+						continue readLoop
+					}
+				}
+			case *rtcp.ReceiverEstimatedMaximumBitrate:
+				if bitRateController != nil {
+					remb := pkt.(*rtcp.ReceiverEstimatedMaximumBitrate)
+					var bitrate int = int(remb.Bitrate)
+					if err := bitRateController.SetBitRate(bitrate); err != nil {
+						logger.Warnf("failed to set bitrate: %s", err)
+						continue readLoop
+					}
 				}
 			}
 		}

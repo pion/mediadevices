@@ -62,7 +62,7 @@ func (c *cmdSource) Close() error {
 	select {
 	case err := <-done:
 		return err // command exited normally or with an error code
-	case <-time.After(10 * time.Second):
+	case <-time.After(3 * time.Second):
 		err := c.execCmd.Process.Kill() // command timed out, kill it & return error
 		return err
 	}
