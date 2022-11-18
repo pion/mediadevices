@@ -56,11 +56,13 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
       - name: Checkout Homebrew
+        if: matrix.runs-on != 'macos-latest'
         uses: actions/checkout@v3
         with:
           repository: Homebrew/brew
           path: homebrew
       - name: Set up brew to install deps under temporary dir
+        if: matrix.runs-on != 'macos-latest' # set up local brew only on self-hosted
         run: |
           dir="${GITHUB_WORKSPACE}/homebrew"
           cd "${dir}"
