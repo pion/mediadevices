@@ -57,7 +57,7 @@ jobs:
           go-version: ${{ matrix.go }}
       - name: Set up brew
         run: |
-          dir="${GITHUB_PATH}/homebrew"
+          dir="${RUNNER_TEMP}/homebrew"
           mkdir -p "${dir}"
           git clone --depth=1 https://github.com/Homebrew/brew "${dir}"
           cd "${dir}"
