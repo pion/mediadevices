@@ -65,9 +65,10 @@ jobs:
           echo "${env}" >> ${GITHUB_ENV}
           brew update --force --quiet
           chmod -R go-w "$(brew --prefix)/share/zsh"
-          which brew
+          echo "${dir}/bin" >> ${GITHUB_PATH}
       - name: Install dependencies
         run: |
+          which brew
           brew install \
             pkg-config \
             opus \
