@@ -62,10 +62,10 @@ jobs:
           git clone --depth=1 https://github.com/Homebrew/brew "${dir}"
           cd "${dir}"
           env="$(./bin/brew shellenv)"
-          echo "${env}" >> ${GITHUB_ENV}
+          echo "${env}" | tee -a ${GITHUB_ENV}
           brew update --force --quiet
           chmod -R go-w "$(brew --prefix)/share/zsh"
-          echo "${dir}/bin" >> ${GITHUB_PATH}
+          echo "${dir}/bin" | tee -a ${GITHUB_PATH}
       - name: Install dependencies
         run: |
           which brew
