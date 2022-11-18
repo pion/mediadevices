@@ -37,14 +37,17 @@ jobs:
       - uses: codecov/codecov-action@v3	
         if: matrix.go == '1.19'
   build-darwin:
-    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
+        runs-on:
+          - macos-latest
+          - ['self-hosted', 'macOS', 'ARM64']
         go:
           - '1.18'
           - '1.19'
-    name: Darwin Go ${{ matrix.go }}
+    runs-on: ${{ matrix.runs-on }}
+    name: Darwin Go ${{ matrix.go }} ${{ join(matrix.runs-on, ' ') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -52,8 +55,32 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go }}
+      - name: Checkout Homebrew
+        if: matrix.runs-on != 'macos-latest'
+        uses: actions/checkout@v3
+        with:
+          repository: Homebrew/brew
+          path: homebrew
+      - name: Set up brew to install deps under temporary dir
+        if: matrix.runs-on != 'macos-latest' # set up local brew only on self-hosted
+        run: |
+          dir="${GITHUB_WORKSPACE}/homebrew"
+          cd "${dir}"
+
+          echo "Set up shellenv" >&2
+          env="$(./bin/brew shellenv)"
+          echo "${env}" | tee -a ${GITHUB_ENV}
+          eval "${env}"
+
+          echo "Set up paths" >&2
+          echo "${dir}/bin" | tee -a ${GITHUB_PATH}
+
+          echo "Brew update" >&2
+          brew update --force --quiet
+          chmod -R go-w "$(brew --prefix)/share/zsh"
       - name: Install dependencies
         run: |
+          which brew
           brew install \
             pkg-config \
             opus \
