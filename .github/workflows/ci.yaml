@@ -65,10 +65,12 @@ jobs:
           dir="${GITHUB_WORKSPACE}/homebrew"
           cd "${dir}"
 
-          echo "Setup shellenv" >&2
+          echo "Set up shellenv" >&2
           env="$(./bin/brew shellenv)"
           echo "${env}" | tee -a ${GITHUB_ENV}
           eval "${env}"
+
+          echo "Set up paths" >&2
           echo "${dir}/bin" | tee -a ${GITHUB_PATH}
 
           echo "Brew update" >&2
