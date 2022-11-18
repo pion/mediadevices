@@ -55,11 +55,14 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go }}
+      - name: Checkout Homebrew
+        uses: actions/checkout@v3
+        with:
+          repository: Homebrew/brew
+          path: homebrew
       - name: Set up brew
         run: |
-          dir="${RUNNER_TEMP}/homebrew"
-          mkdir -p "${dir}"
-          git clone --depth=1 https://github.com/Homebrew/brew "${dir}"
+          dir="${GITHUB_WORKSPACE}/homebrew"
           cd "${dir}"
 
           echo "Setup shellenv" >&2
