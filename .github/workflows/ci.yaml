@@ -55,8 +55,16 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go }}
-      - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@0c611abec1fc679030907286a2c084cc92fb8f2e # renovate: tag=master
+      - name: Set up brew
+        run: |
+          dir="${GITHUB_PATH}/homebrew"
+          git clone --depth=1 https://github.com/Homebrew/brew "${dir}"
+          cd "${dir}"
+          env="$(./bin/brew shellenv)"
+          echo "${env}" >> ${GITHUB_ENV}
+          brew update --force --quiet
+          chmod -R go-w "$(brew --prefix)/share/zsh"
+          which brew
       - name: Install dependencies
         run: |
           brew install \
