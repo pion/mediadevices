@@ -37,14 +37,17 @@ jobs:
       - uses: codecov/codecov-action@v3	
         if: matrix.go == '1.19'
   build-darwin:
-    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
+        runs-on:
+          - macos-latest
+          - ['self-hosted', 'macOS', 'ARM64']
         go:
           - '1.18'
           - '1.19'
-    name: Darwin Go ${{ matrix.go }}
+    runs-on: ${{ matrix.runs-on }}
+    name: Darwin Go ${{ matrix.go }} ${{ matrix.runs-on }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
