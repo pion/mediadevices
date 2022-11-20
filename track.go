@@ -190,8 +190,15 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 			close(stopRead)
 			encodedReader.Close()
 
-			// When there's another call to unbind, it won't block since we remove the current ctx from active connections
+			// When there's another call to unbind, it won't block since we remove the current ctx from active connections, unless unbind is called out of order
 			track.removeActivePeerConnection(ctx.ID())
+
+			// Unblock unbind when it is called out of order.
+			select {
+			case doneCh = <-signalCh:
+			default:
+			}
+
 			close(signalCh)
 			if doneCh != nil {
 				close(doneCh)
