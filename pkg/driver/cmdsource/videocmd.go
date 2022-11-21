@@ -65,8 +65,9 @@ func (c *videoCmdSource) VideoRecord(inputProp prop.Media) (video.Reader, error)
 	if err != nil {
 		return nil, err
 	}
+
 	// add environment variables to the command for each media property
-	c.addEnvVarsFromStruct(inputProp.Audio)
+	c.addEnvVarsFromStruct(inputProp.Video, c.showStdErr)
 
 	// start the command
 	if err := c.execCmd.Start(); err != nil {

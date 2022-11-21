@@ -32,7 +32,7 @@ type cmdSource struct {
 }
 
 func init() {
-	// No init, call AddVideoCmdSource() or AddAudioCmdSource() to add a command source before getUserMedia().
+	// No init. Call AddVideoCmdSource() or AddAudioCmdSource() to add a command source before calling getUserMedia().
 }
 
 func newCmdSource(command string, mediaProperties []prop.Media, readTimeout uint32) cmdSource {
@@ -92,16 +92,23 @@ func (c *cmdSource) logStdIoWithPrefix(prefix string, stdIo io.ReadCloser) {
 	}
 }
 
-func (c *cmdSource) addEnvVarsFromStruct(props interface{}) {
+func (c *cmdSource) addEnvVarsFromStruct(props interface{}, logProps bool) {
 	c.execCmd.Env = os.Environ() // inherit environment variables
 	values := reflect.ValueOf(props)
 	types := values.Type()
-	fmt.Println("Added Environment Variables: ")
+	if logProps {
+		fmt.Print("Adding cmdsource environment variables: ")
+	}
 	for i := 0; i < values.NumField(); i++ {
 		name := types.Field(i).Name
 		value := values.Field(i)
-		envVar := fmt.Sprintf("MEDIA_DEVICES_%s=%v", name, value)
-		fmt.Println(envVar + ", ")
+		envVar := fmt.Sprintf("PION_MEDIA_%s=%v", name, value)
+		if logProps {
+			fmt.Print(envVar + ", ")
+		}
 		c.execCmd.Env = append(c.execCmd.Env, envVar)
+	}
+	if logProps {
+		fmt.Println()
 	}
 }

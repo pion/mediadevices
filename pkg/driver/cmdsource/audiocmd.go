@@ -70,7 +70,7 @@ func (c *audioCmdSource) AudioRecord(inputProp prop.Media) (audio.Reader, error)
 	}
 
 	// add environment variables to the command for each media property
-	c.addEnvVarsFromStruct(inputProp.Audio)
+	c.addEnvVarsFromStruct(inputProp.Audio, c.showStdErr)
 
 	// start the command
 	if err := c.execCmd.Start(); err != nil {

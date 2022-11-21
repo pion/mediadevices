@@ -22,7 +22,12 @@ var ffmpegFrameFormatMap = map[frame.Format]string{
 }
 
 func RunVideoCmdTest(t *testing.T, width int, height int, frameRate float32, frameFormat frame.Format, inputColor string, expectedColor color.Color) {
-	command := fmt.Sprintf("ffmpeg -f lavfi -i color=c=%s:size=%dx%d:rate=%f -vf realtime -f rawvideo -pix_fmt %s -", inputColor, width, height, frameRate, ffmpegFrameFormatMap[frameFormat])
+
+	command := fmt.Sprintf("ffmpeg -hide_banner -f lavfi -i color=c=%s:size=%dx%d:rate=%f -vf realtime -f rawvideo -pix_fmt %s -", inputColor, width, height, frameRate, ffmpegFrameFormatMap[frameFormat])
+
+	// Example using injected environment variables instead of hardcoding the command:
+	// command := fmt.Sprintf("sh -c 'ffmpeg -hide_banner -f lavfi -i color=c=%s:size=\"$MEDIA_DEVICES_Width\"x\"$MEDIA_DEVICES_Height\":rate=\"$MEDIA_DEVICES_FrameRate\" -vf realtime -f rawvideo -pix_fmt %s -'", inputColor, ffmpegFrameFormatMap[frameFormat])
+
 	timeout := uint32(10) // 10 seconds
 	properties := []prop.Media{
 		{
@@ -46,7 +51,9 @@ func RunVideoCmdTest(t *testing.T, width int, height int, frameRate float32, fra
 
 	// Create a new video command source
 	videoCmdSource := &videoCmdSource{
-		cmdSource: newCmdSource(command, properties, timeout),
+		cmdSource:  newCmdSource(command, properties, timeout),
+		showStdErr: true,
+		label:      "test_source",
 	}
 
 	// if videoCmdSource.cmdArgs[0] != "ffmpeg" {
