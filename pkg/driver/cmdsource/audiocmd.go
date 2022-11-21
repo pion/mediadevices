@@ -1,7 +1,6 @@
 package cmdsource
 
 import (
-	"bufio"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -16,12 +15,16 @@ import (
 type audioCmdSource struct {
 	cmdSource
 	bufferSampleCount int
+	showStdErr        bool
+	label             string
 }
 
-func AddAudioCmdSource(label string, command string, mediaProperties []prop.Media, readTimeout uint32, sampleBufferSize int) error {
+func AddAudioCmdSource(label string, command string, mediaProperties []prop.Media, readTimeout uint32, sampleBufferSize int, showStdErr bool) error {
 	audioCmdSource := &audioCmdSource{
 		cmdSource:         newCmdSource(command, mediaProperties, readTimeout),
 		bufferSampleCount: sampleBufferSize,
+		label:             label,
+		showStdErr:        showStdErr,
 	}
 	if len(audioCmdSource.cmdArgs) == 0 || audioCmdSource.cmdArgs[0] == "" {
 		return errInvalidCommand // no command specified
@@ -50,28 +53,15 @@ func (c *audioCmdSource) AudioRecord(inputProp prop.Media) (audio.Reader, error)
 		return nil, err
 	}
 
-	// get the command's standard error
-	stdErr, err := c.execCmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
-
-	// send standard error to the console as debug logs prefixed with (<command> stderr)
-	go func() {
-		stderrPrefix := fmt.Sprintf("(%s stderr): ", c.cmdArgs[0])
-		reader := bufio.NewReader(stdErr)
-		for {
-			if line, err := reader.ReadBytes('\n'); err == nil {
-				logger.Debug(stderrPrefix + string(line))
-			} else if err == io.EOF || err == io.ErrUnexpectedEOF {
-				logger.Debug(stderrPrefix + string(line))
-				break
-			} else if err != nil {
-				logger.Error(err.Error())
-				break
-			}
+	if c.showStdErr {
+		// get the command's standard error
+		stdErr, err := c.execCmd.StderrPipe()
+		if err != nil {
+			return nil, err
 		}
-	}()
+		// send standard error to the console as debug logs prefixed with "{command} stdErr >"
+		go c.logStdIoWithPrefix(fmt.Sprintf("%s stderr > ", c.label+":"+c.cmdArgs[0]), stdErr)
+	}
 
 	// get the command's standard output
 	stdOut, err := c.execCmd.StdoutPipe()

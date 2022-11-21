@@ -1,7 +1,6 @@
 package cmdsource
 
 import (
-	"bufio"
 	"fmt"
 	"image"
 	"io"
@@ -15,11 +14,15 @@ import (
 
 type videoCmdSource struct {
 	cmdSource
+	showStdErr bool
+	label      string
 }
 
-func AddVideoCmdSource(label string, command string, mediaProperties []prop.Media, readTimeout uint32) error {
+func AddVideoCmdSource(label string, command string, mediaProperties []prop.Media, readTimeout uint32, showStdErr bool) error {
 	videoCmdSource := &videoCmdSource{
-		cmdSource: newCmdSource(command, mediaProperties, readTimeout),
+		cmdSource:  newCmdSource(command, mediaProperties, readTimeout),
+		label:      label,
+		showStdErr: showStdErr,
 	}
 	if len(videoCmdSource.cmdArgs) == 0 || videoCmdSource.cmdArgs[0] == "" {
 		return errInvalidCommand // no command specified
@@ -48,29 +51,15 @@ func (c *videoCmdSource) VideoRecord(inputProp prop.Media) (video.Reader, error)
 		return nil, err
 	}
 
-	// get the command's standard error
-	stdErr, err := c.execCmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
-
-	// send standard error to the console as debug logs prefixed with (<command> stderr)
-	go func() {
-		stderrPrefix := fmt.Sprintf("(%s stderr): ", c.cmdArgs[0])
-		reader := bufio.NewReader(stdErr)
-		for {
-			if line, err := reader.ReadBytes('\n'); err == nil {
-				logger.Debug(stderrPrefix + string(line))
-			} else if err == io.EOF || err == io.ErrUnexpectedEOF {
-				logger.Debug(stderrPrefix + string(line))
-				break
-			} else if err != nil {
-				logger.Error(err.Error())
-				break
-			}
+	if c.showStdErr {
+		// get the command's standard error
+		stdErr, err := c.execCmd.StderrPipe()
+		if err != nil {
+			return nil, err
 		}
-	}()
-
+		// send standard error to the console as debug logs prefixed with "{command} stdErr >"
+		go c.logStdIoWithPrefix(fmt.Sprintf("%s stdErr> ", c.label+":"+c.cmdArgs[0]), stdErr)
+	}
 	// get the command's standard output
 	stdOut, err := c.execCmd.StdoutPipe()
 	if err != nil {

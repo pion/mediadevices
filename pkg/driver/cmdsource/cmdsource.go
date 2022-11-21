@@ -1,11 +1,14 @@
 package cmdsource
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/google/shlex"
@@ -20,8 +23,6 @@ var (
 )
 
 var logger = logging.NewLogger("mediadevices/driver/cmdsource")
-
-// var cmdSourceLabelCounts map[string]uint = make(map[string]uint)
 
 type cmdSource struct {
 	cmdArgs     []string
@@ -73,6 +74,24 @@ func (c *cmdSource) Properties() []prop.Media {
 	return c.props
 }
 
+// {BLOCKING GOROUTINE} logStdIoWithPrefix reads from the command's standard output or error, and prints it to the console as debug logs prefixed with the provided prefix
+func (c *cmdSource) logStdIoWithPrefix(prefix string, stdIo io.ReadCloser) {
+	reader := bufio.NewReader(stdIo)
+	for {
+		if line, err := reader.ReadBytes('\n'); err == nil {
+			// logger.Debug(prefix + string(line))
+			println(prefix + strings.Trim(string(line), " \r\n"))
+		} else if err == io.EOF || err == io.ErrUnexpectedEOF {
+			// logger.Debug(prefix + string(line))
+			println(prefix + string(line))
+			break
+		} else if err != nil {
+			logger.Error(err.Error())
+			break
+		}
+	}
+}
+
 func (c *cmdSource) addEnvVarsFromStruct(props interface{}) {
 	c.execCmd.Env = os.Environ() // inherit environment variables
 	values := reflect.ValueOf(props)
@@ -86,13 +105,3 @@ func (c *cmdSource) addEnvVarsFromStruct(props interface{}) {
 		c.execCmd.Env = append(c.execCmd.Env, envVar)
 	}
 }
-
-// func (c *cmdSource) getCmdLabel() string {
-// 	programName := c.cmdArgs[0]
-// 	if _, ok := cmdSourceLabelCounts[programName]; ok {
-// 		cmdSourceLabelCounts[programName]++
-// 	} else {
-// 		cmdSourceLabelCounts[programName] = 0
-// 	}
-// 	return programName + "_" + fmt.Sprintf("%d", cmdSourceLabelCounts[programName])
-// }
