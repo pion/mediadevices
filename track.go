@@ -161,7 +161,7 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 	defer track.mu.Unlock()
 
 	signalCh := make(chan chan<- struct{})
-	var stopRead chan struct{}
+	stopRead := make(chan struct{})
 	track.activePeerConnections[ctx.ID()] = signalCh
 
 	var encodedReader RTPReadCloser
@@ -223,7 +223,6 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 
 	keyFrameController, ok := encodedReader.Controller().(codec.KeyFrameController)
 	if ok {
-		stopRead = make(chan struct{})
 		go track.rtcpReadLoop(ctx.RTCPReader(), keyFrameController, stopRead)
 	}
 
