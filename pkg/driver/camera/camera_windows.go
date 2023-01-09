@@ -55,7 +55,6 @@ func Initialize() {
 	}
 
 	C.freeCameraList(&list, &errStr)
-
 }
 
 func (c *camera) Open() error {
