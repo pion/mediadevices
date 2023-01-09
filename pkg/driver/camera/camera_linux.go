@@ -73,6 +73,10 @@ type camera struct {
 }
 
 func init() {
+	Initialize()
+}
+
+func Initialize() {
 	discovered := make(map[string]struct{})
 	discover(discovered, "/dev/v4l/by-path/*")
 	discover(discovered, "/dev/video*")

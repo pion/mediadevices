@@ -12,7 +12,6 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -32,6 +31,10 @@ type camera struct {
 }
 
 func init() {
+	Initialize()
+}
+
+func Initialize() {
 	C.CoInitializeEx(nil, C.COINIT_MULTITHREADED)
 
 	var list C.cameraList
@@ -51,6 +54,7 @@ func init() {
 	}
 
 	C.freeCameraList(&list, &errStr)
+
 }
 
 func (c *camera) Open() error {

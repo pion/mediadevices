@@ -17,6 +17,10 @@ type camera struct {
 }
 
 func init() {
+	Initialize()
+}
+
+func Initialize() {
 	devices, err := avfoundation.Devices(avfoundation.Video)
 	if err != nil {
 		panic(err)
