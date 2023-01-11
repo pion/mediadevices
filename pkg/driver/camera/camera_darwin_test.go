@@ -1,3 +1,4 @@
+//go:build darwin
 // +build darwin
 
 // $ go test -v . -tags darwin -run="^TestCameraFrameFormatSupport$"

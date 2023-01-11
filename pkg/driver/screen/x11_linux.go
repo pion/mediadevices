@@ -5,7 +5,6 @@ import (
 	"image"
 	"time"
 
-	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -22,6 +21,10 @@ func deviceID(num int) string {
 }
 
 func init() {
+	Initialize()
+}
+
+func Initialize() {
 	dp, err := openDisplay()
 	if err != nil {
 		// No x11 display available.

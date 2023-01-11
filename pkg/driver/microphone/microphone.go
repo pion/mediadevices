@@ -5,17 +5,16 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
-	"sync"
-	"time"
-	"unsafe"
-
 	"github.com/gen2brain/malgo"
 	"github.com/pion/mediadevices/internal/logging"
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/mediadevices/pkg/wave"
+	"io"
+	"sync"
+	"time"
+	"unsafe"
 )
 
 const (
@@ -39,6 +38,10 @@ type microphone struct {
 }
 
 func init() {
+	Initialize()
+}
+
+func Initialize() {
 	var err error
 	ctx, err = malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {
 		logger.Debugf("%v\n", message)
