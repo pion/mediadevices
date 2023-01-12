@@ -41,6 +41,7 @@ func init() {
 	Initialize()
 }
 
+// Initialize finds and registers active playback or capture devices. This is part of an experimental API.
 func Initialize() {
 	var err error
 	ctx, err = malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {

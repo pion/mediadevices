@@ -24,6 +24,7 @@ func init() {
 	Initialize()
 }
 
+// Initialize finds and registers active displays. This is part of an experimental API.
 func Initialize() {
 	dp, err := openDisplay()
 	if err != nil {

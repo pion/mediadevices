@@ -20,6 +20,7 @@ func init() {
 	Initialize()
 }
 
+// Initialize finds and registers camera devices. This is part of an experimental API.
 func Initialize() {
 	devices, err := avfoundation.Devices(avfoundation.Video)
 	if err != nil {
