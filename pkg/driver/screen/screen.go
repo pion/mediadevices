@@ -5,11 +5,11 @@ package screen
 
 import (
 	"fmt"
-	"github.com/pion/mediadevices/pkg/driver"
 	"image"
 	"io"
 
 	"github.com/kbinani/screenshot"
+	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"

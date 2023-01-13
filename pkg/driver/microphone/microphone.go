@@ -5,16 +5,17 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"sync"
+	"time"
+	"unsafe"
+
 	"github.com/gen2brain/malgo"
 	"github.com/pion/mediadevices/internal/logging"
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/mediadevices/pkg/wave"
-	"io"
-	"sync"
-	"time"
-	"unsafe"
 )
 
 const (
