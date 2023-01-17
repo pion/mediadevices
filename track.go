@@ -72,7 +72,7 @@ type Track interface {
 	// the encoded data in RTP format with given mtu size.
 	//
 	// Note: `mtu int` will be changed to `mtu uint16` in a future update.
-	NewRTPReader(codecName string, ssrc uint32, mtu int) (RTPReadCloser, error)
+	NewRTPReader(codecName string, ssrc uint32, mtu int, payloadType uint8) (RTPReadCloser, error)
 	// NewEncodedReader creates a EncodedReadCloser that reads the encoded data in codecName format
 	NewEncodedReader(codecName string) (EncodedReadCloser, error)
 	// NewEncodedReader creates a new Go standard io.ReadCloser that reads the encoded data in codecName format
@@ -170,7 +170,7 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 	var errReasons []string
 	for _, wantedCodec := range ctx.CodecParameters() {
 		logger.Debugf("trying to build %s rtp reader", wantedCodec.MimeType)
-		encodedReader, err = specializedTrack.NewRTPReader(wantedCodec.MimeType, uint32(ctx.SSRC()), rtpOutboundMTU)
+		encodedReader, err = specializedTrack.NewRTPReader(wantedCodec.MimeType, uint32(ctx.SSRC()), rtpOutboundMTU, uint8(wantedCodec.PayloadType))
 		if err == nil {
 			selectedCodec = wantedCodec
 			break
@@ -414,13 +414,13 @@ func (track *VideoTrack) NewEncodedIOReader(codecName string) (io.ReadCloser, er
 	return newEncodedIOReadCloserImpl(encodedReader), nil
 }
 
-func (track *VideoTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (RTPReadCloser, error) {
+func (track *VideoTrack) NewRTPReader(codecName string, ssrc uint32, mtu int, payloadType uint8) (RTPReadCloser, error) {
 	encodedReader, selectedCodec, err := track.newEncodedReader(codecName)
 	if err != nil {
 		return nil, err
 	}
 
-	packetizer := rtp.NewPacketizer(uint16(mtu), uint8(selectedCodec.PayloadType), ssrc, selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
+	packetizer := rtp.NewPacketizer(uint16(mtu), payloadType, ssrc, selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
 
 	return &rtpReadCloserImpl{
 		readFn: func() ([]*rtp.Packet, func(), error) {
@@ -536,13 +536,13 @@ func (track *AudioTrack) NewEncodedIOReader(codecName string) (io.ReadCloser, er
 	return newEncodedIOReadCloserImpl(encodedReader), nil
 }
 
-func (track *AudioTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (RTPReadCloser, error) {
+func (track *AudioTrack) NewRTPReader(codecName string, ssrc uint32, mtu int, payloadType uint8) (RTPReadCloser, error) {
 	encodedReader, selectedCodec, err := track.newEncodedReader(codecName)
 	if err != nil {
 		return nil, err
 	}
 
-	packetizer := rtp.NewPacketizer(uint16(mtu), uint8(selectedCodec.PayloadType), ssrc, selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
+	packetizer := rtp.NewPacketizer(uint16(mtu), payloadType, ssrc, selectedCodec.Payloader, rtp.NewRandomSequencer(), selectedCodec.ClockRate)
 
 	return &rtpReadCloserImpl{
 		readFn: func() ([]*rtp.Packet, func(), error) {
