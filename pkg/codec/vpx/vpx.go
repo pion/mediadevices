@@ -74,6 +74,7 @@ type encoder struct {
 	frame           []byte
 	deadline        int
 	requireKeyFrame bool
+	targetBitrate   int
 	isKeyFrame      bool
 
 	mu     sync.Mutex
@@ -200,14 +201,15 @@ func newEncoder(r video.Reader, p prop.Media, params Params, codecIface *C.vpx_c
 	}
 	t0 := time.Now().Nanosecond() / 1000000
 	return &encoder{
-		r:          video.ToI420(r),
-		codec:      codec,
-		raw:        rawNoBuffer,
-		cfg:        cfg,
-		tStart:     t0,
-		tLastFrame: t0,
-		deadline:   int(params.Deadline / time.Microsecond),
-		frame:      make([]byte, 1024),
+		r:             video.ToI420(r),
+		codec:         codec,
+		raw:           rawNoBuffer,
+		cfg:           cfg,
+		tStart:        t0,
+		tLastFrame:    t0,
+		deadline:      int(params.Deadline / time.Microsecond),
+		frame:         make([]byte, 1024),
+		targetBitrate: params.BitRate,
 	}, nil
 }
 
@@ -260,6 +262,16 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	if duration == 0 {
 		duration = 1
 	}
+
+	targetVpxBitrate := C.uint(float32(e.targetBitrate / 1000)) // convert to kilobits / second
+	if e.cfg.rc_target_bitrate != targetVpxBitrate && targetVpxBitrate >= 1 {
+		e.cfg.rc_target_bitrate = targetVpxBitrate
+		rc := C.vpx_codec_enc_config_set(e.codec, e.cfg)
+		if rc != C.VPX_CODEC_OK {
+			return nil, func() {}, fmt.Errorf("vpx_codec_enc_config_set failed (%d)", rc)
+		}
+	}
+
 	var flags int
 	if e.requireKeyFrame {
 		flags = flags | C.VPX_EFLAG_FORCE_KF
@@ -299,6 +311,13 @@ func (e *encoder) ForceKeyFrame() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.requireKeyFrame = true
+	return nil
+}
+
+func (e *encoder) SetBitRate(bitrate int) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.targetBitrate = bitrate
 	return nil
 }
 
