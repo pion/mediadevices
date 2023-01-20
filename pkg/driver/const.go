@@ -11,4 +11,6 @@ const (
 	Microphone = "microphone"
 	// Screen represents screen devices
 	Screen = "screen"
+	// CmdSource represents command sources
+	CmdSource = "cmdsource"
 )
