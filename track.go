@@ -172,10 +172,14 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 	for _, wantedCodec := range ctx.CodecParameters() {
 		logger.Debugf("trying to build %s rtp reader", wantedCodec.MimeType)
 		encodedReader, err = specializedTrack.NewRTPReader(wantedCodec.MimeType, uint32(ctx.SSRC()), rtpOutboundMTU)
+
+		track.errMu.Lock()
 		if track.err != nil {
 			err = track.err
 			encodedReader = nil
 		}
+		track.errMu.Unlock()
+
 		if err == nil {
 			selectedCodec = wantedCodec
 			break
