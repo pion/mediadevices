@@ -83,6 +83,7 @@ type baseTrack struct {
 	Source
 	err                   error
 	onErrorHandler        func(error)
+	errMu                 sync.Mutex
 	mu                    sync.Mutex
 	endOnce               sync.Once
 	kind                  MediaDeviceType
@@ -129,10 +130,10 @@ func (track *baseTrack) RID() string {
 // OnEnded sets an error handler. When a track has been created and started, if an
 // error occurs, handler will get called with the error given to the parameter.
 func (track *baseTrack) OnEnded(handler func(error)) {
-	track.mu.Lock()
+	track.errMu.Lock()
 	track.onErrorHandler = handler
 	err := track.err
-	track.mu.Unlock()
+	track.errMu.Unlock()
 
 	if err != nil && handler != nil {
 		// Already errored.
@@ -144,10 +145,10 @@ func (track *baseTrack) OnEnded(handler func(error)) {
 
 // onError is a callback when an error occurs
 func (track *baseTrack) onError(err error) {
-	track.mu.Lock()
+	track.errMu.Lock()
 	track.err = err
 	handler := track.onErrorHandler
-	track.mu.Unlock()
+	track.errMu.Unlock()
 
 	if handler != nil {
 		track.endOnce.Do(func() {
@@ -171,6 +172,14 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 	for _, wantedCodec := range ctx.CodecParameters() {
 		logger.Debugf("trying to build %s rtp reader", wantedCodec.MimeType)
 		encodedReader, err = specializedTrack.NewRTPReader(wantedCodec.MimeType, uint32(ctx.SSRC()), rtpOutboundMTU)
+
+		track.errMu.Lock()
+		if track.err != nil {
+			err = track.err
+			encodedReader = nil
+		}
+		track.errMu.Unlock()
+
 		if err == nil {
 			selectedCodec = wantedCodec
 			break

@@ -2,14 +2,33 @@ package mediadevices
 
 import (
 	"errors"
-	"github.com/pion/interceptor"
 	"io"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/pion/interceptor"
+	"github.com/pion/webrtc/v3"
 )
 
+var errExpected error = errors.New("an error")
+
+type DummyBindTrack struct {
+	*baseTrack
+}
+
+func (track *DummyBindTrack) Bind(ctx webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error) {
+	track.mu.Lock()
+	defer track.mu.Unlock()
+
+	track.onError(errExpected)
+
+	<-time.After(5 * time.Millisecond)
+
+	return webrtc.RTPCodecParameters{}, nil
+}
+
 func TestOnEnded(t *testing.T) {
-	errExpected := errors.New("an error")
 
 	t.Run("ErrorAfterRegister", func(t *testing.T) {
 		tr := &baseTrack{}
@@ -45,6 +64,34 @@ func TestOnEnded(t *testing.T) {
 		tr.OnEnded(func(err error) {
 			called <- errExpected
 		})
+		select {
+		case err := <-called:
+			if err != errExpected {
+				t.Errorf("Expected to receive error: %v, got: %v", errExpected, err)
+			}
+		case <-time.After(10 * time.Millisecond):
+			t.Error("Timeout")
+		}
+	})
+
+	t.Run("ErrorDurringBind", func(t *testing.T) {
+		tr := &DummyBindTrack{
+			baseTrack: &baseTrack{
+				activePeerConnections: make(map[string]chan<- chan<- struct{}),
+				mu:                    sync.Mutex{},
+			},
+		}
+
+		called := make(chan error, 1)
+		tr.OnEnded(func(err error) {
+			called <- errExpected
+		})
+
+		_, err := tr.Bind(webrtc.TrackLocalContext{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		select {
 		case err := <-called:
 			if err != errExpected {
