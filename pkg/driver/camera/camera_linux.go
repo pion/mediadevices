@@ -73,6 +73,11 @@ type camera struct {
 }
 
 func init() {
+	Initialize()
+}
+
+// Initialize finds and registers camera devices. This is part of an experimental API.
+func Initialize() {
 	discovered := make(map[string]struct{})
 	discover(discovered, "/dev/v4l/by-path/*")
 	discover(discovered, "/dev/video*")

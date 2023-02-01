@@ -57,4 +57,23 @@ func TestEncoder(t *testing.T) {
 			},
 		})
 	})
+	t.Run("ReadAfterClose", func(t *testing.T) {
+		p, err := NewParams()
+		if err != nil {
+			t.Fatal(err)
+		}
+		codectest.AudioEncoderReadAfterCloseTest(t, &p,
+			prop.Media{
+				Audio: prop.Audio{
+					SampleRate:   48000,
+					ChannelCount: 2,
+				},
+			},
+			wave.NewInt16Interleaved(wave.ChunkInfo{
+				Len:          960,
+				SamplingRate: 48000,
+				Channels:     2,
+			}),
+		)
+	})
 }

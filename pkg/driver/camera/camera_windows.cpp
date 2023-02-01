@@ -76,6 +76,7 @@ int listCamera(cameraList* list, const char** errstr)
     {
       list->name[i] = getCameraName(moniker);
       moniker->Release();
+      i++;
     }
   }
 

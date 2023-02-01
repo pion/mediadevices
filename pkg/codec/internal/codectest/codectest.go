@@ -119,3 +119,41 @@ func VideoEncoderCloseTwiceTest(t *testing.T, c codec.VideoEncoderBuilder, p pro
 		t.Fatal(err)
 	}
 }
+
+func AudioEncoderReadAfterCloseTest(t *testing.T, c codec.AudioEncoderBuilder, p prop.Media, w wave.Audio) {
+	enc, err := c.BuildAudioEncoder(audio.ReaderFunc(func() (wave.Audio, func(), error) {
+		return w, nil, nil
+	}), p)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := assertNoPanic(t, enc.Close, "on Close()"); err != nil {
+		t.Fatal(err)
+	}
+	if err := assertNoPanic(t, func() error {
+		_, _, err := enc.Read()
+		return err
+	}, "on Read()"); err != io.EOF {
+		t.Fatalf("Expected: %v, got: %v", io.EOF, err)
+	}
+}
+
+func VideoEncoderReadAfterCloseTest(t *testing.T, c codec.VideoEncoderBuilder, p prop.Media, img image.Image) {
+	enc, err := c.BuildVideoEncoder(video.ReaderFunc(func() (image.Image, func(), error) {
+		return img, nil, nil
+	}), p)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := assertNoPanic(t, enc.Close, "on Close()"); err != nil {
+		t.Fatal(err)
+	}
+	if err := assertNoPanic(t, func() error {
+		_, _, err := enc.Read()
+		return err
+	}, "on Read()"); err != io.EOF {
+		t.Fatalf("Expected: %v, got: %v", io.EOF, err)
+	}
+}

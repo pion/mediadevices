@@ -65,6 +65,25 @@ func TestEncoder(t *testing.T) {
 					},
 				})
 			})
+			t.Run("ReadAfterClose", func(t *testing.T) {
+				p, err := factory()
+				if err != nil {
+					t.Fatal(err)
+				}
+				codectest.VideoEncoderReadAfterCloseTest(t, p,
+					prop.Media{
+						Video: prop.Video{
+							Width:       256,
+							Height:      144,
+							FrameFormat: frame.FormatI420,
+						},
+					},
+					image.NewYCbCr(
+						image.Rect(0, 0, 256, 144),
+						image.YCbCrSubsampleRatio420,
+					),
+				)
+			})
 		})
 	}
 }

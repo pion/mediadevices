@@ -39,6 +39,11 @@ type microphone struct {
 }
 
 func init() {
+	Initialize()
+}
+
+// Initialize finds and registers active playback or capture devices. This is part of an experimental API.
+func Initialize() {
 	var err error
 	ctx, err = malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {
 		logger.Debugf("%v\n", message)
@@ -113,6 +118,7 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 	config.PerformanceProfile = malgo.LowLatency
 	config.Capture.Channels = uint32(inputProp.ChannelCount)
 	config.SampleRate = uint32(inputProp.SampleRate)
+	config.PeriodSizeInMilliseconds = uint32(inputProp.Latency.Milliseconds())
 	//FIX: Turn on the microphone with the current device id
 	config.Capture.DeviceID = m.ID.Pointer()
 	if inputProp.SampleSize == 4 && inputProp.IsFloat {
@@ -190,36 +196,32 @@ func (m *microphone) Properties() []prop.Media {
 		isBigEndian = true
 	}
 
-	for ch := m.MinChannels; ch <= m.MaxChannels; ch++ {
+	for _, format := range m.Formats {
 		// FIXME: Currently support 48kHz only. We need to implement a resampler first.
 		// for sampleRate := m.MinSampleRate; sampleRate <= m.MaxSampleRate; sampleRate += sampleRateStep {
 		sampleRate := 48000
-		for i := 0; i < int(m.FormatCount); i++ {
-			format := m.Formats[i]
-
-			supportedProp := prop.Media{
-				Audio: prop.Audio{
-					ChannelCount: int(ch),
-					SampleRate:   int(sampleRate),
-					IsBigEndian:  isBigEndian,
-					// miniaudio only supports interleaved at the moment
-					IsInterleaved: true,
-					// FIXME: should change this to a less discrete value
-					Latency: time.Millisecond * 20,
-				},
-			}
-
-			switch malgo.FormatType(format) {
-			case malgo.FormatF32:
-				supportedProp.SampleSize = 4
-				supportedProp.IsFloat = true
-			case malgo.FormatS16:
-				supportedProp.SampleSize = 2
-				supportedProp.IsFloat = false
-			}
-
-			supportedProps = append(supportedProps, supportedProp)
+		supportedProp := prop.Media{
+			Audio: prop.Audio{
+				ChannelCount: int(format.Channels),
+				SampleRate:   int(sampleRate),
+				IsBigEndian:  isBigEndian,
+				// miniaudio only supports interleaved at the moment
+				IsInterleaved: true,
+				// FIXME: should change this to a less discrete value
+				Latency: time.Millisecond * 20,
+			},
 		}
+
+		switch malgo.FormatType(format.Format) {
+		case malgo.FormatF32:
+			supportedProp.SampleSize = 4
+			supportedProp.IsFloat = true
+		case malgo.FormatS16:
+			supportedProp.SampleSize = 2
+			supportedProp.IsFloat = false
+		}
+
+		supportedProps = append(supportedProps, supportedProp)
 		// }
 	}
 	return supportedProps
