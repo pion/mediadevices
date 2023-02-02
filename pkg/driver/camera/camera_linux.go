@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/blackjack/webcam"
 	"github.com/pion/mediadevices/pkg/driver"
@@ -23,6 +24,7 @@ import (
 const (
 	maxEmptyFrameCount = 5
 	prioritizedDevice  = "video0"
+	bufferedFrameCount = 1
 )
 
 var (
@@ -70,6 +72,7 @@ type camera struct {
 	started         bool
 	mutex           sync.Mutex
 	cancel          func()
+	prevFrameTime   time.Time
 }
 
 func init() {
@@ -158,8 +161,13 @@ func (c *camera) Open() error {
 		return err
 	}
 
-	// Late frames should be discarded. Buffering should be handled in higher level.
-	cam.SetBufferCount(1)
+	// Buffering should be handled in higher level.
+	err = cam.SetBufferCount(bufferedFrameCount)
+	if err != nil {
+		return err
+	}
+
+	c.prevFrameTime = time.Now()
 	c.cam = cam
 	return nil
 }
@@ -216,7 +224,7 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
 	var buf []byte
-	r := video.ReaderFunc(func() (img image.Image, release func(), err error) {
+	readerFunc := func() (img image.Image, release func(), err error) {
 		// Lock to avoid accessing the buffer after StopStreaming()
 		c.mutex.Lock()
 		defer c.mutex.Unlock()
@@ -262,6 +270,20 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 			return decoder.Decode(buf[:n], p.Width, p.Height)
 		}
 		return nil, func() {}, errEmptyFrame
+	}
+
+	r := video.ReaderFunc(func() (img image.Image, release func(), err error) {
+		// If frames are requested at less than 1fps, assume snapshots, not streaming, and discard all
+		// buffered frames to reduce staleness.
+		if time.Now().Sub(c.prevFrameTime).Seconds() >= 1 {
+			for toDiscard := bufferedFrameCount; toDiscard > 0; toDiscard-- {
+				if _, _, err = readerFunc(); err != nil {
+					return nil, func() {}, err
+				}
+			}
+		}
+		c.prevFrameTime = time.Now()
+		return readerFunc()
 	})
 
 	return r, nil
