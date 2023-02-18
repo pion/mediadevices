@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"sync"
+	"sync/atomic"
 )
 
 // imageToYCbCr converts src to *image.YCbCr and store it to dst
@@ -63,11 +65,52 @@ func imageToYCbCr(dst *image.YCbCr, src image.Image) {
 // ToI420 converts r to a new reader that will output images in I420 format
 func ToI420(r Reader) Reader {
 	var yuvImg image.YCbCr
+
+	// Uint8 slice pool created to reuse slices from previous calls
+	// New method is not set as the slice size should be allocated subsample ratio
+	// TODO: add reconfigurable pool limit
+	// TODO: make through gorouting
+	const poolLimit = 1 << 5
+	var poolLen int32
+	uintPool := sync.Pool{}
+
+	putSlice := func(dst []uint8) {
+		// Check Limit of the pool
+		// If more than expected, do not put into the pool
+		if atomic.AddInt32(&poolLen, 1) > poolLimit {
+			atomic.AddInt32(&poolLen, -1)
+			return
+		}
+		// Put the slice into the pool
+		// There is no need to "clean" slice
+		uintPool.Put(dst)
+	}
+
+	getSlice := func(cLen int) []uint8 {
+		// Retrieve slice from pool
+		// Decrement current pool size
+		dst := uintPool.Get().([]uint8)
+		if atomic.AddInt32(&poolLen, -1) < 0 {
+			atomic.AddInt32(&poolLen, 1)
+		}
+
+		// Compare capacity of retrieved slice
+		// If less than expected, reallocate new slice
+		if dst == nil || cap(dst) < 2*cLen {
+			// Allocating memory for Cb and Cr
+			dst = make([]uint8, 2*cLen, 2*cLen)
+		}
+
+		return dst
+	}
+
 	return ReaderFunc(func() (image.Image, func(), error) {
 		img, _, err := r.Read()
 		if err != nil {
 			return nil, func() {}, err
 		}
+
+		var releaseFunc func() = func() {}
 
 		imageToYCbCr(&yuvImg, img)
 
@@ -75,14 +118,24 @@ func ToI420(r Reader) Reader {
 		switch yuvImg.SubsampleRatio {
 		case image.YCbCrSubsampleRatio420:
 		case image.YCbCrSubsampleRatio444:
-			yuvImg = i444ToI420(yuvImg)
+			cLen := yuvImg.CStride * yuvImg.Rect.Dy() / 4
+			dst := getSlice(cLen)
+			yuvImg = i444ToI420(yuvImg, dst)
+			releaseFunc = func() {
+				putSlice(dst)
+			}
 		case image.YCbCrSubsampleRatio422:
-			yuvImg = i422ToI420(yuvImg)
+			cLen := yuvImg.CStride * (yuvImg.Rect.Dy() / 2)
+			dst := getSlice(cLen)
+			yuvImg = i422ToI420(yuvImg, dst)
+			releaseFunc = func() {
+				putSlice(dst)
+			}
 		default:
-			return nil, func() {}, fmt.Errorf("unsupported pixel format: %s", yuvImg.SubsampleRatio)
+			return nil, releaseFunc, fmt.Errorf("unsupported pixel format: %s", yuvImg.SubsampleRatio)
 		}
 
-		return &yuvImg, func() {}, nil
+		return &yuvImg, releaseFunc, nil
 	})
 }
 
