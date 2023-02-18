@@ -5,7 +5,6 @@ import (
 	"image"
 	"image/color"
 	"sync"
-	"sync/atomic"
 )
 
 // imageToYCbCr converts src to *image.YCbCr and store it to dst
@@ -70,28 +69,31 @@ func ToI420(r Reader) Reader {
 	// New method is not set as the slice size should be allocated subsample ratio
 	// TODO: add reconfigurable pool limit
 	// TODO: make through gorouting
-	const poolLimit = 1 << 5
-	var poolLen int32
+	poolSize := make(chan struct{}, 1<<5)
+
 	uintPool := sync.Pool{}
 
 	putSlice := func(dst []uint8) {
 		// Check Limit of the pool
 		// If more than expected, do not put into the pool
-		if atomic.AddInt32(&poolLen, 1) > poolLimit {
-			atomic.AddInt32(&poolLen, -1)
-			return
+		select {
+		case poolSize <- struct{}{}:
+			// Put the slice into the pool
+			// There is no need to "clean" slice
+			uintPool.Put(dst)
+		default:
 		}
-		// Put the slice into the pool
-		// There is no need to "clean" slice
-		uintPool.Put(dst)
 	}
 
 	getSlice := func(cLen int) []uint8 {
 		// Retrieve slice from pool
 		// Decrement current pool size
-		dst := uintPool.Get().([]uint8)
-		if atomic.AddInt32(&poolLen, -1) < 0 {
-			atomic.AddInt32(&poolLen, 1)
+		var dst []uint8
+
+		select {
+		case <-poolSize:
+			dst = uintPool.Get().([]uint8)
+		default:
 		}
 
 		// Compare capacity of retrieved slice
