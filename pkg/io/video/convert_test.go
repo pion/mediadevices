@@ -147,10 +147,11 @@ func TestToI420(t *testing.T) {
 			r := ToI420(ReaderFunc(func() (image.Image, func(), error) {
 				return c.src, func() {}, nil
 			}))
-			out, _, err := r.Read()
+			out, release, err := r.Read()
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
+			defer release()
 			if !reflect.DeepEqual(c.expected, out) {
 				t.Errorf("Expected output image:\n%v\ngot:\n%v", c.expected, out)
 			}
@@ -230,10 +231,11 @@ func BenchmarkToI420(b *testing.B) {
 					}))
 
 					for i := 0; i < b.N; i++ {
-						_, _, err := r.Read()
+						_, release, err := r.Read()
 						if err != nil {
 							b.Fatalf("Unexpected error: %v", err)
 						}
+						release()
 					}
 				})
 			}

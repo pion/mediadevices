@@ -64,10 +64,11 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		return nil, func() {}, io.EOF
 	}
 
-	img, _, err := e.r.Read()
+	img, release, err := e.r.Read()
 	if err != nil {
 		return nil, func() {}, err
 	}
+	defer release()
 	imgReal := img.(*image.YCbCr)
 	var y, cb, cr C.Slice
 	y.data = (*C.uchar)(&imgReal.Y[0])
