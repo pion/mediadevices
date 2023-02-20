@@ -196,7 +196,9 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 		var doneCh chan<- struct{}
 		writer := ctx.WriteStream()
 		defer func() {
-			close(stopRead)
+			if stopRead != nil {
+				close(stopRead)
+			}
 			encodedReader.Close()
 
 			// When there's another call to unbind, it won't block since we remove the current ctx from active connections
