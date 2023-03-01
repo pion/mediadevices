@@ -2,11 +2,11 @@ package frame
 
 import (
 	"bytes"
+	libjpeg "github.com/pixiv/go-libjpeg/jpeg"
 	"image"
-	"image/jpeg"
 )
 
 func decodeMJPEG(frame []byte, width, height int) (image.Image, func(), error) {
-	img, err := jpeg.Decode(bytes.NewReader(frame))
+	img, err := libjpeg.Decode(bytes.NewReader(frame), &libjpeg.DecoderOptions{DCTMethod: libjpeg.DCTIFast})
 	return img, func() {}, err
 }
