@@ -57,6 +57,10 @@ func TestDiscover(t *testing.T) {
 		drvs[0].Info().Label,
 		drvs[1].Info().Label,
 	}
+
+	// Empty drvs for next test
+	drvs = nil
+
 	// Returned drivers are unordered. Sort to get static result.
 	sort.Sort(sort.StringSlice(labels))
 
@@ -117,6 +121,10 @@ func TestDiscoverByID(t *testing.T) {
 		drvs[0].Info().Label,
 		drvs[1].Info().Label,
 	}
+
+	// Empty drvs for next test
+	drvs = nil
+
 	// Returned drivers are unordered. Sort to get static result.
 	sort.Sort(sort.StringSlice(labels))
 
