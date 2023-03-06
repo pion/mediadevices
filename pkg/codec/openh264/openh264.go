@@ -65,10 +65,11 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		return nil, func() {}, io.EOF
 	}
 
-	img, _, err := e.r.Read()
+	img, release, err := e.r.Read()
 	if err != nil {
 		return nil, func() {}, err
 	}
+	defer release()
 
 	yuvImg := img.(*image.YCbCr)
 	bounds := yuvImg.Bounds()
