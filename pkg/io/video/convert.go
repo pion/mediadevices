@@ -64,7 +64,7 @@ func imageToYCbCr(dst *image.YCbCr, src image.Image) {
 // bytePool stores slices to be reused
 // New method is not set as the slice size
 // should be allocated according to subsample ratio
-var bytesPool = sync.Pool{}
+var bytesPool sync.Pool
 
 // ToI420 converts r to a new reader that will output images in I420 format
 func ToI420(r Reader) Reader {
