@@ -24,7 +24,6 @@ import (
 const (
 	maxEmptyFrameCount = 5
 	prioritizedDevice  = "video0"
-	bufferedFrameCount = 1
 )
 
 var (
@@ -162,7 +161,7 @@ func (c *camera) Open() error {
 	}
 
 	// Buffering should be handled in higher level.
-	err = cam.SetBufferCount(bufferedFrameCount)
+	err = cam.SetBufferCount(1)
 	if err != nil {
 		return err
 	}
@@ -238,10 +237,8 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 
 			if p.DiscardFramesOlderThan != 0 {
 				if time.Now().Sub(c.prevFrameTime) >= p.DiscardFramesOlderThan {
-					for toDiscard := bufferedFrameCount; toDiscard > 0; toDiscard-- {
-						_ = cam.WaitForFrame(readTimeoutSec)
-						_, _ = cam.ReadFrame()
-					}
+					_ = cam.WaitForFrame(readTimeoutSec)
+					_, _ = cam.ReadFrame()
 				}
 			}
 
@@ -260,7 +257,10 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 				// Camera has been stopped.
 				return nil, func() {}, err
 			}
-			c.prevFrameTime = time.Now()
+
+			if p.DiscardFramesOlderThan != 0 {
+				c.prevFrameTime = time.Now()
+			}
 
 			// Frame is empty.
 			// Retry reading and return errEmptyFrame if it exceeds maxEmptyFrameCount.
