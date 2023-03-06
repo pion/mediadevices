@@ -9,7 +9,7 @@ import (
 	"github.com/pion/mediadevices/pkg/frame"
 )
 
-// MediaConstraints represents set of media propaty constraints.
+// MediaConstraints represents set of media property constraints.
 // Each field constrains property by min/ideal/max range, exact match, or oneof match.
 type MediaConstraints struct {
 	DeviceID StringConstraint
@@ -229,16 +229,18 @@ func (c *comparisons) fitnessDistance() (float64, bool) {
 
 // VideoConstraints represents a video's constraints
 type VideoConstraints struct {
-	Width, Height IntConstraint
-	FrameRate     FloatConstraint
-	FrameFormat   FrameFormatConstraint
+	Width, Height          IntConstraint
+	FrameRate              FloatConstraint
+	FrameFormat            FrameFormatConstraint
+	DiscardFramesOlderThan time.Duration
 }
 
 // Video represents a video's constraints
 type Video struct {
-	Width, Height int
-	FrameRate     float32
-	FrameFormat   frame.Format
+	Width, Height          int
+	FrameRate              float32
+	FrameFormat            frame.Format
+	DiscardFramesOlderThan time.Duration
 }
 
 // AudioConstraints represents an audio's constraints

@@ -224,7 +224,7 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
 	var buf []byte
-	readerFunc := func() (img image.Image, release func(), err error) {
+	r := video.ReaderFunc(func() (img image.Image, release func(), err error) {
 		// Lock to avoid accessing the buffer after StopStreaming()
 		c.mutex.Lock()
 		defer c.mutex.Unlock()
@@ -234,6 +234,15 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 			if ctx.Err() != nil {
 				// Return EOF if the camera is already closed.
 				return nil, func() {}, io.EOF
+			}
+
+			if p.DiscardFramesOlderThan != 0 {
+				if time.Now().Sub(c.prevFrameTime) >= p.DiscardFramesOlderThan {
+					for toDiscard := bufferedFrameCount; toDiscard > 0; toDiscard-- {
+						_ = cam.WaitForFrame(readTimeoutSec)
+						_, _ = cam.ReadFrame()
+					}
+				}
 			}
 
 			err := cam.WaitForFrame(readTimeoutSec)
@@ -251,6 +260,7 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 				// Camera has been stopped.
 				return nil, func() {}, err
 			}
+			c.prevFrameTime = time.Now()
 
 			// Frame is empty.
 			// Retry reading and return errEmptyFrame if it exceeds maxEmptyFrameCount.
@@ -270,20 +280,6 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 			return decoder.Decode(buf[:n], p.Width, p.Height)
 		}
 		return nil, func() {}, errEmptyFrame
-	}
-
-	r := video.ReaderFunc(func() (img image.Image, release func(), err error) {
-		// If frames are requested at less than 1fps, assume snapshots, not streaming, and discard all
-		// buffered frames to reduce staleness.
-		if time.Now().Sub(c.prevFrameTime).Seconds() >= 1 {
-			for toDiscard := bufferedFrameCount; toDiscard > 0; toDiscard-- {
-				if _, _, err = readerFunc(); err != nil {
-					return nil, func() {}, err
-				}
-			}
-		}
-		c.prevFrameTime = time.Now()
-		return readerFunc()
 	})
 
 	return r, nil
