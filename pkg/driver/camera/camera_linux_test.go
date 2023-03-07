@@ -58,9 +58,6 @@ func TestDiscover(t *testing.T) {
 		drvs[1].Info().Label,
 	}
 
-	// Empty drvs for next test
-	drvs = nil
-
 	// Returned drivers are unordered. Sort to get static result.
 	sort.Sort(sort.StringSlice(labels))
 
@@ -77,9 +74,9 @@ func TestDiscover(t *testing.T) {
 
 func TestDiscoverByID(t *testing.T) {
 	const (
-		shortName  = "unittest-video0"
-		shortName2 = "unittest-video1"
-		longName   = "unittest-long-device-name:0:1:2:3"
+		shortName  = "id-unittest-video0"
+		shortName2 = "id-unittest-video1"
+		longName   = "id-unittest-long-device-name:0:1:2:3"
 	)
 
 	dir, err := ioutil.TempDir("", "")
@@ -107,11 +104,11 @@ func TestDiscoverByID(t *testing.T) {
 
 	discovered := make(map[string]struct{})
 	discover(discovered, filepath.Join(byIdDir, "*"))
-	discover(discovered, filepath.Join(dir, "unittest-video*"))
+	discover(discovered, filepath.Join(dir, "id-unittest-video*"))
 
 	drvs := driver.GetManager().Query(func(d driver.Driver) bool {
 		// Ignore real cameras.
-		return d.Info().DeviceType == driver.Camera && strings.Contains(d.Info().Label, "unittest")
+		return d.Info().DeviceType == driver.Camera && strings.Contains(d.Info().Label, "id-unittest")
 	})
 	if len(drvs) != 2 {
 		t.Fatalf("Expected 2 driver, got %d drivers", len(drvs))
@@ -121,9 +118,6 @@ func TestDiscoverByID(t *testing.T) {
 		drvs[0].Info().Label,
 		drvs[1].Info().Label,
 	}
-
-	// Empty drvs for next test
-	drvs = nil
 
 	// Returned drivers are unordered. Sort to get static result.
 	sort.Sort(sort.StringSlice(labels))
