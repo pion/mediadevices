@@ -15,10 +15,13 @@ import "C"
 // All functions switched at runtime must be declared also in convert_nocgo.go.
 const hasCGOConvert = true
 
-func i444ToI420(img image.YCbCr) image.YCbCr {
+func i444ToI420(img image.YCbCr, dst []uint8) image.YCbCr {
 	h := img.Rect.Dy()
 	cLen := img.CStride * h / 4
-	cbDst, crDst := make([]uint8, cLen), make([]uint8, cLen)
+	// Divide preallocated memory to cbDst and crDst
+	// and truncate cap and len to cLen
+	cbDst, crDst := dst[:cLen:cLen], dst[cLen:]
+	crDst = crDst[:cLen:cLen]
 	C.i444ToI420CGO(
 		(*C.uchar)(&cbDst[0]), (*C.uchar)(&crDst[0]),
 		(*C.uchar)(&img.Cb[0]), (*C.uchar)(&img.Cr[0]),
@@ -31,10 +34,13 @@ func i444ToI420(img image.YCbCr) image.YCbCr {
 	return img
 }
 
-func i422ToI420(img image.YCbCr) image.YCbCr {
+func i422ToI420(img image.YCbCr, dst []uint8) image.YCbCr {
 	h := img.Rect.Dy()
 	cLen := img.CStride * (h / 2)
-	cbDst, crDst := make([]uint8, cLen), make([]uint8, cLen)
+	// Divide preallocated memory to cbDst and crDst
+	// and truncate cap and len to cLen
+	cbDst, crDst := dst[:cLen:cLen], dst[cLen:]
+	crDst = crDst[:cLen:cLen]
 	C.i422ToI420CGO(
 		(*C.uchar)(&cbDst[0]), (*C.uchar)(&crDst[0]),
 		(*C.uchar)(&img.Cb[0]), (*C.uchar)(&img.Cr[0]),
