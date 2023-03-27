@@ -160,3 +160,34 @@ func TestGetCameraReadTimeout(t *testing.T) {
 		t.Errorf("Expected: %d, got: %d", expected, value)
 	}
 }
+
+func TestCalcFramerate(t *testing.T) {
+	framerates := []struct {
+		numerator   uint32
+		denominator uint32
+		expected    float32
+	}{
+		{1, 10, 10.0},
+		{1, 15, 15.0},
+		{1, 30, 30.0},
+		{1, 60, 60.0},
+		{1, 120, 120.0},
+	}
+
+	for _, framerate := range framerates {
+		value, err := calcFramerate(framerate.numerator, framerate.denominator)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// make sure we do not have any rounding errors
+		if value != framerate.expected {
+			t.Errorf("Expected: %f, got: %f", framerate.expected, value)
+		}
+	}
+
+	// divide by zero check
+	_, err := calcFramerate(1, 0)
+	if err == nil {
+		t.Errorf("Expected divide by zero error")
+	}
+}
