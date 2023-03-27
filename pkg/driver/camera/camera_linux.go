@@ -6,15 +6,17 @@ import "C"
 import (
 	"context"
 	"errors"
-	"github.com/pion/mediadevices/pkg/driver/availability"
 	"image"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/pion/mediadevices/pkg/driver/availability"
 
 	"github.com/blackjack/webcam"
 	"github.com/pion/mediadevices/pkg/driver"
@@ -314,13 +316,18 @@ func (c *camera) Properties() []prop.Media {
 			}
 
 			if frameSize.StepWidth == 0 || frameSize.StepHeight == 0 {
-				properties = append(properties, prop.Media{
-					Video: prop.Video{
-						Width:       int(frameSize.MaxWidth),
-						Height:      int(frameSize.MaxHeight),
-						FrameFormat: supportedFormat,
-					},
-				})
+				for _, framerate := range c.cam.GetSupportedFramerates(format, frameSize.MinWidth, frameSize.MinHeight) {
+					for _, fps := range enumFramerate(framerate) {
+						properties = append(properties, prop.Media{
+							Video: prop.Video{
+								Width:       int(frameSize.MaxWidth),
+								Height:      int(frameSize.MaxHeight),
+								FrameFormat: supportedFormat,
+								FrameRate:   fps,
+							},
+						})
+					}
+				}
 			} else {
 				// FIXME: we should probably use a custom data structure to capture all of the supported resolutions
 				for _, supportedResolution := range supportedResolutions {
@@ -339,13 +346,18 @@ func (c *camera) Properties() []prop.Media {
 						continue
 					}
 
-					properties = append(properties, prop.Media{
-						Video: prop.Video{
-							Width:       width,
-							Height:      height,
-							FrameFormat: supportedFormat,
-						},
-					})
+					for _, framerate := range c.cam.GetSupportedFramerates(format, uint32(width), uint32(height)) {
+						for _, fps := range enumFramerate(framerate) {
+							properties = append(properties, prop.Media{
+								Video: prop.Video{
+									Width:       width,
+									Height:      height,
+									FrameFormat: supportedFormat,
+									FrameRate:   fps,
+								},
+							})
+						}
+					}
 				}
 			}
 		}
@@ -384,4 +396,38 @@ func (c *camera) IsAvailable() (bool, error) {
 	default:
 		return false, availability.NewError(errno.Error())
 	}
+}
+
+// enumFramerate returns a list of fps options from a FrameRate struct.
+// discrete framerates will return a list of 1 fps element.
+// stepwise framerates will return a list of all possible fps options.
+func enumFramerate(framerate webcam.FrameRate) []float32 {
+	var framerates []float32
+	if framerate.StepNumerator == 0 && framerate.StepDenominator == 0 {
+		fr, err := calcFramerate(framerate.MaxNumerator, framerate.MaxDenominator)
+		if err != nil {
+			return framerates
+		}
+		framerates = append(framerates, fr)
+	} else {
+		for n := framerate.MinNumerator; n <= framerate.MaxNumerator; n += framerate.StepNumerator {
+			for d := framerate.MinDenominator; d <= framerate.MaxDenominator; d += framerate.StepDenominator {
+				fr, err := calcFramerate(n, d)
+				if err != nil {
+					continue
+				}
+				framerates = append(framerates, fr)
+			}
+		}
+	}
+	return framerates
+}
+
+// calcFramerate turns fraction into a float32 fps value.
+func calcFramerate(numerator uint32, denominator uint32) (float32, error) {
+	if denominator == 0 {
+		return 0, errors.New("framerate denominator is zero")
+	}
+	// round to three decimal places to avoid floating point precision issues
+	return float32(math.Round(1000.0/((float64(numerator))/float64(denominator))) / 1000), nil
 }

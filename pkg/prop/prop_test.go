@@ -85,6 +85,60 @@ func TestCompareMatch(t *testing.T) {
 			}},
 			true,
 		},
+		"FloatExactMatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				FrameRate: FloatExact(30),
+			}},
+			Media{Video: Video{
+				FrameRate: 30.0,
+			}},
+			true,
+		},
+		"FloatExactUnmatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				FrameRate: FloatExact(30),
+			}},
+			Media{Video: Video{
+				FrameRate: 30.1,
+			}},
+			false,
+		},
+		"FloatIdealMatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				FrameRate: Float(30),
+			}},
+			Media{Video: Video{
+				FrameRate: 30.0,
+			}},
+			true,
+		},
+		"FloatIdealUnmatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				FrameRate: Float(30),
+			}},
+			Media{Video: Video{
+				FrameRate: 10.0,
+			}},
+			true,
+		},
+		"FloatRangeMatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				FrameRate: FloatRanged{Min: 30, Max: 40},
+			}},
+			Media{Video: Video{
+				FrameRate: 35.0,
+			}},
+			true,
+		},
+		"FloatRangeUnmatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				FrameRate: FloatRanged{Min: 30, Max: 40},
+			}},
+			Media{Video: Video{
+				FrameRate: 50.0,
+			}},
+			false,
+		},
 		"FrameFormatOneOfUnmatch": {
 			MediaConstraints{VideoConstraints: VideoConstraints{
 				FrameFormat: FrameFormatOneOf{frame.FormatYUYV, frame.FormatUYVY},
@@ -365,4 +419,64 @@ func TestString(t *testing.T) {
 			},
 		})
 	})
+}
+
+func TestFrameRateProps(t *testing.T) {
+	testDataSet := map[string]struct {
+		a     MediaConstraints
+		b     Media
+		score float64
+		match bool
+	}{
+		"FrameRateIdealMatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				FrameRate: Float(30.0),
+			}},
+			Media{Video: Video{
+				FrameRate: 30.0,
+			}},
+			0.0,
+			true,
+		},
+		"FrameRateIdealUnmatch": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				FrameRate: Float(30.0),
+			}},
+			Media{Video: Video{
+				FrameRate: 60.0,
+			}},
+			0.5,
+			true,
+		},
+		"FrameRateConstraintMissing": {
+			// empty video fps constraint
+			MediaConstraints{VideoConstraints: VideoConstraints{}},
+			Media{Video: Video{
+				FrameRate: 30.0,
+			}},
+			0.0,
+			true,
+		},
+		"FrameRatePropMissing": {
+			MediaConstraints{VideoConstraints: VideoConstraints{
+				FrameRate: Float(30.0),
+			}},
+			// empty video fps property
+			Media{Video: Video{}},
+			0.0,
+			true,
+		},
+	}
+
+	for name, data := range testDataSet {
+		t.Run(name, func(t *testing.T) {
+			score, match := data.a.FitnessDistance(data.b)
+			if score != data.score {
+				t.Errorf("expected score %f, got %f", data.score, score)
+			}
+			if match != data.match {
+				t.Errorf("expected match %t, got %t", data.match, match)
+			}
+		})
+	}
 }
