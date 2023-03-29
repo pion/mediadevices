@@ -61,6 +61,8 @@ var (
 	}
 )
 
+const bufCount = 2
+
 // Camera implementation using v4l2
 // Reference: https://linuxtv.org/downloads/v4l-dvb-apis/uapi/v4l/videodev.html#videodev
 type camera struct {
@@ -162,7 +164,7 @@ func (c *camera) Open() error {
 	}
 
 	// Buffering should be handled in higher level.
-	err = cam.SetBufferCount(1)
+	err = cam.SetBufferCount(bufCount)
 	if err != nil {
 		return err
 	}
@@ -236,8 +238,8 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 				return nil, func() {}, io.EOF
 			}
 
-			if p.DiscardFramesOlderThan != 0 {
-				if time.Now().Sub(c.prevFrameTime) >= p.DiscardFramesOlderThan {
+			if p.DiscardFramesOlderThan != 0 && time.Now().Sub(c.prevFrameTime) >= p.DiscardFramesOlderThan {
+				for i := 0; i < bufCount; i++ {
 					_ = cam.WaitForFrame(readTimeoutSec)
 					_, _ = cam.ReadFrame()
 				}
