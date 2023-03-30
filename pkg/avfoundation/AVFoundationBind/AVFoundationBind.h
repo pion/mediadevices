@@ -27,6 +27,7 @@
 #define MAX_DEVICES                      8
 #define MAX_PROPERTIES                   64
 #define MAX_DEVICE_UID_CHARS             64
+#define MAX_DEVICE_NAME_CHARS            64
 
 typedef const char* STATUS;
 static STATUS STATUS_OK                       = (STATUS) NULL;
@@ -65,6 +66,7 @@ typedef struct AVBindSession AVBindSession, *PAVBindSession;
 
 typedef struct {
     char uid[MAX_DEVICE_UID_CHARS + 1];
+    char name[MAX_DEVICE_NAME_CHARS + 1];
 } AVBindDevice, *PAVBindDevice;
 
 // AVBindDevices returns a list of AVBindDevices. The result array is pointing to a static
