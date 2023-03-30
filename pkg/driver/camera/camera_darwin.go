@@ -32,6 +32,7 @@ func Initialize() {
 		driver.GetManager().Register(cam, driver.Info{
 			Label:      device.UID,
 			DeviceType: driver.Camera,
+			Name:       device.Name,
 		})
 	}
 }
