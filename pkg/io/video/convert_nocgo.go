@@ -14,7 +14,7 @@ func i444ToI420(img image.YCbCr, dst []uint8) image.YCbCr {
 	h := img.Rect.Dy()
 	addrSrc0 := 0
 	addrSrc1 := img.CStride
-	cLen := img.CStride * (h / 2)
+	cLen := img.CStride * (h / 4)
 	addrDst := 0
 	// Divide preallocated memory to cbDst and crDst
 	// and truncate cap and len to cLen
