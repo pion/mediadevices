@@ -116,7 +116,6 @@ func discover(discovered map[string]struct{}, pattern string) {
 			Label:      label + LabelSeparator + reallink,
 			DeviceType: driver.Camera,
 			Priority:   priority,
-			Name:       label,
 		})
 	}
 }
