@@ -70,7 +70,6 @@ func main() {
 ```
 
 ### More Examples
-
 * [Webrtc](/examples/webrtc) - Use Webrtc to create a realtime peer-to-peer video call
 * [Face Detection](/examples/facedetection) - Use a machine learning algorithm to detect faces in a camera stream
 * [RTP Stream](examples/rtp) - Capture camera stream, encode it in H264/VP8/VP9, and send it to a RTP server
@@ -78,12 +77,11 @@ func main() {
 * [Archive](/examples/archive) - Archive H264 encoded video stream from a camera
 
 ### Available Media Inputs
-
-| Input  | Linux | Mac | Windows |
+| Input      | Linux | Mac | Windows |
 | :--------: | :---: | :-: | :-----: |
-|   Camera   |  ✔️   | ✔️  |   ✔️    |
-| Microphone |  ✔️   | ✔️  |   ✔️    |
-|   Screen   |  ✔️   | ✔️  |   ✔️    |
+| Camera     | ✔️     | ✔️   | ✔️       |
+| Microphone | ✔️     | ✔️   | ✔️       |
+| Screen     | ✔️     | ✔️   | ✔️       |
 
 By default, there's no media input registered. This decision was made to allow you to play only what you need. Therefore, you need to import the associated packages for the media inputs. For example, if you want to use a camera, you need to import the camera package as a side effect:
 
@@ -95,7 +93,6 @@ import (
 ```
 
 ### Available Codecs
-
 In order to encode your video/audio, `mediadevices` needs to know what codecs that you want to use and their parameters. To do this, you need to import the associated packages for the codecs, and add them to the codec selector that you'll pass to `GetUserMedia`:
 
 ```go
@@ -177,7 +174,6 @@ A totally open, royalty-free, highly versatile audio codec.
   * Ubuntu: `apt install libopus-dev`
 
 ### Benchmark
-
 Result as of Nov 4, 2020 with Go 1.14 on a Raspberry pi 3, `mediadevices` can produce video, encode, send across network, and decode at **720p, 30 fps with < 500 ms latency**.  
 
 The test was taken by capturing a camera stream, decoding the raw frames, encoding the video stream with mmal, and sending the stream through Webrtc.
@@ -185,7 +181,6 @@ The test was taken by capturing a camera stream, decoding the raw frames, encodi
 ### FAQ
 
 #### Failed to find the best driver that fits the constraints
-
 `mediadevices` provides an automated driver discovery through `GetUserMedia` and `GetDisplayMedia`. The driver discover algorithm works something like:
 
 1. Open all registered drivers
@@ -198,7 +193,6 @@ So, when `mediadevices` returns `failed to find the best driver that fits the co
 * Your driver is not supported/implemented. In this case, you can either let us know (file an issue) and wait for the maintainers to implement it. Or, you can implement it yourself and register it through `RegisterDriverAdapter`
 
 #### Failed to find vpx/x264/mmal/opus codecs
-
 Since `mediadevices` uses cgo to access video/audio codecs, it needs to find these libraries from the system. To accomplish this, [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/) is used for library discovery.
 
 If you see the following error message at compile time:
