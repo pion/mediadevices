@@ -219,7 +219,7 @@ There are 2 common problems:
 * Pkg-config fails to find the `.pc` files for this codec ([reference](https://people.freedesktop.org/~dbn/pkg-config-guide.html#using)). In this case, you need to find where the codec library's `.pc` is stored, and let pkg-config knows with: `export PKG_CONFIG_PATH=/path/to/directory`.
 
 ### Roadmap
-The library is used as a part of our WebRTC implementation. Please refer to that [roadmap](https://github.com/pion/webrtc/issues/9) to track our major milestones.
+The library can be used with our WebRTC implementation. Please refer to that [roadmap](https://github.com/pion/webrtc/issues/9) to track our major milestones.
 
 ### Community
 Pion has an active community on the [Slack](https://pion.ly/slack).
