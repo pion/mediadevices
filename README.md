@@ -19,7 +19,7 @@
 
 `go get -u github.com/pion/mediadevices`
 
-## Usage
+### Usage
 
 The following snippet shows how to capture a camera stream and store a frame as a jpeg image:
 
@@ -67,11 +67,9 @@ func main() {
 	output, _ := os.Create("frame.jpg")
 	jpeg.Encode(output, frame, nil)
 }
-
-
 ```
 
-## More Examples
+### More Examples
 
 * [Webrtc](/examples/webrtc) - Use Webrtc to create a realtime peer-to-peer video call
 * [Face Detection](/examples/facedetection) - Use a machine learning algorithm to detect faces in a camera stream
@@ -79,7 +77,7 @@ func main() {
 * [HTTP Broadcast](/examples/http) - Broadcast camera stream through HTTP with MJPEG
 * [Archive](/examples/archive) - Archive H264 encoded video stream from a camera
 
-## Available Media Inputs
+### Available Media Inputs
 
 | Input  | Linux | Mac | Windows |
 | :--------: | :---: | :-: | :-----: |
@@ -96,7 +94,7 @@ import (
 )
 ```
 
-## Available Codecs
+### Available Codecs
 
 In order to encode your video/audio, `mediadevices` needs to know what codecs that you want to use and their parameters. To do this, you need to import the associated packages for the codecs, and add them to the codec selector that you'll pass to `GetUserMedia`:
 
@@ -130,9 +128,9 @@ Since `mediadevices` doesn't implement the video/audio codecs, it needs to call 
 
 Note: we do not provide recommendations on choosing one codec or another as it is very complex and can be subjective.
 
-### Video Codecs
+#### Video Codecs
 
-#### x264
+##### x264
 A free software library and application for encoding video streams into the H.264/MPEG-4 AVC compression format.
 
 * Package: [github.com/pion/mediadevices/pkg/codec/x264](https://pkg.go.dev/github.com/pion/mediadevices/pkg/codec/x264)
@@ -140,19 +138,19 @@ A free software library and application for encoding video streams into the H.26
   * Mac: `brew install x264`
   * Ubuntu: `apt install libx264-dev`
   
-#### mmal
+##### mmal
 A framework to enable H264 hardware encoding for Raspberry Pi or boards that use VideoCore GPUs.
 
 * Package: [github.com/pion/mediadevices/pkg/codec/mmal](https://pkg.go.dev/github.com/pion/mediadevices/pkg/codec/mmal)
 * Installation: no installation needed, mmal should come built in Raspberry Pi devices
 
-#### openh264
+##### openh264
 A codec library which supports H.264 encoding and decoding. It is suitable for use in real time applications.
 
 * Package: [github.com/pion/mediadevices/pkg/codec/openh264](https://pkg.go.dev/github.com/pion/mediadevices/pkg/codec/openh264)
 * Installation: no installation needed, included as a static binary
 
-#### vpx
+##### vpx
 A free software video codec library from Google and the Alliance for Open Media that implements VP8/VP9 video coding formats.
 
 * Package: [github.com/pion/mediadevices/pkg/codec/vpx](https://pkg.go.dev/github.com/pion/mediadevices/pkg/codec/vpx)
@@ -160,7 +158,7 @@ A free software video codec library from Google and the Alliance for Open Media 
   * Mac: `brew install libvpx`
   * Ubuntu: `apt install libvpx-dev`
   
-#### vaapi
+##### vaapi
 An open source API that allows applications such as VLC media player or GStreamer to use hardware video acceleration capabilities (currently support VP8/VP9).
 
 * Package: [github.com/pion/mediadevices/pkg/codec/vaapi](https://pkg.go.dev/github.com/pion/mediadevices/pkg/codec/vaapi)
@@ -168,9 +166,9 @@ An open source API that allows applications such as VLC media player or GStreame
   * Ubuntu: `apt install libva-dev`
 
 
-### Audio Codecs
+#### Audio Codecs
 
-#### opus
+##### opus
 A totally open, royalty-free, highly versatile audio codec.
 
 * Package: [github.com/pion/mediadevices/pkg/codec/opus](https://pkg.go.dev/github.com/pion/mediadevices/pkg/codec/opus)
@@ -178,15 +176,15 @@ A totally open, royalty-free, highly versatile audio codec.
   * Mac: `brew install opus`
   * Ubuntu: `apt install libopus-dev`
 
-## Benchmark
+### Benchmark
 
 Result as of Nov 4, 2020 with Go 1.14 on a Raspberry pi 3, `mediadevices` can produce video, encode, send across network, and decode at **720p, 30 fps with < 500 ms latency**.  
 
 The test was taken by capturing a camera stream, decoding the raw frames, encoding the video stream with mmal, and sending the stream through Webrtc.
 
-## FAQ
+### FAQ
 
-### Failed to find the best driver that fits the constraints
+#### Failed to find the best driver that fits the constraints
 
 `mediadevices` provides an automated driver discovery through `GetUserMedia` and `GetDisplayMedia`. The driver discover algorithm works something like:
 
@@ -199,7 +197,7 @@ So, when `mediadevices` returns `failed to find the best driver that fits the co
 * Your constraint is too strict that there's no driver can fullfil your requirements. In this case, you can try to turn up the debug level by specifying the following environment variable: `export PION_LOG_DEBUG=all` to see what was too strict and tune that.
 * Your driver is not supported/implemented. In this case, you can either let us know (file an issue) and wait for the maintainers to implement it. Or, you can implement it yourself and register it through `RegisterDriverAdapter`
 
-### Failed to find vpx/x264/mmal/opus codecs
+#### Failed to find vpx/x264/mmal/opus codecs
 
 Since `mediadevices` uses cgo to access video/audio codecs, it needs to find these libraries from the system. To accomplish this, [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/) is used for library discovery.
 
@@ -230,7 +228,7 @@ We are always looking to support **your projects**. Please reach out if you have
 If you need commercial support or don't want to use public methods you can contact us at [team@pion.ly](mailto:team@pion.ly)
 
 ### Contributing
-Check out the **[contributing wiki](https://github.com/pion/webrtc/wiki/Contributing)** to join the group of amazing people making this project possible: [AUTHORS.txt](./AUTHORS.txt)
+Check out the [contributing wiki](https://github.com/pion/webrtc/wiki/Contributing) to join the group of amazing people making this project possible: [AUTHORS.txt](./AUTHORS.txt)
 
 ### License
 MIT License - see [LICENSE](LICENSE) for full text
