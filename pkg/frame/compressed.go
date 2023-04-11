@@ -17,14 +17,44 @@ var (
 func decodeMJPEG(frame []byte, width, height int) (image.Image, func(), error) {
 	img, err := jpeg.Decode(bytes.NewReader(frame))
 
-	if err != nil && err.Error() == "invalid JPEG format: uninitialized Huffman table" {
-		img, err = jpeg.Decode(bytes.NewReader(addMotionDht(frame)))
+	if err == nil || (err != nil && err.Error() != "invalid JPEG format: uninitialized Huffman table") {
+		return img, func() {}, err
 	}
 
+	img, err = jpeg.Decode(bytes.NewReader(addMotionDht(frame)))
 	return img, func() {}, err
 }
 
 func addMotionDht(frame []byte) []byte {
 	jpegParts := bytes.Split(frame, sosMarker)
-	return append(jpegParts[0], append(dhtMarker, append(dht, append(sosMarker, jpegParts[1]...)...)...)...)
+	if len(jpegParts) != 2 {
+		return frame
+	}
+	correctedFrame := make([]byte, len(jpegParts[0])+len(dhtMarker)+len(dht)+len(sosMarker)+len(jpegParts[1]))
+	correctedFrameOffset := 0
+
+	for indx, item := range jpegParts[0] {
+		correctedFrame[indx] = item
+	}
+	correctedFrameOffset += len(jpegParts[0])
+
+	for indx, item := range dhtMarker {
+		correctedFrame[indx+correctedFrameOffset] = item
+	}
+	correctedFrameOffset += len(dhtMarker)
+
+	for indx, item := range dht {
+		correctedFrame[indx+correctedFrameOffset] = item
+	}
+	correctedFrameOffset += len(dht)
+
+	for indx, item := range sosMarker {
+		correctedFrame[indx+correctedFrameOffset] = item
+	}
+	correctedFrameOffset += len(sosMarker)
+
+	for indx, item := range jpegParts[1] {
+		correctedFrame[indx+correctedFrameOffset] = item
+	}
+	return correctedFrame
 }
