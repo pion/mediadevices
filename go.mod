@@ -3,7 +3,7 @@ module github.com/pion/mediadevices
 go 1.13
 
 require (
-	github.com/blackjack/webcam v0.0.0-20220329180758-ba064708e165
+	github.com/blackjack/webcam v0.0.0-20230411204030-32744c21431f
 	github.com/gen2brain/malgo v0.11.10
 	github.com/google/uuid v1.3.0
 	github.com/kbinani/screenshot v0.0.0-20210720154843-7d3a670d8329
@@ -14,5 +14,6 @@ require (
 	github.com/pion/webrtc/v3 v3.1.59
 	github.com/stretchr/testify v1.8.2
 	golang.org/x/image v0.5.0
+	golang.org/x/sys v0.7.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )

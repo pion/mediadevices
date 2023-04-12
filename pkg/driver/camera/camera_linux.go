@@ -112,7 +112,21 @@ func discover(discovered map[string]struct{}, pattern string) {
 		if reallink == prioritizedDevice {
 			priority = driver.PriorityHigh
 		}
+
+		var name, busInfo string
+		if webcamCam, err := webcam.Open(cam.path); err == nil {
+			name, _ = webcamCam.GetName()
+			busInfo, _ = webcamCam.GetBusInfo()
+		}
+
 		driver.GetManager().Register(cam, driver.Info{
+			// 	Source: https://www.kernel.org/doc/html/v4.9/media/uapi/v4l/vidioc-querycap.html
+			//	Name of the device, a NUL-terminated UTF-8 string. For example: “Yoyodyne TV/FM”. One driver may support
+			//	different brands or models of video hardware. This information is intended for users, for example in a
+			//	menu of available devices. Since multiple TV cards of the same brand may be installed which are
+			//	supported by the same driver, this name should be combined with the character device file name
+			//	(e.g. /dev/video2) or the bus_info string to avoid ambiguities.
+			Name:       name + LabelSeparator + busInfo,
 			Label:      label + LabelSeparator + reallink,
 			DeviceType: driver.Camera,
 			Priority:   priority,
