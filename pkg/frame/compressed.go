@@ -2,6 +2,7 @@ package frame
 
 import (
 	"bytes"
+	"errors"
 	"image"
 	"image/jpeg"
 )
@@ -16,12 +17,17 @@ var (
 
 func decodeMJPEG(frame []byte, width, height int) (image.Image, func(), error) {
 	img, err := jpeg.Decode(bytes.NewReader(frame))
-
-	if err == nil || (err != nil && err.Error() != "invalid JPEG format: uninitialized Huffman table") {
+	if err == nil {
 		return img, func() {}, err
 	}
 
-	img, err = jpeg.Decode(bytes.NewReader(addMotionDht(frame)))
+	var target jpeg.FormatError = jpeg.FormatError("uninitialized Huffman table")
+	if errors.As(err, &target) {
+		if err.Error() == target.Error() {
+			img, err = jpeg.Decode(bytes.NewReader(addMotionDht(frame)))
+		}
+	}
+
 	return img, func() {}, err
 }
 

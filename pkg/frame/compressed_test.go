@@ -42,3 +42,10 @@ func TestAddMotionDht(t *testing.T) {
 		t.Errorf("addMotionDht updated the frame despite being improperly constructed")
 	}
 }
+
+func TestDecodeMJPEG(t *testing.T) {
+	_, _, err := decodeMJPEG(UninitializedHuffmanTable, 640, 480)
+	if err != nil {
+		t.Errorf("Expected decode function to pass. Failed with %v\n", err)
+	}
+}
