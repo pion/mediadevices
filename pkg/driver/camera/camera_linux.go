@@ -113,8 +113,7 @@ func discover(discovered map[string]struct{}, pattern string) {
 			priority = driver.PriorityHigh
 		}
 
-		name := ""
-		busInfo := ""
+		var name, busInfo string
 		if webcamCam, err := webcam.Open(cam.path); err == nil {
 			name, _ = webcamCam.GetName()
 			busInfo, _ = webcamCam.GetBusInfo()
