@@ -15,9 +15,11 @@
 
 `mediadevices` provides access to media input devices like cameras, microphones, and screen capture. It can also be used to encode your video/audio stream to various codec selections. `mediadevices` abstracts away the complexities of interacting with things like hardware and codecs allowing you to focus on building appilcations, interacting only with an amazingly simple, easy, and elegant API!
 
-## Install
+### Install
 
-`go get -u github.com/pion/mediadevices`
+```bash
+go get -u github.com/pion/mediadevices
+```
 
 ### Usage
 
@@ -196,7 +198,8 @@ So, when `mediadevices` returns `failed to find the best driver that fits the co
 Since `mediadevices` uses cgo to access video/audio codecs, it needs to find these libraries from the system. To accomplish this, [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/) is used for library discovery.
 
 If you see the following error message at compile time:
-```
+
+```bash
 # pkg-config --cflags  -- vpx
 Package vpx was not found in the pkg-config search path.
 Perhaps you should add the directory containing `vpx.pc'
