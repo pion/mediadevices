@@ -526,6 +526,9 @@ func TestScale(t *testing.T) {
 }
 
 func TestScaleFastBoxSampling(t *testing.T) {
+	if !hasCGOConvert {
+		t.Skip("Skip: nocgo implementation is not supported for FastBoxSampling")
+	}
 	cases := map[string]struct {
 		src           image.Image
 		width, height int

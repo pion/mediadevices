@@ -57,8 +57,8 @@ func i422ToI420(img image.YCbCr, dst []uint8) image.YCbCr {
 		for j := 0; j < img.CStride; j++ {
 			cb := uint16(img.Cb[addrSrc]) + uint16(img.Cb[addrSrc+img.CStride])
 			cr := uint16(img.Cr[addrSrc]) + uint16(img.Cr[addrSrc+img.CStride])
-			cbDst[addrDst] = uint8(cb / 4)
-			crDst[addrDst] = uint8(cr / 4)
+			cbDst[addrDst] = uint8(cb / 2)
+			crDst[addrDst] = uint8(cr / 2)
 			addrSrc++
 			addrDst++
 		}
