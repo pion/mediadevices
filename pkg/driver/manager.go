@@ -1,5 +1,7 @@
 package driver
 
+import "sync"
+
 // FilterFn is being used to decide if a driver should be included in the
 // query result.
 type FilterFn func(Driver) bool
@@ -55,6 +57,7 @@ func FilterNot(filter FilterFn) FilterFn {
 
 // Manager is a singleton to manage multiple drivers and their states
 type Manager struct {
+	mu      sync.Mutex
 	drivers map[string]Driver
 }
 
@@ -69,6 +72,8 @@ func GetManager() *Manager {
 
 // Register registers adapter to be discoverable by Query
 func (m *Manager) Register(a Adapter, info Info) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	d := wrapAdapter(a, info)
 	m.drivers[d.ID()] = d
 	return nil
@@ -76,6 +81,8 @@ func (m *Manager) Register(a Adapter, info Info) error {
 
 // Query queries by using f to filter drivers, and simply return the filtered results.
 func (m *Manager) Query(f FilterFn) []Driver {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	results := make([]Driver, 0)
 	for _, d := range m.drivers {
 		if ok := f(d); ok {
