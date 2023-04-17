@@ -13,6 +13,7 @@ func TestAddMotionDht(t *testing.T) {
 	expectedErrorMessage := "invalid JPEG format: uninitialized Huffman table"
 	if err.Error() != expectedErrorMessage {
 		t.Errorf("Wrong decode error result,\nexpected:\n%+v\ngot:\n%+v", expectedErrorMessage, err)
+		t.FailNow()
 	}
 
 	// Decode passes after adding default Huffman table to
