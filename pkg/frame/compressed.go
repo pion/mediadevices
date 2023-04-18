@@ -7,7 +7,9 @@ import (
 	"image/jpeg"
 )
 
-/* addMotionDht, dhtMarker, dht, and sosMarker is protected under the following license:
+/*
+Thank you to https://github.com/filiptc/gorbit/blob/fa87ff39b68a6706306f34c318e0b9a5a3c97110/image/overlay.go#L37-L40
+for addMotionDht, dhtMarker, dht, and sosMarker. These are protected under the following license:
 
 The MIT License (MIT)
 
