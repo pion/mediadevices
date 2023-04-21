@@ -6,12 +6,14 @@ import "C"
 import (
 	"context"
 	"errors"
+	"github.com/pion/mediadevices/pkg/driver/availability"
 	"image"
 	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/blackjack/webcam"
@@ -349,4 +351,37 @@ func (c *camera) Properties() []prop.Media {
 		}
 	}
 	return properties
+}
+
+func (c *camera) IsAvailable() (bool, availability.Error) {
+	var err error
+
+	// close the opened file descriptor as quickly as possible and in all cases, including panics
+	func() {
+		var cam *webcam.Webcam
+		if cam, err = webcam.Open(c.path); err == nil {
+			defer cam.Close()
+			var index int32
+			// "Drivers must implement all the input ioctls when the device has one or more inputs..."
+			// Source: https://www.kernel.org/doc/html/latest/userspace-api/media/v4l/video.html?highlight=vidioc_enuminput
+			if index, err = cam.GetInput(); err == nil {
+				err = cam.SelectInput(uint32(index))
+			}
+		}
+	}()
+
+	var errno syscall.Errno
+	errors.As(err, &errno)
+
+	// See https://man7.org/linux/man-pages/man3/errno.3.html
+	switch {
+	case err == nil:
+		return true, nil
+	case errno == syscall.EBUSY:
+		return false, availability.ErrBusy
+	case errno == syscall.ENODEV || errno == syscall.ENOENT:
+		return false, availability.ErrNoDevice
+	default:
+		return false, availability.NewError(errno.Error())
+	}
 }
