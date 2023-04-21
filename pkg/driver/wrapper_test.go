@@ -2,6 +2,7 @@ package driver
 
 import (
 	"fmt"
+	"github.com/pion/mediadevices/pkg/driver/availability"
 	"testing"
 
 	"github.com/pion/mediadevices/pkg/io/audio"
@@ -38,6 +39,10 @@ type audioAdapterBrokenMock struct{ adapterMock }
 func (a *audioAdapterBrokenMock) AudioRecord(p prop.Media) (r audio.Reader, err error) {
 	return nil, recordErr
 }
+
+type availabilityAdapterMock struct{ videoAdapterMock }
+
+func (a *availabilityAdapterMock) IsAvailable() (bool, availability.Error) { return true, nil }
 
 func TestVideoWrapperState(t *testing.T) {
 	var a videoAdapterMock
@@ -134,5 +139,40 @@ func TestAudioWrapperWithBrokenRecorderState(t *testing.T) {
 
 	if d.Status() != StateClosed {
 		t.Errorf("expected the status to be %v, but got %v", StateClosed, d.Status())
+	}
+}
+
+func TestWrapperAvailabilityAdapter(t *testing.T) {
+	var aa availabilityAdapterMock
+	d := wrapAdapter(&aa, Info{})
+
+	ok, err := IsAvailable(d)
+	if err != nil {
+		t.Errorf("expected nil, but got %v", err)
+	}
+	if !ok {
+		t.Errorf("expected true, but got %v", ok)
+	}
+
+	var v videoAdapterMock
+	d = wrapAdapter(&v, Info{})
+
+	ok, err = IsAvailable(d)
+	if err == nil {
+		t.Errorf("expected err, but got %v", err)
+	}
+	if ok {
+		t.Errorf("expected false, but got %v", ok)
+	}
+
+	var a audioAdapterMock
+	d = wrapAdapter(&a, Info{})
+
+	ok, err = IsAvailable(d)
+	if err == nil {
+		t.Errorf("expected err, but got %v", err)
+	}
+	if ok {
+		t.Errorf("expected false, but got %v", ok)
 	}
 }

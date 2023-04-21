@@ -2,6 +2,7 @@ package driver
 
 import (
 	"github.com/google/uuid"
+	"github.com/pion/mediadevices/pkg/driver/availability"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -21,6 +22,10 @@ func wrapAdapter(a Adapter, info Info) Driver {
 		state:   StateClosed,
 	}
 
+	if aa, ok := a.(AvailabilityAdapter); ok {
+		d.isAvailable = aa.IsAvailable
+	}
+
 	switch v := a.(type) {
 	case VideoRecorder:
 		// Only expose Driver and VideoRecorder interfaces
@@ -28,7 +33,8 @@ func wrapAdapter(a Adapter, info Info) Driver {
 		r := &struct {
 			Driver
 			VideoRecorder
-		}{d, d}
+			AvailabilityAdapter
+		}{d, d, d}
 		return r
 	case AudioRecorder:
 		// Only expose Driver and AudioRecorder interfaces
@@ -36,7 +42,8 @@ func wrapAdapter(a Adapter, info Info) Driver {
 		return &struct {
 			Driver
 			AudioRecorder
-		}{d, d}
+			AvailabilityAdapter
+		}{d, d, d}
 	default:
 		panic("adapter has to be either VideoRecorder/AudioRecorder")
 	}
@@ -46,9 +53,10 @@ type adapterWrapper struct {
 	Adapter
 	VideoRecorder
 	AudioRecorder
-	id    string
-	info  Info
-	state State
+	id          string
+	info        Info
+	state       State
+	isAvailable func() (bool, availability.Error)
 }
 
 func (w *adapterWrapper) ID() string {
@@ -103,4 +111,11 @@ func (w *adapterWrapper) AudioRecord(p prop.Media) (r audio.Reader, err error) {
 		_ = w.Close()
 	}
 	return
+}
+
+func (w *adapterWrapper) IsAvailable() (bool, availability.Error) {
+	if w.isAvailable == nil {
+		return false, availability.ErrUnimplemented
+	}
+	return w.isAvailable()
 }
