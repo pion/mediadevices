@@ -2,7 +2,6 @@ package driver
 
 import (
 	"fmt"
-	"github.com/pion/mediadevices/pkg/driver/availability"
 	"testing"
 
 	"github.com/pion/mediadevices/pkg/io/audio"
@@ -42,7 +41,7 @@ func (a *audioAdapterBrokenMock) AudioRecord(p prop.Media) (r audio.Reader, err 
 
 type availabilityAdapterMock struct{ videoAdapterMock }
 
-func (a *availabilityAdapterMock) IsAvailable() (bool, availability.Error) { return true, nil }
+func (a *availabilityAdapterMock) IsAvailable() (bool, error) { return true, nil }
 
 func TestVideoWrapperState(t *testing.T) {
 	var a videoAdapterMock
