@@ -353,7 +353,7 @@ func (c *camera) Properties() []prop.Media {
 	return properties
 }
 
-func (c *camera) IsAvailable() (bool, availability.Error) {
+func (c *camera) IsAvailable() (bool, error) {
 	var err error
 
 	// close the opened file descriptor as quickly as possible and in all cases, including panics

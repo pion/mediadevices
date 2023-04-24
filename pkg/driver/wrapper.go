@@ -56,7 +56,7 @@ type adapterWrapper struct {
 	id          string
 	info        Info
 	state       State
-	isAvailable func() (bool, availability.Error)
+	isAvailable func() (bool, error)
 }
 
 func (w *adapterWrapper) ID() string {
@@ -113,7 +113,7 @@ func (w *adapterWrapper) AudioRecord(p prop.Media) (r audio.Reader, err error) {
 	return
 }
 
-func (w *adapterWrapper) IsAvailable() (bool, availability.Error) {
+func (w *adapterWrapper) IsAvailable() (bool, error) {
 	if w.isAvailable == nil {
 		return false, availability.ErrUnimplemented
 	}
