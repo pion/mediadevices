@@ -48,10 +48,10 @@ type Driver interface {
 }
 
 type AvailabilityAdapter interface {
-	IsAvailable() (bool, availability.Error)
+	IsAvailable() (bool, error)
 }
 
-func IsAvailable(d Driver) (bool, availability.Error) {
+func IsAvailable(d Driver) (bool, error) {
 	if aa, ok := d.(AvailabilityAdapter); ok {
 		return aa.IsAvailable()
 	}

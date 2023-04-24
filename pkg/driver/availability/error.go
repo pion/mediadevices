@@ -4,20 +4,23 @@ import (
 	"errors"
 )
 
-type Error interface {
-	Error() string
-}
-
-var ErrUnimplemented Error = errors.New("not implemented")
-var ErrBusy Error = errors.New("device or resource busy")
-var ErrNoDevice Error = errors.New("no such device")
+var (
+	ErrUnimplemented = NewError("not implemented")
+	ErrBusy          = NewError("device or resource busy")
+	ErrNoDevice      = NewError("no such device")
+)
 
 type errorString struct {
 	s string
 }
 
-func NewError(text string) Error {
+func NewError(text string) error {
 	return &errorString{text}
+}
+
+func IsError(err error) bool {
+	var target *errorString
+	return errors.As(err, &target)
 }
 
 func (e *errorString) Error() string {
