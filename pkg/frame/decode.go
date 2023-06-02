@@ -17,6 +17,8 @@ const (
 	FormatNV12 = "NV12"
 	// FormatYUY2 https://www.fourcc.org/pixel-format/yuv-yuy2/
 	FormatYUY2 = "YUY2"
+	// FormatYUYV https://www.fourcc.org/pixel-format/yuv-yuy2/
+	FormatYUYV = "YUYV"
 	// FormatUYVY https://www.fourcc.org/pixel-format/yuv-uyvy/
 	FormatUYVY = "UYVY"
 
@@ -30,13 +32,12 @@ const (
 	FormatZ16 = "Z16"
 )
 
-const FormatYUYV = FormatYUY2
-
 var decoderMap = map[Format]decoderFunc{
 	FormatI420:  decodeI420,
 	FormatNV21:  decodeNV21,
 	FormatNV12:  decodeNV12,
 	FormatYUY2:  decodeYUY2,
+	FormatYUYV:  decodeYUY2,
 	FormatUYVY:  decodeUYVY,
 	FormatMJPEG: decodeMJPEG,
 	FormatZ16:   decodeZ16,
