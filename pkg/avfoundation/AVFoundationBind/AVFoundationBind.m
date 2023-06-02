@@ -139,7 +139,7 @@ STATUS frameFormatToFourCC(AVBindFrameFormat format, FourCharCode *pFourCC) {
         case AVBindFrameFormatUYVY:
             *pFourCC = kCVPixelFormatType_422YpCbCr8;
             break;
-        case AVBindFrameFormatYUY2:
+        case AVBindFrameFormatYUYV:
             *pFourCC = kCVPixelFormatType_422YpCbCr8_yuvs;
             break;
         // TODO: Add the rest of frame formats
@@ -163,7 +163,7 @@ STATUS frameFormatFromFourCC(FourCharCode fourCC, AVBindFrameFormat *pFormat) {
             *pFormat = AVBindFrameFormatUYVY;
             break;
         case kCVPixelFormatType_422YpCbCr8_yuvs:
-            *pFormat = AVBindFrameFormatYUY2;
+            *pFormat = AVBindFrameFormatYUYV;
             break;
          // TODO: Add the rest of frame formats
         default:
