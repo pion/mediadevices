@@ -12,7 +12,7 @@ require (
 	github.com/pion/rtcp v1.2.10
 	github.com/pion/rtp v1.7.13
 	github.com/pion/webrtc/v3 v3.2.6
-	github.com/stretchr/testify v1.8.3
+	github.com/stretchr/testify v1.8.4
 	golang.org/x/image v0.7.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
