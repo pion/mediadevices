@@ -193,6 +193,7 @@ So, when `mediadevices` returns `failed to find the best driver that fits the co
 * Driver was not imported as a side effect in your program, e.g. `import _ github.com/pion/mediadevices/pkg/driver/camera`
 * Your constraint is too strict that there's no driver can fullfil your requirements. In this case, you can try to turn up the debug level by specifying the following environment variable: `export PION_LOG_DEBUG=all` to see what was too strict and tune that.
 * Your driver is not supported/implemented. In this case, you can either let us know (file an issue) and wait for the maintainers to implement it. Or, you can implement it yourself and register it through `RegisterDriverAdapter`
+* If trying to use `import _ github.com/pion/mediadevices/pkg/driver/screen` note that you will need to use `GetDisplayMedia` instead of `GetUserMedia` 
 
 #### Failed to find vpx/x264/mmal/opus codecs
 Since `mediadevices` uses cgo to access video/audio codecs, it needs to find these libraries from the system. To accomplish this, [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/) is used for library discovery.
