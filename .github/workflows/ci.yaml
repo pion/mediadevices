@@ -72,7 +72,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: homebrew/Library/Taps
-          key: ${{ runner.os }}-brew-taps-${{ outputs.brew-cache-key.key }}
+          key: ${{ runner.os }}-brew-taps-${{ steps.brew-cache-key.outputs.key }}
           restore-key: ${{ runner.os }}-brew-taps-
       - name: Set up brew to install deps under temporary dir
         if: matrix.runs-on != 'macos-latest'
