@@ -61,6 +61,12 @@ jobs:
         with:
           repository: Homebrew/brew
           path: homebrew
+      - name: Cache local brew taps
+        if: matrix.runs-on != 'macos-latest' # set up local brew only on self-hosted
+        uses: actions/cache@v3
+        with:
+          path: homebrew/Library/Taps
+          key: ${{ runner.os }}-brew-taps
       - name: Set up brew to install deps under temporary dir
         if: matrix.runs-on != 'macos-latest' # set up local brew only on self-hosted
         run: |
