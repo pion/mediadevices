@@ -55,14 +55,27 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go }}
+
+      # Set up local brew only on self-hosted darwin
       - name: Checkout Homebrew
         if: matrix.runs-on != 'macos-latest'
         uses: actions/checkout@v3
         with:
           repository: Homebrew/brew
           path: homebrew
+      - name: Local brew cache key
+        if: matrix.runs-on != 'macos-latest'
+        id: brew-cache-key
+        run: echo "key=$(date +'%Y-%U')" | tee ${GITHUB_OUTPUT} # weekly update cache
+      - name: Cache local brew taps
+        if: matrix.runs-on != 'macos-latest'
+        uses: actions/cache@v3
+        with:
+          path: homebrew/Library/Taps
+          key: ${{ runner.os }}-brew-taps-${{ steps.brew-cache-key.outputs.key }}
+          restore-keys: ${{ runner.os }}-brew-taps-
       - name: Set up brew to install deps under temporary dir
-        if: matrix.runs-on != 'macos-latest' # set up local brew only on self-hosted
+        if: matrix.runs-on != 'macos-latest'
         run: |
           dir="${GITHUB_WORKSPACE}/homebrew"
           cd "${dir}"
@@ -78,6 +91,7 @@ jobs:
           echo "Brew update" >&2
           brew update --force --quiet
           chmod -R go-w "$(brew --prefix)/share/zsh"
+
       - name: Install dependencies
         run: |
           which brew
