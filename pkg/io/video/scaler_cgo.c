@@ -29,7 +29,7 @@ void fastBoxSampling(
     const int sw, const int sh, const int sstride,
     uint32_t* tmp)
 {
-  memset(tmp, 0, dw * dh * ch * sizeof(tmp[0]));
+  memset(tmp, 0, dstride * dh * ch * sizeof(tmp[0]));
 
   for (int sy = 0; sy < sh; sy++)
   {
@@ -39,12 +39,13 @@ void fastBoxSampling(
     uint32_t* tmp2 = &tmp[ty * dstride];
     for (int sx = 0; sx < sw * ch; sx += ch)
     {
-      if (tx * sw < sx * dw)
-        tx += ch;
-
       for (int c = 0; c < ch; c++)
       {
         tmp2[tx + c] += 0x10000 | src2[sx + c];
+      }
+      if (tx * sw < sx * dw)
+      {
+        tx += ch;
       }
     }
   }
