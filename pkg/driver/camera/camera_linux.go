@@ -316,7 +316,20 @@ func (c *camera) Properties() []prop.Media {
 			}
 
 			if frameSize.StepWidth == 0 || frameSize.StepHeight == 0 {
-				for _, framerate := range c.cam.GetSupportedFramerates(format, frameSize.MinWidth, frameSize.MinHeight) {
+				framerates := c.cam.GetSupportedFramerates(format, uint32(frameSize.MaxWidth), uint32(frameSize.MaxHeight))
+				// If the camera doesn't support framerate, we just add the resolution and format
+				if len(framerates) == 0 {
+					properties = append(properties, prop.Media{
+						Video: prop.Video{
+							Width:       int(frameSize.MaxWidth),
+							Height:      int(frameSize.MaxHeight),
+							FrameFormat: supportedFormat,
+						},
+					})
+					continue
+				}
+
+				for _, framerate := range framerates {
 					for _, fps := range enumFramerate(framerate) {
 						properties = append(properties, prop.Media{
 							Video: prop.Video{
@@ -346,7 +359,20 @@ func (c *camera) Properties() []prop.Media {
 						continue
 					}
 
-					for _, framerate := range c.cam.GetSupportedFramerates(format, uint32(width), uint32(height)) {
+					framerates := c.cam.GetSupportedFramerates(format, uint32(width), uint32(height))
+					// If the camera doesn't support framerate, we just add the resolution and format
+					if len(framerates) == 0 {
+						properties = append(properties, prop.Media{
+							Video: prop.Video{
+								Width:       width,
+								Height:      height,
+								FrameFormat: supportedFormat,
+							},
+						})
+						continue
+					}
+
+					for _, framerate := range framerates {
 						for _, fps := range enumFramerate(framerate) {
 							properties = append(properties, prop.Media{
 								Video: prop.Video{
