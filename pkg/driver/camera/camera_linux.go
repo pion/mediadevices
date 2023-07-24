@@ -360,7 +360,6 @@ func (c *camera) Properties() []prop.Media {
 					}
 
 					framerates := c.cam.GetSupportedFramerates(format, uint32(width), uint32(height))
-					// If the camera doesn't support framerate, we just add the resolution and format
 					if len(framerates) == 0 {
 						properties = append(properties, prop.Media{
 							Video: prop.Video{
