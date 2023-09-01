@@ -87,7 +87,7 @@ func TestOnEnded(t *testing.T) {
 			called <- errExpected
 		})
 
-		_, err := tr.Bind(webrtc.TrackLocalContext{})
+		_, err := tr.Bind(&fakeTrackLocalContext{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -101,6 +101,10 @@ func TestOnEnded(t *testing.T) {
 			t.Error("Timeout")
 		}
 	})
+}
+
+type fakeTrackLocalContext struct {
+	webrtc.TrackLocalContext
 }
 
 type fakeRTCPReader struct {
