@@ -19,7 +19,7 @@ jobs:
     name: Linux Go ${{ matrix.go }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
@@ -50,7 +50,7 @@ jobs:
     name: Darwin Go ${{ matrix.go }} ${{ join(matrix.runs-on, ' ') }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
@@ -59,7 +59,7 @@ jobs:
       # Set up local brew only on self-hosted darwin
       - name: Checkout Homebrew
         if: matrix.runs-on != 'macos-latest'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: Homebrew/brew
           path: homebrew
@@ -107,7 +107,7 @@ jobs:
     name: Check Licenses
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
