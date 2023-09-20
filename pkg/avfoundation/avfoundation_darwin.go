@@ -34,6 +34,7 @@ type Device struct {
 	// UID is a unique identifier for a device
 	UID     string
 	cDevice C.AVBindDevice
+	Name    string
 }
 
 func frameFormatToAVBind(f frame.Format) (C.AVBindFrameFormat, bool) {
@@ -44,8 +45,8 @@ func frameFormatToAVBind(f frame.Format) (C.AVBindFrameFormat, bool) {
 		return C.AVBindFrameFormatNV21, true
 	case frame.FormatNV12:
 		return C.AVBindFrameFormatNV12, true
-	case frame.FormatYUY2:
-		return C.AVBindFrameFormatYUY2, true
+	case frame.FormatYUYV:
+		return C.AVBindFrameFormatYUYV, true
 	case frame.FormatUYVY:
 		return C.AVBindFrameFormatUYVY, true
 	default:
@@ -61,8 +62,8 @@ func frameFormatFromAVBind(f C.AVBindFrameFormat) (frame.Format, bool) {
 		return frame.FormatNV21, true
 	case C.AVBindFrameFormatNV12:
 		return frame.FormatNV12, true
-	case C.AVBindFrameFormatYUY2:
-		return frame.FormatYUY2, true
+	case C.AVBindFrameFormatYUYV:
+		return frame.FormatYUYV, true
 	case C.AVBindFrameFormatUYVY:
 		return frame.FormatUYVY, true
 	default:
@@ -87,6 +88,7 @@ func Devices(mediaType MediaType) ([]Device, error) {
 	for i := range devices {
 		devices[i].UID = C.GoString(&cDevices[i].uid[0])
 		devices[i].cDevice = cDevices[i]
+		devices[i].Name = C.GoString(&cDevices[i].name[0])
 	}
 
 	return devices, nil

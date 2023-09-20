@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"github.com/pion/mediadevices/pkg/driver/availability"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -30,6 +31,7 @@ type Info struct {
 	Label      string
 	DeviceType DeviceType
 	Priority   Priority
+	Name       string
 }
 
 type Adapter interface {
@@ -43,4 +45,15 @@ type Driver interface {
 	ID() string
 	Info() Info
 	Status() State
+}
+
+type AvailabilityAdapter interface {
+	IsAvailable() (bool, error)
+}
+
+func IsAvailable(d Driver) (bool, error) {
+	if aa, ok := d.(AvailabilityAdapter); ok {
+		return aa.IsAvailable()
+	}
+	return false, availability.ErrUnimplemented
 }

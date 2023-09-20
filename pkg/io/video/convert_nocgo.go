@@ -10,13 +10,16 @@ import (
 
 const hasCGOConvert = false
 
-func i444ToI420(img image.YCbCr) image.YCbCr {
+func i444ToI420(img image.YCbCr, dst []uint8) image.YCbCr {
 	h := img.Rect.Dy()
 	addrSrc0 := 0
 	addrSrc1 := img.CStride
-	cLen := img.CStride * (h / 2)
+	cLen := img.CStride * (h / 4)
 	addrDst := 0
-	cbDst, crDst := make([]uint8, cLen), make([]uint8, cLen)
+	// Divide preallocated memory to cbDst and crDst
+	// and truncate cap and len to cLen
+	cbDst, crDst := dst[:cLen:cLen], dst[cLen:]
+	crDst = crDst[:cLen:cLen]
 
 	for i := 0; i < h/2; i++ {
 		for j := 0; j < img.CStride/2; j++ {
@@ -40,19 +43,22 @@ func i444ToI420(img image.YCbCr) image.YCbCr {
 	return img
 }
 
-func i422ToI420(img image.YCbCr) image.YCbCr {
+func i422ToI420(img image.YCbCr, dst []uint8) image.YCbCr {
 	h := img.Rect.Dy()
 	addrSrc := 0
 	cLen := img.CStride * (h / 2)
-	cbDst, crDst := make([]uint8, cLen), make([]uint8, cLen)
+	// Divide preallocated memory to cbDst and crDst
+	// and truncate cap and len to cLen
+	cbDst, crDst := dst[:cLen:cLen], dst[cLen:]
+	crDst = crDst[:cLen:cLen]
 	addrDst := 0
 
 	for i := 0; i < h/2; i++ {
 		for j := 0; j < img.CStride; j++ {
 			cb := uint16(img.Cb[addrSrc]) + uint16(img.Cb[addrSrc+img.CStride])
 			cr := uint16(img.Cr[addrSrc]) + uint16(img.Cr[addrSrc+img.CStride])
-			cbDst[addrDst] = uint8(cb / 4)
-			crDst[addrDst] = uint8(cr / 4)
+			cbDst[addrDst] = uint8(cb / 2)
+			crDst[addrDst] = uint8(cr / 2)
 			addrSrc++
 			addrDst++
 		}

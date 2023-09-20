@@ -68,6 +68,7 @@ func Initialize() {
 				Label:      device.ID.String(),
 				DeviceType: driver.Microphone,
 				Priority:   priority,
+				Name:       info.Name(),
 			})
 		}
 	}
