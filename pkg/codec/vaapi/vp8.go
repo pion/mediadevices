@@ -62,6 +62,7 @@ import (
 	"image"
 	"io"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/codec"
@@ -100,7 +101,7 @@ type encoderVP8 struct {
 
 	rate *framerateDetector
 
-	forceKeyFrame bool
+	forceKeyFrame atomic.Bool
 
 	mu     sync.Mutex
 	closed bool
@@ -318,7 +319,7 @@ func (e *encoderVP8) Read() ([]byte, func(), error) {
 
 	e.frParam.data.framerate = C.uint(e.rate.Calc())
 
-	if kf || e.forceKeyFrame {
+	if kf || e.forceKeyFrame.CompareAndSwap(true, false) {
 		// Key frame
 		C.setForceKFFlagVP8(&e.picParam, 1)
 		C.setFrameTypeFlagVP8(&e.picParam, 0)
@@ -549,7 +550,7 @@ func (e *encoderVP8) Controller() codec.EncoderController {
 }
 
 func (e *encoderVP8) ForceKeyFrame() {
-	e.forceKeyFrame = true
+	e.forceKeyFrame.Store(true)
 }
 
 func (e *encoderVP8) Close() error {
