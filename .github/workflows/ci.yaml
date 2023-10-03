@@ -14,8 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         go:
-          - '1.18'
-          - '1.19'
+          - '1.20'
+          - '1.21'
     name: Linux Go ${{ matrix.go }}
     steps:
       - name: Checkout
@@ -35,7 +35,7 @@ jobs:
       - name: Run Test Suite
         run: make test
       - uses: codecov/codecov-action@v3	
-        if: matrix.go == '1.19'
+        if: matrix.go == '1.21'
   build-darwin:
     strategy:
       fail-fast: false
@@ -44,8 +44,8 @@ jobs:
           - macos-latest
           - ['self-hosted', 'macOS', 'ARM64']
         go:
-          - '1.18'
-          - '1.19'
+          - '1.20'
+          - '1.21'
     runs-on: ${{ matrix.runs-on }}
     name: Darwin Go ${{ matrix.go }} ${{ join(matrix.runs-on, ' ') }}
     steps:
@@ -111,7 +111,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.19'
+          go-version: '1.21'
       - name: Installing go-licenses
         run: go install github.com/google/go-licenses@latest
       - name: Checking licenses
