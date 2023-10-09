@@ -7,7 +7,7 @@ require (
 	github.com/gen2brain/malgo v0.11.10
 	github.com/google/uuid v1.3.1
 	github.com/kbinani/screenshot v0.0.0-20230812210009-b87d31814237
-	github.com/pion/interceptor v0.1.20
+	github.com/pion/interceptor v0.1.22
 	github.com/pion/logging v0.2.2
 	github.com/pion/rtcp v1.2.10
 	github.com/pion/rtp v1.8.2
