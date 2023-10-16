@@ -92,3 +92,10 @@ func (m *Manager) Query(f FilterFn) []Driver {
 
 	return results
 }
+
+// Delete deletes a driver from manager given its ID
+func (m *Manager) Delete(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.drivers, id)
+}

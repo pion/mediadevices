@@ -86,6 +86,12 @@ func init() {
 
 // Initialize finds and registers camera devices. This is part of an experimental API.
 func Initialize() {
+	// Clear all registered camera devices to prevent duplicates.
+	// If first initalize call, this will be a noop.
+	manager := driver.GetManager()
+	for _, d := range manager.Query(driver.FilterVideoRecorder()) {
+		manager.Delete(d.ID())
+	}
 	discovered := make(map[string]struct{})
 	discover(discovered, "/dev/v4l/by-id/*")
 	discover(discovered, "/dev/v4l/by-path/*")
