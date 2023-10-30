@@ -186,7 +186,7 @@ STATUS AVBindDevices(AVBindMediaType mediaType, PAVBindDevice *ppDevices, int *p
     AVMediaType _mediaType = mediaType == AVBindMediaTypeVideo ? AVMediaTypeVideo : AVMediaTypeAudio;
 
     NSArray *refAllTypes;
-    #ifdef SONOMA_MICROPHONE_TYPE
+    #if defined(SONOMA_MICROPHONE_TYPE)
     refAllTypes = @[
        AVCaptureDeviceTypeBuiltInWideAngleCamera,
        AVCaptureDeviceTypeMicrophone,
@@ -199,8 +199,6 @@ STATUS AVBindDevices(AVBindMediaType mediaType, PAVBindDevice *ppDevices, int *p
        AVCaptureDeviceTypeExternalUnknown,
     ];
     #endif
-
-
 
     AVCaptureDeviceDiscoverySession *refSession = [AVCaptureDeviceDiscoverySession
                                                    discoverySessionWithDeviceTypes: refAllTypes
