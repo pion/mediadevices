@@ -46,6 +46,8 @@
         } \
     } while(0)
 
+#define SONOMA_MICROPHONE_TYPE AVCaptureDeviceTypeMicrophone
+
 @interface VideoDataDelegate : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
 
 @property (readonly) AVBindDataCallback mCallback;
@@ -184,19 +186,19 @@ STATUS AVBindDevices(AVBindMediaType mediaType, PAVBindDevice *ppDevices, int *p
     AVMediaType _mediaType = mediaType == AVBindMediaTypeVideo ? AVMediaTypeVideo : AVMediaTypeAudio;
 
     NSArray *refAllTypes;
-    if (@available(macOS 14.0, *)) {
-       refAllTypes = @[
-           AVCaptureDeviceTypeBuiltInWideAngleCamera,
-           AVCaptureDeviceTypeMicrophone,
-           AVCaptureDeviceTypeExternal,
-       ];
-    } else {
-       refAllTypes = @[
-           AVCaptureDeviceTypeBuiltInWideAngleCamera,
-           AVCaptureDeviceTypeBuiltInMicrophone,
-           AVCaptureDeviceTypeExternalUnknown,
-       ];
-    }
+    #ifdef SONOMA_MICROPHONE_TYPE
+    refAllTypes = @[
+       AVCaptureDeviceTypeBuiltInWideAngleCamera,
+       AVCaptureDeviceTypeMicrophone,
+       AVCaptureDeviceTypeExternal,
+    ];
+    #else
+    refAllTypes = @[
+       AVCaptureDeviceTypeBuiltInWideAngleCamera,
+       AVCaptureDeviceTypeBuiltInMicrophone,
+       AVCaptureDeviceTypeExternalUnknown,
+    ];
+    #endif
 
 
 
