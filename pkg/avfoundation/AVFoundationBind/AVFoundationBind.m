@@ -183,19 +183,20 @@ STATUS AVBindDevices(AVBindMediaType mediaType, PAVBindDevice *ppDevices, int *p
     PAVBindDevice pDevice;
     AVMediaType _mediaType = mediaType == AVBindMediaTypeVideo ? AVMediaTypeVideo : AVMediaTypeAudio;
 
-    #if __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_14_0
-       NSArray *refAllTypes = @[
+    NSArray *refAllTypes;
+    if (@available(macOS 14.0, *)) {
+       refAllTypes = @[
            AVCaptureDeviceTypeBuiltInWideAngleCamera,
            AVCaptureDeviceTypeMicrophone,
            AVCaptureDeviceTypeExternal,
        ];
-    #else
-       NSArray *refAllTypes = @[
+    } else {
+       refAllTypes = @[
            AVCaptureDeviceTypeBuiltInWideAngleCamera,
            AVCaptureDeviceTypeBuiltInMicrophone,
            AVCaptureDeviceTypeExternalUnknown,
        ];
-    #endif
+    }
 
 
 
