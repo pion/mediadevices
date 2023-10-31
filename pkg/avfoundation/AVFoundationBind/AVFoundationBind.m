@@ -46,6 +46,8 @@
         } \
     } while(0)
 
+static NSString *const UnrecognizedMacOSVersionException = @"UnrecognizedMacOSVersionException";
+
 @interface VideoDataDelegate : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
 
 @property (readonly) AVBindDataCallback mCallback;
@@ -191,13 +193,10 @@ STATUS AVBindDevices(AVBindMediaType mediaType, PAVBindDevice *ppDevices, int *p
                 AVCaptureDeviceTypeMicrophone,
                 AVCaptureDeviceTypeExternal,
             ];
-        }
-        else {
-            refAllTypes = @[
-                AVCaptureDeviceTypeBuiltInWideAngleCamera,
-                AVCaptureDeviceTypeBuiltInMicrophone,
-                AVCaptureDeviceTypeExternalUnknown,
-            ];
+        } else {
+            @throw [NSException exceptionWithName:UnrecognizedMacOSVersionException
+                                                   reason:@"Unrecognized or unsupported macOS version detected."
+                                                 userInfo:nil];
         }
     #else
         refAllTypes = @[
