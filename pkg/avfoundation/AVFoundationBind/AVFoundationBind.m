@@ -186,18 +186,27 @@ STATUS AVBindDevices(AVBindMediaType mediaType, PAVBindDevice *ppDevices, int *p
     AVMediaType _mediaType = mediaType == AVBindMediaTypeVideo ? AVMediaTypeVideo : AVMediaTypeAudio;
 
     NSArray *refAllTypes;
-    #if defined(SONOMA_MICROPHONE_TYPE)
-    refAllTypes = @[
-       AVCaptureDeviceTypeBuiltInWideAngleCamera,
-       AVCaptureDeviceTypeMicrophone,
-       AVCaptureDeviceTypeExternal,
-    ];
+    #if defined(MAC_OS_VERSION_14_0)
+        if (@available(macOS 14.0, *)) {
+            refAllTypes = @[
+                AVCaptureDeviceTypeBuiltInWideAngleCamera,
+                AVCaptureDeviceTypeMicrophone,
+                AVCaptureDeviceTypeExternal,
+            ];
+        }
+        else {
+            refAllTypes = @[
+                AVCaptureDeviceTypeBuiltInWideAngleCamera,
+                AVCaptureDeviceTypeBuiltInMicrophone,
+                AVCaptureDeviceTypeExternalUnknown,
+            ];
+        }
     #else
-    refAllTypes = @[
-       AVCaptureDeviceTypeBuiltInWideAngleCamera,
-       AVCaptureDeviceTypeBuiltInMicrophone,
-       AVCaptureDeviceTypeExternalUnknown,
-    ];
+        refAllTypes = @[
+           AVCaptureDeviceTypeBuiltInWideAngleCamera,
+           AVCaptureDeviceTypeBuiltInMicrophone,
+           AVCaptureDeviceTypeExternalUnknown,
+        ];
     #endif
 
     AVCaptureDeviceDiscoverySession *refSession = [AVCaptureDeviceDiscoverySession
