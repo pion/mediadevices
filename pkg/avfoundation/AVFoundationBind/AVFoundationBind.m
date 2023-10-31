@@ -46,8 +46,6 @@
         } \
     } while(0)
 
-#define SONOMA_MICROPHONE_TYPE AVCaptureDeviceTypeMicrophone
-
 @interface VideoDataDelegate : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
 
 @property (readonly) AVBindDataCallback mCallback;
