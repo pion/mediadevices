@@ -3,7 +3,7 @@ module github.com/pion/mediadevices
 go 1.19
 
 require (
-	github.com/blackjack/webcam v0.0.0-20230509180125-87693b3f29dc
+	github.com/blackjack/webcam v0.5.0
 	github.com/gen2brain/malgo v0.11.10
 	github.com/google/uuid v1.3.1
 	github.com/kbinani/screenshot v0.0.0-20230812210009-b87d31814237
@@ -35,7 +35,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/crypto v0.12.0 // indirect
 	golang.org/x/net v0.14.0 // indirect
-	golang.org/x/sys v0.11.0 // indirect
+	golang.org/x/sys v0.14.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
