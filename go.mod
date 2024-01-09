@@ -11,7 +11,7 @@ require (
 	github.com/pion/logging v0.2.2
 	github.com/pion/rtcp v1.2.13
 	github.com/pion/rtp v1.8.3
-	github.com/pion/webrtc/v3 v3.2.23
+	github.com/pion/webrtc/v3 v3.2.24
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/image v0.14.0
 )
