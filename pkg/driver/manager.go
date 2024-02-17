@@ -1,6 +1,8 @@
 package driver
 
-import "sync"
+import (
+	"sync"
+)
 
 // FilterFn is being used to decide if a driver should be included in the
 // query result.
