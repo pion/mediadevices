@@ -5,7 +5,7 @@ import (
 	"image/color"
 )
 
-type RGB3Img struct {
+type RGB24Img struct {
 	// Pix holds the image's pixels, in R, G, B order. The pixel at
 	// (x, y) starts at Pix[(y-Rect.Min.Y) + (x-Rect.Min.X)*3].
 	Pix    []uint8
@@ -13,8 +13,8 @@ type RGB3Img struct {
 	Stride int
 }
 
-func decodeRGB3(frame []byte, width, height int) (image.Image, func(), error) {
-	return &RGB3Img{
+func decodeRGB24(frame []byte, width, height int) (image.Image, func(), error) {
+	return &RGB24Img{
 		Pix: frame,
 		Rect: image.Rectangle{
 			Min: image.Point{
@@ -30,17 +30,17 @@ func decodeRGB3(frame []byte, width, height int) (image.Image, func(), error) {
 	}, func() {}, nil
 }
 
-func (p *RGB3Img) ColorModel() color.Model {
+func (p *RGB24Img) ColorModel() color.Model {
 	return color.RGBAModel
 }
-func (p *RGB3Img) Bounds() image.Rectangle {
+func (p *RGB24Img) Bounds() image.Rectangle {
 	return p.Rect
 }
 
-func (p *RGB3Img) PixOffset(x, y int) int {
+func (p *RGB24Img) PixOffset(x, y int) int {
 	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*3
 }
-func (p *RGB3Img) At(x, y int) color.Color {
+func (p *RGB24Img) At(x, y int) color.Color {
 	if !(image.Point{x, y}.In(p.Rect)) {
 		return color.RGBA{}
 	}
