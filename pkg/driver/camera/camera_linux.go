@@ -128,6 +128,9 @@ func discover(discovered map[string]struct{}, pattern string) {
 			name, _ = webcamCam.GetName()
 			busInfo, _ = webcamCam.GetBusInfo()
 		}
+		if name == "" {
+			name = label
+		}
 
 		driver.GetManager().Register(cam, driver.Info{
 			// 	Source: https://www.kernel.org/doc/html/v4.9/media/uapi/v4l/vidioc-querycap.html
