@@ -1,3 +1,4 @@
+//go:build darwin
 // +build darwin
 
 // $ go test -v . -tags darwin -run="^TestCameraFrameFormatSupport$"
@@ -7,9 +8,9 @@ package camera
 import (
 	"testing"
 
-	"github.com/pion/mediadevices/pkg/avfoundation"
-	"github.com/pion/mediadevices/pkg/frame"
-	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/carbonrobotics/mediadevices/pkg/avfoundation"
+	"github.com/carbonrobotics/mediadevices/pkg/frame"
+	"github.com/carbonrobotics/mediadevices/pkg/prop"
 )
 
 func TestCameraFrameFormatSupport(t *testing.T) {

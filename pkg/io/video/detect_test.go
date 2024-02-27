@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/carbonrobotics/mediadevices/pkg/prop"
 )
 
 func BenchmarkDetectChanges(b *testing.B) {
@@ -145,7 +145,7 @@ func TestDetectChanges(t *testing.T) {
 	})
 
 	t.Run("FrameRateAccuracy", func(t *testing.T) {
-		// https://github.com/pion/mediadevices/issues/198
+		// https://github.com/carbonrobotics/mediadevices/issues/198
 		if runtime.GOOS == "darwin" {
 			t.Skip("Skipping because Darwin CI is not reliable for timing related tests.")
 		}
@@ -178,7 +178,7 @@ func TestDetectChanges(t *testing.T) {
 	})
 
 	t.Run("OnChangeNotCalledForToleratedFrameRateVariation", func(t *testing.T) {
-		// https://github.com/pion/mediadevices/issues/198
+		// https://github.com/carbonrobotics/mediadevices/issues/198
 		if runtime.GOOS == "darwin" {
 			t.Skip("Skipping because Darwin CI is not reliable for timing related tests.")
 		}

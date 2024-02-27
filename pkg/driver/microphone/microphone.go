@@ -10,12 +10,12 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/carbonrobotics/mediadevices/internal/logging"
+	"github.com/carbonrobotics/mediadevices/pkg/driver"
+	"github.com/carbonrobotics/mediadevices/pkg/io/audio"
+	"github.com/carbonrobotics/mediadevices/pkg/prop"
+	"github.com/carbonrobotics/mediadevices/pkg/wave"
 	"github.com/gen2brain/malgo"
-	"github.com/pion/mediadevices/internal/logging"
-	"github.com/pion/mediadevices/pkg/driver"
-	"github.com/pion/mediadevices/pkg/io/audio"
-	"github.com/pion/mediadevices/pkg/prop"
-	"github.com/pion/mediadevices/pkg/wave"
 )
 
 const (

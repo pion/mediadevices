@@ -3,7 +3,7 @@ package mixer
 import (
 	"errors"
 
-	"github.com/pion/mediadevices/pkg/wave"
+	"github.com/carbonrobotics/mediadevices/pkg/wave"
 )
 
 // ChannelMixer mixes audio into specifix channels.

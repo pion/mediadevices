@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/pion/mediadevices/pkg/wave"
+	"github.com/carbonrobotics/mediadevices/pkg/wave"
 )
 
 func TestBuffer(t *testing.T) {

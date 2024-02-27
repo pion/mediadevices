@@ -1,6 +1,6 @@
 package mediadevices
 
-import "github.com/pion/mediadevices/pkg/driver"
+import "github.com/carbonrobotics/mediadevices/pkg/driver"
 
 // MediaDeviceType enumerates type of media device.
 type MediaDeviceType int

@@ -9,7 +9,7 @@ import (
 )
 
 func TestMeasureBitRateStatic(t *testing.T) {
-	// https://github.com/pion/mediadevices/issues/198
+	// https://github.com/carbonrobotics/mediadevices/issues/198
 	if runtime.GOOS == "darwin" {
 		t.Skip("Skipping because Darwin CI is not reliable for timing related tests.")
 	}
@@ -60,7 +60,7 @@ func TestMeasureBitRateStatic(t *testing.T) {
 }
 
 func TestMeasureBitRateDynamic(t *testing.T) {
-	// https://github.com/pion/mediadevices/issues/198
+	// https://github.com/carbonrobotics/mediadevices/issues/198
 	if runtime.GOOS == "darwin" {
 		t.Skip("Skipping because Darwin CI is not reliable for timing related tests.")
 	}

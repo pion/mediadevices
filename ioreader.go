@@ -1,6 +1,6 @@
 package mediadevices
 
-import "github.com/pion/mediadevices/pkg/codec"
+import "github.com/carbonrobotics/mediadevices/pkg/codec"
 
 type EncodedBuffer struct {
 	Data    []byte

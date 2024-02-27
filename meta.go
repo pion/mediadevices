@@ -1,9 +1,9 @@
 package mediadevices
 
 import (
-	"github.com/pion/mediadevices/pkg/io/audio"
-	"github.com/pion/mediadevices/pkg/io/video"
-	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/carbonrobotics/mediadevices/pkg/io/audio"
+	"github.com/carbonrobotics/mediadevices/pkg/io/video"
+	"github.com/carbonrobotics/mediadevices/pkg/prop"
 )
 
 // detectCurrentVideoProp is a small helper to get current video property

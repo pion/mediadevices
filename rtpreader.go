@@ -1,7 +1,7 @@
 package mediadevices
 
 import (
-	"github.com/pion/mediadevices/pkg/codec"
+	"github.com/carbonrobotics/mediadevices/pkg/codec"
 	"github.com/pion/rtp"
 )
 

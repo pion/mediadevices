@@ -6,11 +6,11 @@ import (
 	"log"
 	"time"
 
+	_ "github.com/carbonrobotics/mediadevices/pkg/driver/camera" // This is required to register camera adapter
+	"github.com/carbonrobotics/mediadevices/pkg/frame"
+	"github.com/carbonrobotics/mediadevices/pkg/prop"
 	pigo "github.com/esimov/pigo/core"
 	"github.com/pion/mediadevices"
-	"github.com/pion/mediadevices/pkg/frame"
-	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
-	"github.com/pion/mediadevices/pkg/prop"
 )
 
 const (

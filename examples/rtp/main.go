@@ -6,11 +6,11 @@ import (
 	"net"
 	"os"
 
+	"github.com/carbonrobotics/mediadevices/pkg/codec/x264"      // This is required to use H264 video encoder
+	_ "github.com/carbonrobotics/mediadevices/pkg/driver/camera" // This is required to register camera adapter
+	"github.com/carbonrobotics/mediadevices/pkg/frame"
+	"github.com/carbonrobotics/mediadevices/pkg/prop"
 	"github.com/pion/mediadevices"
-	"github.com/pion/mediadevices/pkg/codec/x264"      // This is required to use H264 video encoder
-	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
-	"github.com/pion/mediadevices/pkg/frame"
-	"github.com/pion/mediadevices/pkg/prop"
 )
 
 const (

@@ -1,11 +1,11 @@
 package driver
 
 import (
+	"github.com/carbonrobotics/mediadevices/pkg/driver/availability"
+	"github.com/carbonrobotics/mediadevices/pkg/io/audio"
+	"github.com/carbonrobotics/mediadevices/pkg/io/video"
+	"github.com/carbonrobotics/mediadevices/pkg/prop"
 	"github.com/google/uuid"
-	"github.com/pion/mediadevices/pkg/driver/availability"
-	"github.com/pion/mediadevices/pkg/io/audio"
-	"github.com/pion/mediadevices/pkg/io/video"
-	"github.com/pion/mediadevices/pkg/prop"
 )
 
 func wrapAdapter(a Adapter, info Info) Driver {

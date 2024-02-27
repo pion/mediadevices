@@ -4,7 +4,7 @@ import (
 	"io"
 	"time"
 
-	mio "github.com/pion/mediadevices/pkg/io"
+	mio "github.com/carbonrobotics/mediadevices/pkg/io"
 )
 
 // MeasureBitRate measures average bitrate after dur by reading r as fast as possible

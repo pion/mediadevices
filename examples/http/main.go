@@ -13,13 +13,13 @@ import (
 	"net/textproto"
 	"os"
 
+	"github.com/carbonrobotics/mediadevices/pkg/prop"
 	"github.com/pion/mediadevices"
-	"github.com/pion/mediadevices/pkg/prop"
 
 	// Note: If you don't have a camera or microphone or your adapters are not supported,
 	//       you can always swap your adapters with our dummy adapters below.
-	// _ "github.com/pion/mediadevices/pkg/driver/videotest"
-	_ "github.com/pion/mediadevices/pkg/driver/camera" // This is required to register camera adapter
+	// _ "github.com/carbonrobotics/mediadevices/pkg/driver/videotest"
+	_ "github.com/carbonrobotics/mediadevices/pkg/driver/camera" // This is required to register camera adapter
 )
 
 func must(err error) {
