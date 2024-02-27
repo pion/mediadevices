@@ -17,5 +17,6 @@ type MediaDeviceInfo struct {
 	DeviceID   string
 	Kind       MediaDeviceType
 	Label      string
+	Name       string
 	DeviceType driver.DeviceType
 }

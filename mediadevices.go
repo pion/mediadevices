@@ -9,7 +9,7 @@ import (
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
-var errNotFound = fmt.Errorf("failed to find the best driver that fits the constraints")
+var ErrNotFound = fmt.Errorf("failed to find the best driver that fits the constraints")
 
 // GetDisplayMedia prompts the user to select and grant permission to capture the contents
 // of a display or portion thereof (such as a window) as a MediaStream.
@@ -103,7 +103,6 @@ func queryDriverProperties(filter driver.FilterFn) map[driver.Driver][]prop.Medi
 			}
 			needToClose = append(needToClose, d)
 		}
-
 		m[d] = d.Properties()
 	}
 
@@ -149,7 +148,7 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 	if bestDriver == nil {
 		foundPropertiesLog = append(foundPropertiesLog, "Not found")
 		logger.Debug(strings.Join(foundPropertiesLog, "\n\n"))
-		return nil, MediaTrackConstraints{}, errNotFound
+		return nil, MediaTrackConstraints{}, ErrNotFound
 	}
 
 	foundPropertiesLog = append(foundPropertiesLog, bestProp.String())
@@ -215,6 +214,7 @@ func EnumerateDevices() []MediaDeviceInfo {
 			DeviceID:   d.ID(),
 			Kind:       kind,
 			Label:      driverInfo.Label,
+			Name:       driverInfo.Name,
 			DeviceType: driverInfo.DeviceType,
 		})
 	}

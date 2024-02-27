@@ -86,19 +86,18 @@ func init() {
 
 // Initialize finds and registers camera devices. This is part of an experimental API.
 func Initialize() {
-	// Clear all registered camera devices to prevent duplicates.
-	// If first initalize call, this will be a noop.
+	existing := make(map[driver.Info]struct{})
 	manager := driver.GetManager()
 	for _, d := range manager.Query(driver.FilterVideoRecorder()) {
-		manager.Delete(d.ID())
+		existing[d.Info()] = struct{}{}
 	}
 	discovered := make(map[string]struct{})
-	discover(discovered, "/dev/v4l/by-id/*")
-	discover(discovered, "/dev/v4l/by-path/*")
-	discover(discovered, "/dev/video*")
+	discover(existing, discovered, "/dev/v4l/by-id/*")
+	discover(existing, discovered, "/dev/v4l/by-path/*")
+	discover(existing, discovered, "/dev/video*")
 }
 
-func discover(discovered map[string]struct{}, pattern string) {
+func discover(existing map[driver.Info]struct{}, discovered map[string]struct{}, pattern string) {
 	devices, err := filepath.Glob(pattern)
 	if err != nil {
 		// No v4l device.
@@ -127,9 +126,13 @@ func discover(discovered map[string]struct{}, pattern string) {
 		if webcamCam, err := webcam.Open(cam.path); err == nil {
 			name, _ = webcamCam.GetName()
 			busInfo, _ = webcamCam.GetBusInfo()
+			webcamCam.Close() // TODO check this works
+		}
+		if name == "" {
+			name = label
 		}
 
-		driver.GetManager().Register(cam, driver.Info{
+		info := driver.Info{
 			// 	Source: https://www.kernel.org/doc/html/v4.9/media/uapi/v4l/vidioc-querycap.html
 			//	Name of the device, a NUL-terminated UTF-8 string. For example: “Yoyodyne TV/FM”. One driver may support
 			//	different brands or models of video hardware. This information is intended for users, for example in a
@@ -140,7 +143,11 @@ func discover(discovered map[string]struct{}, pattern string) {
 			Label:      label + LabelSeparator + reallink,
 			DeviceType: driver.Camera,
 			Priority:   priority,
-		})
+		}
+		if _, ok := existing[info]; ok {
+			continue
+		}
+		driver.GetManager().Register(cam, info)
 	}
 }
 
@@ -153,6 +160,7 @@ func newCamera(path string) *camera {
 		webcam.PixelFormat(C.V4L2_PIX_FMT_UYVY):   frame.FormatUYVY,
 		webcam.PixelFormat(C.V4L2_PIX_FMT_MJPEG):  frame.FormatMJPEG,
 		webcam.PixelFormat(C.V4L2_PIX_FMT_Z16):    frame.FormatZ16,
+		webcam.PixelFormat(C.V4L2_PIX_FMT_RGB24):  frame.FormatRGB24,
 	}
 
 	reversedFormats := make(map[frame.Format]webcam.PixelFormat)

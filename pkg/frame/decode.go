@@ -24,7 +24,8 @@ const (
 	FormatUYVY = "UYVY"
 
 	// FormatRGBA https://www.kernel.org/doc/html/v5.9/userspace-api/media/v4l/pixfmt-rgb.html
-	FormatRGBA Format = "RGBA"
+	FormatRGBA  Format = "RGBA"
+	FormatRGB24 Format = "RGB24"
 
 	// FormatMJPEG https://wiki.videolan.org/MJPEG
 	FormatMJPEG = "MJPEG"
@@ -42,6 +43,7 @@ var decoderMap = map[Format]decoderFunc{
 	FormatUYVY:  decodeUYVY,
 	FormatMJPEG: decodeMJPEG,
 	FormatZ16:   decodeZ16,
+	FormatRGB24: decodeRGB24,
 }
 
 func NewDecoder(f Format) (Decoder, error) {

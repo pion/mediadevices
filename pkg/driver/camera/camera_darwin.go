@@ -22,12 +22,21 @@ func init() {
 
 // Initialize finds and registers camera devices. This is part of an experimental API.
 func Initialize() {
+	existing := make(map[string]struct{})
+	manager := driver.GetManager()
+	for _, d := range manager.Query(driver.FilterVideoRecorder()) {
+		existing[d.Info().Label] = struct{}{}
+	}
 	devices, err := avfoundation.Devices(avfoundation.Video)
 	if err != nil {
 		panic(err)
 	}
 
 	for _, device := range devices {
+		if _, ok := existing[device.UID]; ok {
+			// This device is already loaded skip
+			continue
+		}
 		cam := newCamera(device)
 		driver.GetManager().Register(cam, driver.Info{
 			Label:      device.UID,
