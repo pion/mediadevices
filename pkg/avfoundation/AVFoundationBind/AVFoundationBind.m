@@ -92,7 +92,7 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
         return;
     }
     
-    // Handle NV21 special case
+    // Handle NV12 special case
     OSType pixelFormat = CVPixelBufferGetPixelFormatType(imageBuffer);
     if (pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange) {
         // Get actual dimensions of image (without padding)
