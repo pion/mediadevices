@@ -76,26 +76,61 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
     if (CMSampleBufferGetNumSamples(sampleBuffer) != 1 ||
         !CMSampleBufferIsValid(sampleBuffer) ||
         !CMSampleBufferDataIsReady(sampleBuffer)) {
-      return;
+        return;
     }
 
     CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
     if (imageBuffer == NULL) {
-      return;
+        return;
     }
 
-    imageBuffer = CVBufferRetain(imageBuffer);
+    CVBufferRetain(imageBuffer);
     CVReturn ret =
         CVPixelBufferLockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
     if (ret != kCVReturnSuccess) {
-      return;
+        CVBufferRelease(imageBuffer);
+        return;
+    }
+    
+    // Handle NV12 special case
+    OSType pixelFormat = CVPixelBufferGetPixelFormatType(imageBuffer);
+    if (pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange) {
+        // Get actual dimensions of image (without padding)
+        size_t width = CVPixelBufferGetWidth(imageBuffer);
+        size_t height = CVPixelBufferGetHeight(imageBuffer);
+        size_t totalSize = /*Y plane*/ width * height + /*UV plane*/ width * height / 2;
+
+        size_t bytesPerRowY = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 0);
+        size_t bytesPerRowUV = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 1);
+
+        void *mergedBuffer = malloc(totalSize);
+        if (!mergedBuffer) {
+            NSLog(@"Failed to allocate memory for merged buffer");
+            CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+            CVBufferRelease(imageBuffer);
+            return;
+        }
+
+        // Truncate data where we know it should end to strip padding
+        void *yPlaneBuf = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
+        for (size_t row = 0; row < height; ++row) {
+            memcpy(mergedBuffer + row * width, yPlaneBuf + row * bytesPerRowY, width);
+        }
+
+        void *uvPlaneBuf = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 1);
+        for (size_t row = 0; row < height / 2; ++row) {
+            memcpy(mergedBuffer + width * height + row * width, uvPlaneBuf + row * bytesPerRowUV, width);
+        }
+
+        _mCallback(_mPUserData, mergedBuffer, (int)totalSize);
+        free(mergedBuffer);
+    } else {
+        void *buf = CVPixelBufferGetBaseAddress(imageBuffer);
+        size_t dataSize = CVPixelBufferGetDataSize(imageBuffer);
+        _mCallback(_mPUserData, buf, (int)dataSize);
     }
 
-    void *buf = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
-    size_t dataSize = CVPixelBufferGetDataSize(imageBuffer);
-    _mCallback(_mPUserData, buf, (int)dataSize);
-
-    CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+    CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
     CVBufferRelease(imageBuffer);
 }
 
