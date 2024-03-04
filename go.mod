@@ -12,7 +12,7 @@ require (
 	github.com/pion/rtcp v1.2.13
 	github.com/pion/rtp v1.8.3
 	github.com/pion/webrtc/v3 v3.2.24
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	golang.org/x/image v0.15.0
 )
 
