@@ -57,6 +57,10 @@ type Track interface {
 	// If the error is already occured before registering, the handler will be
 	// immediately called.
 	OnEnded(func(error))
+	//Registers a handler to receive when an rtp packet is being sent
+	OnRTPWrite(func(*rtp.Packet))
+	// Register a handler to receive when an image is read
+	OnImgRead(func(image.Image, error))
 	Kind() webrtc.RTPCodecType
 	// StreamID is the group this track belongs too. This must be unique
 	StreamID() string
@@ -83,7 +87,11 @@ type baseTrack struct {
 	Source
 	err                   error
 	onErrorHandler        func(error)
+	onRTPWriteHandler     func(*rtp.Packet)
+	onImgReadHandler      func(image.Image, error)
 	errMu                 sync.Mutex
+	rtpMu                 sync.Mutex
+	imgMu                 sync.Mutex
 	mu                    sync.Mutex
 	endOnce               sync.Once
 	kind                  MediaDeviceType
@@ -142,6 +150,17 @@ func (track *baseTrack) OnEnded(handler func(error)) {
 		})
 	}
 }
+func (track *baseTrack) OnRTPWrite(handler func(*rtp.Packet)) {
+	track.rtpMu.Lock()
+	defer track.rtpMu.Unlock()
+	track.onRTPWriteHandler = handler
+}
+
+func (track *baseTrack) OnImgRead(handler func(image.Image, error)) {
+	track.imgMu.Lock()
+	defer track.imgMu.Unlock()
+	track.onImgReadHandler = handler
+}
 
 // onError is a callback when an error occurs
 func (track *baseTrack) onError(err error) {
@@ -154,6 +173,23 @@ func (track *baseTrack) onError(err error) {
 		track.endOnce.Do(func() {
 			handler(err)
 		})
+	}
+}
+func (track *baseTrack) onRTPWrite(pkt *rtp.Packet) {
+	track.rtpMu.Lock()
+	handler := track.onRTPWriteHandler
+	track.rtpMu.Unlock()
+	if handler != nil {
+		handler(pkt)
+	}
+}
+
+func (track *baseTrack) onImgRead(img image.Image, err error) {
+	track.imgMu.Lock()
+	handler := track.onImgReadHandler
+	track.imgMu.Unlock()
+	if handler != nil {
+		handler(img, err)
 	}
 }
 
@@ -235,6 +271,7 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 					track.onError(err)
 					return
 				}
+				track.onRTPWrite(pkt)
 			}
 		}
 	}()
@@ -355,6 +392,7 @@ func newVideoTrackFromReader(source Source, reader video.Reader, selector *Codec
 		if err != nil {
 			base.onError(err)
 		}
+		base.onImgRead(img, err)
 		return img, func() {}, err
 	})
 
