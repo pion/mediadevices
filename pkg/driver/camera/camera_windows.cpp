@@ -8,6 +8,18 @@
 #include "camera_windows.hpp"
 #include "_cgo_export.h"
 
+
+imageProp* getProp(camera* cam, int i)
+{
+  return &cam->props[i];
+}
+
+char* getName(cameraList* list, int i)
+{
+  return list->name[i];
+}
+
+
 // printErr shows string representation of HRESULT.
 // This is for debugging.
 void printErr(HRESULT hr)
@@ -347,6 +359,7 @@ int openCamera(camera* cam, const char** errstr)
   if (src == nullptr || dst == nullptr ||
       FAILED(hr = graphBuilder->Connect(src, dst)))
   {
+    printErr(hr);
     *errstr = errConnectFilters;
     goto fail;
   }
