@@ -37,7 +37,7 @@ func init() {
 
 // Initialize finds and registers camera devices. This is part of an experimental API.
 func Initialize() {
-	C.CoInitializeEx(nil, C.COINIT_MULTITHREADED)
+	C.CoInitializeEx(nil, C.COINIT_APARTMENTTHREADED)
 
 	var list C.cameraList
 	var errStr *C.char
