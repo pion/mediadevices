@@ -3,7 +3,7 @@ module github.com/pion/mediadevices
 go 1.19
 
 require (
-	github.com/blackjack/webcam v0.5.0
+	github.com/blackjack/webcam v0.6.0
 	github.com/gen2brain/malgo v0.11.21
 	github.com/google/uuid v1.6.0
 	github.com/kbinani/screenshot v0.0.0-20230812210009-b87d31814237
