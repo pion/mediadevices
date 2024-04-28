@@ -3,7 +3,7 @@ module github.com/pion/mediadevices
 go 1.19
 
 require (
-	github.com/blackjack/webcam v0.5.0
+	github.com/blackjack/webcam v0.6.0
 	github.com/gen2brain/malgo v0.11.21
 	github.com/google/uuid v1.6.0
 	github.com/kbinani/screenshot v0.0.0-20230812210009-b87d31814237
@@ -11,7 +11,7 @@ require (
 	github.com/pion/logging v0.2.2
 	github.com/pion/rtcp v1.2.14
 	github.com/pion/rtp v1.8.3
-	github.com/pion/webrtc/v3 v3.2.28
+	github.com/pion/webrtc/v3 v3.2.29
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/image v0.15.0
 )
@@ -27,7 +27,7 @@ require (
 	github.com/pion/mdns v0.0.12 // indirect
 	github.com/pion/randutil v0.1.0 // indirect
 	github.com/pion/sctp v1.8.12 // indirect
-	github.com/pion/sdp/v3 v3.0.6 // indirect
+	github.com/pion/sdp/v3 v3.0.8 // indirect
 	github.com/pion/srtp/v2 v2.0.18 // indirect
 	github.com/pion/stun v0.6.1 // indirect
 	github.com/pion/transport/v2 v2.2.3 // indirect
