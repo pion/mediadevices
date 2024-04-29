@@ -359,7 +359,6 @@ int openCamera(camera* cam, const char** errstr)
   if (src == nullptr || dst == nullptr ||
       FAILED(hr = graphBuilder->Connect(src, dst)))
   {
-    printErr(hr);
     *errstr = errConnectFilters;
     goto fail;
   }
