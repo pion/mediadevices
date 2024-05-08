@@ -306,10 +306,10 @@ func (e *encoder) ForceKeyFrame() error {
 func (e *encoder) Controller() codec.EncoderController {
 	return e
 }
-func (e *encoder) SetBitRate(bitRate int) error {
+func (e *encoder) SetBitRate(bitRateBPS int) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.cfg.rc_target_bitrate = C.uint(bitRate) / 1000
+	e.cfg.rc_target_bitrate = C.uint(bitRateBPS) / 1000
 	if ec := C.vpx_codec_enc_config_set(e.codec, e.cfg); ec != 0 {
 		return fmt.Errorf("vpx_codec_enc_config_set failed (%d)", ec)
 	}
