@@ -61,6 +61,8 @@ type Track interface {
 	OnRTPWrite(func(*rtp.Packet))
 	// Register a handler to receive when an image is read
 	OnImgRead(func(image.Image, error))
+	//Register a handler for binding
+	OnBind(func(codec.Controllable))
 	Kind() webrtc.RTPCodecType
 	// StreamID is the group this track belongs too. This must be unique
 	StreamID() string
@@ -89,9 +91,11 @@ type baseTrack struct {
 	onErrorHandler        func(error)
 	onRTPWriteHandler     func(*rtp.Packet)
 	onImgReadHandler      func(image.Image, error)
+	onBindHandler         func(codec.Controllable)
 	errMu                 sync.Mutex
 	rtpMu                 sync.Mutex
 	imgMu                 sync.Mutex
+	bindMu                sync.Mutex
 	mu                    sync.Mutex
 	endOnce               sync.Once
 	kind                  MediaDeviceType
@@ -161,6 +165,11 @@ func (track *baseTrack) OnImgRead(handler func(image.Image, error)) {
 	defer track.imgMu.Unlock()
 	track.onImgReadHandler = handler
 }
+func (track *baseTrack) OnBind(handler func(codec.Controllable)) {
+	track.bindMu.Lock()
+	defer track.bindMu.Unlock()
+	track.onBindHandler = handler
+}
 
 // onError is a callback when an error occurs
 func (track *baseTrack) onError(err error) {
@@ -190,6 +199,15 @@ func (track *baseTrack) onImgRead(img image.Image, err error) {
 	track.imgMu.Unlock()
 	if handler != nil {
 		handler(img, err)
+	}
+}
+
+func (track *baseTrack) onBind(controllable codec.Controllable) {
+	track.bindMu.Lock()
+	handler := track.onBindHandler
+	track.bindMu.Unlock()
+	if handler != nil {
+		handler(controllable)
 	}
 }
 
@@ -280,6 +298,7 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 	if ok {
 		go track.rtcpReadLoop(ctx.RTCPReader(), keyFrameController, stopRead)
 	}
+	track.onBind(encodedReader)
 
 	return selectedCodec, nil
 }
