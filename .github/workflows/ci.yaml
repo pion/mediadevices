@@ -36,6 +36,8 @@ jobs:
         run: make test
       - uses: codecov/codecov-action@v4	
         if: matrix.go == '1.21'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
   build-darwin:
     strategy:
       fail-fast: false
