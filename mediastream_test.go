@@ -4,7 +4,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 )
 
 type mockMediaStreamTrack struct {
@@ -62,7 +62,7 @@ func (track *mockMediaStreamTrack) NewEncodedIOReader(codecName string) (io.Read
 }
 
 func TestMediaStreamFilters(t *testing.T) {
-	audioTracks := []Track{
+	audioTracks := []TrackLocal{
 		&mockMediaStreamTrack{AudioInput},
 		&mockMediaStreamTrack{AudioInput},
 		&mockMediaStreamTrack{AudioInput},
@@ -70,7 +70,7 @@ func TestMediaStreamFilters(t *testing.T) {
 		&mockMediaStreamTrack{AudioInput},
 	}
 
-	videoTracks := []Track{
+	videoTracks := []TrackLocal{
 		&mockMediaStreamTrack{VideoInput},
 		&mockMediaStreamTrack{VideoInput},
 		&mockMediaStreamTrack{VideoInput},
@@ -82,7 +82,7 @@ func TestMediaStreamFilters(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expect := func(t *testing.T, actual, expected []Track) {
+	expect := func(t *testing.T, actual, expected []TrackLocal) {
 		if len(actual) != len(expected) {
 			t.Fatalf("%s: Expected to get %d trackers, but got %d trackers", t.Name(), len(expected), len(actual))
 		}

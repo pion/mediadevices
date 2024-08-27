@@ -1,5 +1,5 @@
 git_url := https://github.com/cisco/openh264.git
-version := v2.1.1
+version := master
 src_root_dir := src
 lib_dir := lib
 include_dir := include/openh264
@@ -28,14 +28,14 @@ all: guard-MEDIADEVICES_TARGET_PLATFORM guard-MEDIADEVICES_TARGET_PLATFORM \
 	$(output_path) headers
 
 headers: | $(src_dir) $(include_dir)
-	@cp $(src_dir)/codec/api/svc/*.h $(include_dir)
+	@cp $(src_dir)/codec/api/wels/*.h $(include_dir)
 
 $(output_path): $(src_dir)/$(lib_prefix).a | $(lib_dir)
 	@cp $< $@
 
 $(src_dir)/$(lib_prefix).a: | $(src_dir)
 	$(MEDIADEVICES_TOOLCHAIN_BIN) make --directory=$(src_dir) $(lib_prefix).a \
-		OS=$(os) ARCH=$(arch)
+		OS=$(os) ARCH=$(arch) NDKROOT="/opt/android-ndk" TARGET=android-29 NDKLEVEL=29 NDK_TOOLCHAIN_VERSION=clang APP_ABI=armeabi-v7a
 
 $(src_dir): | $(src_root_dir)
 	git clone --depth=1 --branch=$(version) $(git_url) $@

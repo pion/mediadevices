@@ -1,9 +1,11 @@
+//go:build !dynamic
 // +build !dynamic
 
 package opus
 
 //#cgo CFLAGS: -I${SRCDIR}/include
 //#cgo CXXFLAGS: -I${SRCDIR}/include
+//#cgo android,arm LDFLAGS: ${SRCDIR}/lib/libopus-android-armv7.a -lm
 //#cgo linux,arm LDFLAGS: ${SRCDIR}/lib/libopus-linux-armv7.a -lm
 //#cgo linux,arm64 LDFLAGS: ${SRCDIR}/lib/libopus-linux-arm64.a -lm
 //#cgo linux,amd64 LDFLAGS: ${SRCDIR}/lib/libopus-linux-x64.a -lm

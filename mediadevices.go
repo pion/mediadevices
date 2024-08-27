@@ -15,7 +15,7 @@ var errNotFound = fmt.Errorf("failed to find the best driver that fits the const
 // of a display or portion thereof (such as a window) as a MediaStream.
 // Reference: https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia
 func GetDisplayMedia(constraints MediaStreamConstraints) (MediaStream, error) {
-	trackers := make([]Track, 0)
+	trackers := make([]TrackLocal, 0)
 
 	cleanTrackers := func() {
 		for _, t := range trackers {
@@ -49,7 +49,7 @@ func GetDisplayMedia(constraints MediaStreamConstraints) (MediaStream, error) {
 // Reference: https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
 func GetUserMedia(constraints MediaStreamConstraints) (MediaStream, error) {
 	// TODO: It should return media stream based on constraints
-	trackers := make([]Track, 0)
+	trackers := make([]TrackLocal, 0)
 
 	cleanTrackers := func() {
 		for _, t := range trackers {
@@ -160,7 +160,7 @@ func selectBestDriver(filter driver.FilterFn, constraints MediaTrackConstraints)
 	return bestDriver, constraints, nil
 }
 
-func selectAudio(constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {
+func selectAudio(constraints MediaTrackConstraints, selector *CodecSelector) (TrackLocal, error) {
 	typeFilter := driver.FilterAudioRecorder()
 
 	d, c, err := selectBestDriver(typeFilter, constraints)
@@ -170,7 +170,7 @@ func selectAudio(constraints MediaTrackConstraints, selector *CodecSelector) (Tr
 
 	return newTrackFromDriver(d, c, selector)
 }
-func selectVideo(constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {
+func selectVideo(constraints MediaTrackConstraints, selector *CodecSelector) (TrackLocal, error) {
 	typeFilter := driver.FilterVideoRecorder()
 	notScreenFilter := driver.FilterNot(driver.FilterDeviceType(driver.Screen))
 	filter := driver.FilterAnd(typeFilter, notScreenFilter)
@@ -183,7 +183,7 @@ func selectVideo(constraints MediaTrackConstraints, selector *CodecSelector) (Tr
 	return newTrackFromDriver(d, c, selector)
 }
 
-func selectScreen(constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {
+func selectScreen(constraints MediaTrackConstraints, selector *CodecSelector) (TrackLocal, error) {
 	typeFilter := driver.FilterVideoRecorder()
 	screenFilter := driver.FilterDeviceType(driver.Screen)
 	filter := driver.FilterAnd(typeFilter, screenFilter)

@@ -8,18 +8,38 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pion/interceptor"
-	"github.com/pion/rtcp"
-
 	"github.com/google/uuid"
+	"github.com/pion/interceptor"
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/wave"
+	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 )
+
+// import (
+// 	"errors"
+// 	"fmt"
+// 	"image"
+// 	"io"
+// 	"strings"
+// 	"sync"
+
+// 	"github.com/pion/interceptor"
+// 	"github.com/pion/rtcp"
+
+// 	"github.com/google/uuid"
+// 	"github.com/pion/mediadevices/pkg/codec"
+// 	"github.com/pion/mediadevices/pkg/driver"
+// 	"github.com/pion/mediadevices/pkg/io/audio"
+// 	"github.com/pion/mediadevices/pkg/io/video"
+// 	"github.com/pion/mediadevices/pkg/wave"
+// 	"github.com/pion/rtp"
+// 	"github.com/pion/webrtc/v4"
+// )
 
 const (
 	rtpOutboundMTU = 1200
@@ -49,34 +69,35 @@ type AudioSource interface {
 	Source
 }
 
-// Track is an interface that represent MediaStreamTrack
+// webrtc.TrackLocal is an interface that represent MediaStreamTrack
 // Reference: https://w3c.github.io/mediacapture-main/#mediastreamtrack
-type Track interface {
+type TrackLocal interface {
+	webrtc.TrackLocal
 	Source
 	// OnEnded registers a handler to receive an error from the media stream track.
 	// If the error is already occured before registering, the handler will be
 	// immediately called.
 	OnEnded(func(error))
-	Kind() webrtc.RTPCodecType
-	// StreamID is the group this track belongs too. This must be unique
-	StreamID() string
-	// RID is the RTP Stearm ID for this track. This is only used for Simulcast
-	RID() string
-	// Bind binds the current track source to the given peer connection. In Pion/webrtc v3, the bind
-	// call will happen automatically after the SDP negotiation. Users won't need to call this manually.
-	Bind(webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error)
-	// Unbind is the clean up operation that should be called after Bind. Similar to Bind, unbind will
-	// be called automatically in Pion/webrtc v3.
-	Unbind(webrtc.TrackLocalContext) error
-	// NewRTPReader creates a new reader from the source. The reader will encode the source, and packetize
-	// the encoded data in RTP format with given mtu size.
-	//
+	// Kind() webrtc.RTPCodecType
+	// // StreamID is the group this track belongs too. This must be unique
+	// StreamID() string
+	// // RID is the RTP Stearm ID for this track. This is only used for Simulcast
+	// RID() string
+	// // Bind binds the current track source to the given peer connection. In Pion/webrtc v3, the bind
+	// // call will happen automatically after the SDP negotiation. Users won't need to call this manually.
+	// Bind(webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error)
+	// // Unbind is the clean up operation that should be called after Bind. Similar to Bind, unbind will
+	// // be called automatically in Pion/webrtc v3.
+	// Unbind(webrtc.TrackLocalContext) error
+	// // NewRTPReader creates a new reader from the source. The reader will encode the source, and packetize
+	// // the encoded data in RTP format with given mtu size.
+	// //
 	// Note: `mtu int` will be changed to `mtu uint16` in a future update.
 	NewRTPReader(codecName string, ssrc uint32, mtu int) (RTPReadCloser, error)
-	// NewEncodedReader creates a EncodedReadCloser that reads the encoded data in codecName format
-	NewEncodedReader(codecName string) (EncodedReadCloser, error)
-	// NewEncodedReader creates a new Go standard io.ReadCloser that reads the encoded data in codecName format
-	NewEncodedIOReader(codecName string) (io.ReadCloser, error)
+	// // NewEncodedReader creates a EncodedReadCloser that reads the encoded data in codecName format
+	// NewEncodedReader(codecName string) (EncodedReadCloser, error)
+	// // NewEncodedReader creates a new Go standard io.ReadCloser that reads the encoded data in codecName format
+	// NewEncodedIOReader(codecName string) (io.ReadCloser, error)
 }
 
 type baseTrack struct {
@@ -157,7 +178,7 @@ func (track *baseTrack) onError(err error) {
 	}
 }
 
-func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Track) (webrtc.RTPCodecParameters, error) {
+func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack TrackLocal) (webrtc.RTPCodecParameters, error) {
 	track.mu.Lock()
 	defer track.mu.Unlock()
 
@@ -302,7 +323,7 @@ func (track *baseTrack) removeActivePeerConnection(id string) chan<- chan<- stru
 	return ch
 }
 
-func newTrackFromDriver(d driver.Driver, constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {
+func newTrackFromDriver(d driver.Driver, constraints MediaTrackConstraints, selector *CodecSelector) (TrackLocal, error) {
 	if err := d.Open(); err != nil {
 		return nil, err
 	}
@@ -325,7 +346,7 @@ type VideoTrack struct {
 }
 
 // NewVideoTrack constructs a new VideoTrack
-func NewVideoTrack(source VideoSource, selector *CodecSelector) Track {
+func NewVideoTrack(source VideoSource, selector *CodecSelector) TrackLocal {
 	return newVideoTrackFromReader(source, source, selector)
 }
 
@@ -339,7 +360,7 @@ func (track *VideoTrack) SetShouldCopyFrames(shouldCopyFrames bool) {
 	track.shouldCopyFrames = shouldCopyFrames
 }
 
-func newVideoTrackFromReader(source Source, reader video.Reader, selector *CodecSelector) Track {
+func newVideoTrackFromReader(source Source, reader video.Reader, selector *CodecSelector) TrackLocal {
 	base := newBaseTrack(source, VideoInput, selector)
 	wrappedReader := video.ReaderFunc(func() (img image.Image, release func(), err error) {
 		img, _, err = reader.Read()
@@ -359,7 +380,7 @@ func newVideoTrackFromReader(source Source, reader video.Reader, selector *Codec
 }
 
 // newVideoTrackFromDriver is an internal video track creation from driver
-func newVideoTrackFromDriver(d driver.Driver, recorder driver.VideoRecorder, constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {
+func newVideoTrackFromDriver(d driver.Driver, recorder driver.VideoRecorder, constraints MediaTrackConstraints, selector *CodecSelector) (TrackLocal, error) {
 	reader, err := recorder.VideoRecord(constraints.selectedMedia)
 	if err != nil {
 		return nil, err
@@ -457,11 +478,11 @@ type AudioTrack struct {
 }
 
 // NewAudioTrack constructs a new AudioTrack
-func NewAudioTrack(source AudioSource, selector *CodecSelector) Track {
+func NewAudioTrack(source AudioSource, selector *CodecSelector) TrackLocal {
 	return newAudioTrackFromReader(source, source, selector)
 }
 
-func newAudioTrackFromReader(source Source, reader audio.Reader, selector *CodecSelector) Track {
+func newAudioTrackFromReader(source Source, reader audio.Reader, selector *CodecSelector) TrackLocal {
 	base := newBaseTrack(source, AudioInput, selector)
 	wrappedReader := audio.ReaderFunc(func() (chunk wave.Audio, release func(), err error) {
 		chunk, _, err = reader.Read()
@@ -481,7 +502,7 @@ func newAudioTrackFromReader(source Source, reader audio.Reader, selector *Codec
 }
 
 // newAudioTrackFromDriver is an internal audio track creation from driver
-func newAudioTrackFromDriver(d driver.Driver, recorder driver.AudioRecorder, constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {
+func newAudioTrackFromDriver(d driver.Driver, recorder driver.AudioRecorder, constraints MediaTrackConstraints, selector *CodecSelector) (TrackLocal, error) {
 	reader, err := recorder.AudioRecord(constraints.selectedMedia)
 	if err != nil {
 		return nil, err

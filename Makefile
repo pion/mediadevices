@@ -6,7 +6,8 @@ toolchain_path := $(script_path)/$(docker_prefix)
 os_list := \
 	linux \
 	windows \
-	darwin
+	darwin \
+	android
 arch_list := \
 	armv7 \
 	arm64 \
@@ -17,7 +18,8 @@ supported_platforms := \
   linux-x64 \
   windows-x64 \
   darwin-x64 \
-  darwin-arm64
+  darwin-arm64 \
+	android-armv7
 cmd_build := build
 cmd_test := test
 examples_dir := examples
