@@ -1,7 +1,9 @@
+//go:build !dynamic
 // +build !dynamic
 
 package openh264
 
+//#cgo LDFLAGS: -static-libstdc++
 //#cgo CFLAGS: -I${SRCDIR}/include
 //#cgo CXXFLAGS: -I${SRCDIR}/include
 //#cgo linux,arm LDFLAGS: ${SRCDIR}/lib/libopenh264-linux-armv7.a
