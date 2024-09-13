@@ -20,35 +20,14 @@ import (
 	"github.com/pion/webrtc/v4"
 )
 
-// import (
-// 	"errors"
-// 	"fmt"
-// 	"image"
-// 	"io"
-// 	"strings"
-// 	"sync"
-
-// 	"github.com/pion/interceptor"
-// 	"github.com/pion/rtcp"
-
-// 	"github.com/google/uuid"
-// 	"github.com/pion/mediadevices/pkg/codec"
-// 	"github.com/pion/mediadevices/pkg/driver"
-// 	"github.com/pion/mediadevices/pkg/io/audio"
-// 	"github.com/pion/mediadevices/pkg/io/video"
-// 	"github.com/pion/mediadevices/pkg/wave"
-// 	"github.com/pion/rtp"
-// 	"github.com/pion/webrtc/v4"
-// )
-
 const (
-	rtpOutboundMTU = 1200
-	rtcpInboundMTU = 1500
+	RtpOutboundMTU = 1200
+	RtcpInboundMTU = 1500
 )
 
 var (
-	errInvalidDriverType      = errors.New("invalid driver type")
-	errNotFoundPeerConnection = errors.New("failed to find given peer connection")
+	errInvalidDriverType = errors.New("invalid driver type")
+	// errNotFoundPeerConnection = errors.New("failed to find given peer connection")
 )
 
 // Source is a generic representation of a media source
@@ -192,7 +171,7 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 	var errReasons []string
 	for _, wantedCodec := range ctx.CodecParameters() {
 		logger.Debugf("trying to build %s rtp reader", wantedCodec.MimeType)
-		encodedReader, err = specializedTrack.NewRTPReader(wantedCodec.MimeType, uint32(ctx.SSRC()), rtpOutboundMTU)
+		encodedReader, err = specializedTrack.NewRTPReader(wantedCodec.MimeType, uint32(ctx.SSRC()), RtpOutboundMTU)
 
 		track.errMu.Lock()
 		if track.err != nil {
@@ -260,7 +239,7 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 }
 
 func (track *baseTrack) rtcpReadLoop(reader interceptor.RTCPReader, keyFrameController codec.KeyFrameController, stopRead chan struct{}) {
-	readerBuffer := make([]byte, rtcpInboundMTU)
+	readerBuffer := make([]byte, RtcpInboundMTU)
 
 readLoop:
 	for {

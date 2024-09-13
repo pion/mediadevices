@@ -11,5 +11,5 @@ package opus
 //#cgo linux,amd64 LDFLAGS: ${SRCDIR}/lib/libopus-linux-x64.a -lm
 //#cgo darwin,amd64 LDFLAGS: ${SRCDIR}/lib/libopus-darwin-x64.a
 //#cgo darwin,arm64 LDFLAGS: ${SRCDIR}/lib/libopus-darwin-arm64.a
-//#cgo windows,amd64 LDFLAGS: ${SRCDIR}/lib/libopus-windows-x64.a
+//#cgo windows,amd64 LDFLAGS: ${SRCDIR}/lib/libopus-windows-x64.a -lm
 import "C"
