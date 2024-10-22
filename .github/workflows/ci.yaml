@@ -51,6 +51,7 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     name: Darwin Go ${{ matrix.go }} ${{ join(matrix.runs-on, ' ') }}
     steps:
+      - run: rm -rf /Users/admin/Library/Caches/Homebrew/downloads/*
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Go
