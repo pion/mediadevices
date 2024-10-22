@@ -70,21 +70,19 @@ jobs:
       - name: Local brew cache key
         if: matrix.runs-on != 'macos-latest'
         id: brew-cache-key
-        run: echo "key=$(date +'%Y-%U')" | tee ${GITHUB_OUTPUT} # weekly update cache
+        run: echo "key=$(date +'%Y-%U')" | tee ${GITHUB_OUTPUT} # weekly refresh the cache
       - name: Cache brew
         if: matrix.runs-on != 'macos-latest'
         uses: actions/cache@v4
         with:
           path: ${{ env.HOMEBREW_CACHE }}
           key: ${{ runner.os }}-brew-cache-${{ steps.brew-cache-key.outputs.key }}
-          restore-keys: ${{ runner.os }}-brew-cache-
       - name: Cache local brew taps
         if: matrix.runs-on != 'macos-latest'
         uses: actions/cache@v4
         with:
           path: homebrew/Library/Taps
           key: ${{ runner.os }}-brew-taps-${{ steps.brew-cache-key.outputs.key }}
-          restore-keys: ${{ runner.os }}-brew-taps-
       - name: Set up brew to install deps under temporary dir
         if: matrix.runs-on != 'macos-latest'
         run: |
