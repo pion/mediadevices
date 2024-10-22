@@ -2,8 +2,6 @@ module github.com/pion/mediadevices
 
 go 1.21
 
-toolchain go1.23.2
-
 require (
 	github.com/blackjack/webcam v0.6.1
 	github.com/gen2brain/malgo v0.11.22
