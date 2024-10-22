@@ -49,6 +49,9 @@ jobs:
           - '1.20'
           - '1.21'
     runs-on: ${{ matrix.runs-on }}
+    concurrency: # Cancel old darwin jobs as the self-hosted runner has limited concurrency
+      group: ${{ github.ref }}-${{ matrix.runs-on }}-${{ matrix.go }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: Darwin Go ${{ matrix.go }} ${{ join(matrix.runs-on, ' ') }}
     env:
       HOMEBREW_CACHE: ${{ github.workspace }}/brew-cache
