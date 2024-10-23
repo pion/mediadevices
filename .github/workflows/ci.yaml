@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         go:
-          - '1.19' # oldest version this package supports
+          - '1.21' # oldest version this package supports
           - '1.22' # oldstable Go version
           - '1.23' # stable Go version
     name: Linux Go ${{ matrix.go }}
