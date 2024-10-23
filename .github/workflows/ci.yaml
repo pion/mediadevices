@@ -64,9 +64,6 @@ jobs:
             x264
       - name: Run Test Suite
         run: make test
-      - uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
   check-licenses:
     runs-on: ubuntu-latest
     name: Check Licenses
