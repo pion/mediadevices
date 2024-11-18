@@ -35,7 +35,7 @@ jobs:
             libx264-dev
       - name: Run Test Suite
         run: make test
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
   build-darwin:
@@ -64,7 +64,7 @@ jobs:
             x264
       - name: Run Test Suite
         run: make test
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
   check-licenses:
