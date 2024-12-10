@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/pion/interceptor"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 )
 
 var errExpected error = errors.New("an error")
