@@ -3,6 +3,7 @@ module github.com/pion/mediadevices
 go 1.21
 
 require (
+	github.com/bdandy/go-nvenc/v8 v8.0.1
 	github.com/blackjack/webcam v0.6.1
 	github.com/gen2brain/malgo v0.11.23
 	github.com/google/uuid v1.6.0
@@ -34,6 +35,7 @@ require (
 	github.com/pion/transport/v3 v3.0.7 // indirect
 	github.com/pion/turn/v4 v4.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rainycape/dl v0.0.0-20151222075243-1b01514224a1 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
 	golang.org/x/crypto v0.29.0 // indirect
 	golang.org/x/net v0.31.0 // indirect
