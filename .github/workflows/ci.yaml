@@ -32,7 +32,9 @@ jobs:
             libopus-dev \
             libva-dev \
             libvpx-dev \
-            libx264-dev
+            libx11-dev \
+            libx264-dev \
+            libxext-dev
       - name: Run Test Suite
         run: make test
       - uses: codecov/codecov-action@v5
