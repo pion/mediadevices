@@ -1,3 +1,5 @@
+github.com/bdandy/go-nvenc/v8 v8.0.1 h1:yEPIFMuhvE3pfYGMIrMvTBfUCQO2fM3jZU3DIES2ABA=
+github.com/bdandy/go-nvenc/v8 v8.0.1/go.mod h1:dJ4b7aKbx04xCADqCY89LCR2DmFIE35gCokwbJonPQM=
 github.com/blackjack/webcam v0.6.1 h1:K0T6Q0zto23U99gNAa5q/hFoye6uGcKr2aE6hFoxVoE=
 github.com/blackjack/webcam v0.6.1/go.mod h1:zs+RkUZzqpFPHPiwBZ6U5B34ZXXe9i+SiHLKnnukJuI=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -57,6 +59,8 @@ github.com/pion/webrtc/v4 v4.0.5 h1:8cVPojcv3cQTwVga2vF1rzCNvkiEimnYdCCG7yF317I=
 github.com/pion/webrtc/v4 v4.0.5/go.mod h1:LvP8Np5b/sM0uyJIcUPvJcCvhtjHxJwzh2H2PYzE6cQ=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+github.com/rainycape/dl v0.0.0-20151222075243-1b01514224a1 h1:XZlja+DeIOJeEPWAfM9M5wko0keB9qgRfuuWbry6VBQ=
+github.com/rainycape/dl v0.0.0-20151222075243-1b01514224a1/go.mod h1:lh74SQgfeEuNq74dKWzDLuVB+/ntX5c4g1oDyL4GkGg=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.4.0/go.mod h1:YvHI0jy2hoMjB+UWwv71VJQ9isScKT/TqJzVSSt89Yw=
 github.com/stretchr/objx v0.5.0/go.mod h1:Yh+to48EsGEfYuaHDzXPcE3xhTkx73EhmCGUpEOglKo=
