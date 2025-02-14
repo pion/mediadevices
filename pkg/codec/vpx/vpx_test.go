@@ -1,10 +1,12 @@
 package vpx
 
 import (
+	"context"
 	"image"
 	"io"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/codec/internal/codectest"
@@ -243,5 +245,51 @@ func TestShouldImplementKeyFrameControl(t *testing.T) {
 	e := &encoder{}
 	if _, ok := e.Controller().(codec.KeyFrameController); !ok {
 		t.Error()
+	}
+}
+
+func TestEncoderFrameMonotonic(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	params, err := NewVP8Params()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	encoder, err := params.BuildVideoEncoder(
+		video.ReaderFunc(func() (image.Image, func(), error) {
+			return image.NewYCbCr(
+				image.Rect(0, 0, 320, 240),
+				image.YCbCrSubsampleRatio420,
+			), func() {}, nil
+		},
+		), prop.Media{
+			Video: prop.Video{
+				Width:       320,
+				Height:      240,
+				FrameRate:   30,
+				FrameFormat: frame.FormatI420,
+			},
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ticker := time.NewTicker(33 * time.Millisecond)
+	defer ticker.Stop()
+	ctxx, cancell := context.WithCancel(ctx)
+	defer cancell()
+	for {
+		select {
+		case <-ctxx.Done():
+			return
+		case <-ticker.C:
+			_, rel, err := encoder.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			rel()
+		}
 	}
 }
