@@ -252,7 +252,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		e.raw.d_w, e.raw.d_h = C.uint(width), C.uint(height)
 	}
 
-	duration := t.Sub(e.tLastFrame).Nanoseconds() / 1000000
+	duration := t.Sub(e.tLastFrame).Microseconds()
 	// VPX doesn't allow 0 duration. If 0 is given, vpx_codec_encode will fail with VPX_CODEC_INVALID_PARAM.
 	// 0 duration is possible because mediadevices first gets the frame meta data by reading from the source,
 	// and consequently the codec will read the first frame from the buffer. This means the first frame won't
@@ -267,7 +267,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	}
 	if ec := C.encode_wrapper(
 		e.codec, e.raw,
-		C.long(t.Sub(e.tStart).Nanoseconds()/1000000), C.ulong(duration), C.long(flags), C.ulong(e.deadline),
+		C.long(t.Sub(e.tStart).Microseconds()), C.ulong(duration), C.long(flags), C.ulong(e.deadline),
 		(*C.uchar)(&yuvImg.Y[0]), (*C.uchar)(&yuvImg.Cb[0]), (*C.uchar)(&yuvImg.Cr[0]),
 	); ec != C.VPX_CODEC_OK {
 		return nil, func() {}, fmt.Errorf("vpx_codec_encode failed (%d)", ec)
