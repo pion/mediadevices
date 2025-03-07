@@ -71,7 +71,7 @@ func NewRTPVP9Codec(clockrate uint32) *RTPCodec {
 	}
 }
 
-// NewRTPVP9Codec is a helper to create an AV1 codec
+// NewRTPAV1Codec is a helper to create an AV1 codec
 func NewRTPAV1Codec(clockrate uint32) *RTPCodec {
 	return &RTPCodec{
 		RTPCodecParameters: webrtc.RTPCodecParameters{
