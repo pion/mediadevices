@@ -71,6 +71,23 @@ func NewRTPVP9Codec(clockrate uint32) *RTPCodec {
 	}
 }
 
+// NewRTPVP9Codec is a helper to create an AV1 codec
+func NewRTPAV1Codec(clockrate uint32) *RTPCodec {
+	return &RTPCodec{
+		RTPCodecParameters: webrtc.RTPCodecParameters{
+			RTPCodecCapability: webrtc.RTPCodecCapability{
+				MimeType:     webrtc.MimeTypeAV1,
+				ClockRate:    90000,
+				Channels:     0,
+				SDPFmtpLine:  "",
+				RTCPFeedback: nil,
+			},
+			PayloadType: 99,
+		},
+		Payloader: &codecs.AV1Payloader{},
+	}
+}
+
 // NewRTPOpusCodec is a helper to create an Opus codec
 func NewRTPOpusCodec(clockrate uint32) *RTPCodec {
 	return &RTPCodec{
