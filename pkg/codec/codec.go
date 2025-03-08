@@ -79,7 +79,7 @@ func NewRTPAV1Codec(clockrate uint32) *RTPCodec {
 				MimeType:     webrtc.MimeTypeAV1,
 				ClockRate:    90000,
 				Channels:     0,
-				SDPFmtpLine:  "",
+				SDPFmtpLine:  "level-idx=5;profile=0;tier=0",
 				RTCPFeedback: nil,
 			},
 			PayloadType: 99,
