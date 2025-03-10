@@ -89,6 +89,7 @@ type baseTrack struct {
 	kind                  MediaDeviceType
 	selector              *CodecSelector
 	activePeerConnections map[string]chan<- chan<- struct{}
+	encoderController     codec.EncoderController
 }
 
 func newBaseTrack(source Source, kind MediaDeviceType, selector *CodecSelector) *baseTrack {
@@ -230,7 +231,8 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 		}
 	}()
 
-	keyFrameController, ok := encodedReader.Controller().(codec.KeyFrameController)
+	track.encoderController = encodedReader.Controller()
+	keyFrameController, ok := track.encoderController.(codec.KeyFrameController)
 	if ok {
 		go track.rtcpReadLoop(ctx.RTCPReader(), keyFrameController, stopRead)
 	}
@@ -449,6 +451,11 @@ func (track *VideoTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (R
 	}, nil
 }
 
+// returned encoderController might be nil
+func (track *VideoTrack) EncoderController() codec.EncoderController {
+	return track.encoderController
+}
+
 // AudioTrack is a specific track type that contains audio source which allows multiple readers to access, and
 // manipulate.
 type AudioTrack struct {
@@ -569,4 +576,8 @@ func (track *AudioTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (R
 		closeFn:      encodedReader.Close,
 		controllerFn: encodedReader.Controller,
 	}, nil
+}
+
+func (track *AudioTrack) EncoderController() codec.EncoderController {
+	return track.encoderController
 }
