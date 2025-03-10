@@ -37,6 +37,23 @@ func NewRTPH264Codec(clockrate uint32) *RTPCodec {
 	}
 }
 
+// NewRTPH265Codec is a helper to create an H265 codec
+func NewRTPH265Codec(clockrate uint32) *RTPCodec {
+	return &RTPCodec{
+		RTPCodecParameters: webrtc.RTPCodecParameters{
+			RTPCodecCapability: webrtc.RTPCodecCapability{
+				MimeType:     webrtc.MimeTypeH265,
+				ClockRate:    90000,
+				Channels:     0,
+				SDPFmtpLine:  "",
+				RTCPFeedback: nil,
+			},
+			PayloadType: 125,
+		},
+		Payloader: &codecs.H265Payloader{},
+	}
+}
+
 // NewRTPVP8Codec is a helper to create an VP8 codec
 func NewRTPVP8Codec(clockrate uint32) *RTPCodec {
 	return &RTPCodec{
@@ -68,6 +85,23 @@ func NewRTPVP9Codec(clockrate uint32) *RTPCodec {
 			PayloadType: 98,
 		},
 		Payloader: &codecs.VP9Payloader{},
+	}
+}
+
+// NewRTPAV1Codec is a helper to create an AV1 codec
+func NewRTPAV1Codec(clockrate uint32) *RTPCodec {
+	return &RTPCodec{
+		RTPCodecParameters: webrtc.RTPCodecParameters{
+			RTPCodecCapability: webrtc.RTPCodecCapability{
+				MimeType:     webrtc.MimeTypeAV1,
+				ClockRate:    90000,
+				Channels:     0,
+				SDPFmtpLine:  "level-idx=5;profile=0;tier=0",
+				RTCPFeedback: nil,
+			},
+			PayloadType: 99,
+		},
+		Payloader: &codecs.AV1Payloader{},
 	}
 }
 
