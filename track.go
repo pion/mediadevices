@@ -77,6 +77,8 @@ type Track interface {
 	NewEncodedReader(codecName string) (EncodedReadCloser, error)
 	// NewEncodedReader creates a new Go standard io.ReadCloser that reads the encoded data in codecName format
 	NewEncodedIOReader(codecName string) (io.ReadCloser, error)
+	// EncoderController returns the encoder controller if the track has one, else returns nil
+	EncoderController() codec.EncoderController
 }
 
 type baseTrack struct {
