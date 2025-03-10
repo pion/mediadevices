@@ -304,10 +304,6 @@ func (track *baseTrack) removeActivePeerConnection(id string) chan<- chan<- stru
 	return ch
 }
 
-func (track *baseTrack) getEncoderController() codec.EncoderController {
-	return track.encoderController
-}
-
 func newTrackFromDriver(d driver.Driver, constraints MediaTrackConstraints, selector *CodecSelector) (Track, error) {
 	if err := d.Open(); err != nil {
 		return nil, err
@@ -456,8 +452,8 @@ func (track *VideoTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (R
 }
 
 // returned encoderController might be nil
-func (track *VideoTrack) GetEncoderController() codec.EncoderController {
-	return track.getEncoderController()
+func (track *VideoTrack) EncoderController() codec.EncoderController {
+	return track.encoderController
 }
 
 // AudioTrack is a specific track type that contains audio source which allows multiple readers to access, and
@@ -582,6 +578,6 @@ func (track *AudioTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (R
 	}, nil
 }
 
-func (track *AudioTrack) GetEncoderController() codec.EncoderController {
-	return track.getEncoderController()
+func (track *AudioTrack) EncoderController() codec.EncoderController {
+	return track.encoderController
 }
