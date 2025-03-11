@@ -1,6 +1,8 @@
 module github.com/pion/mediadevices
 
-go 1.21
+go 1.23.0
+
+toolchain go1.24.1
 
 require (
 	github.com/blackjack/webcam v0.6.1
@@ -13,7 +15,7 @@ require (
 	github.com/pion/rtp v1.8.12
 	github.com/pion/webrtc/v4 v4.0.13
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/image v0.23.0
+	golang.org/x/image v0.25.0
 )
 
 require (
