@@ -8,7 +8,7 @@ import (
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 )
 
 // RTPCodec wraps webrtc.RTPCodec. RTPCodec might extend webrtc.RTPCodec in the future.
@@ -34,6 +34,23 @@ func NewRTPH264Codec(clockrate uint32) *RTPCodec {
 			PayloadType: 125,
 		},
 		Payloader: &codecs.H264Payloader{},
+	}
+}
+
+// NewRTPH265Codec is a helper to create an H265 codec
+func NewRTPH265Codec(clockrate uint32) *RTPCodec {
+	return &RTPCodec{
+		RTPCodecParameters: webrtc.RTPCodecParameters{
+			RTPCodecCapability: webrtc.RTPCodecCapability{
+				MimeType:     webrtc.MimeTypeH265,
+				ClockRate:    90000,
+				Channels:     0,
+				SDPFmtpLine:  "",
+				RTCPFeedback: nil,
+			},
+			PayloadType: 125,
+		},
+		Payloader: &codecs.H265Payloader{},
 	}
 }
 
@@ -68,6 +85,23 @@ func NewRTPVP9Codec(clockrate uint32) *RTPCodec {
 			PayloadType: 98,
 		},
 		Payloader: &codecs.VP9Payloader{},
+	}
+}
+
+// NewRTPAV1Codec is a helper to create an AV1 codec
+func NewRTPAV1Codec(clockrate uint32) *RTPCodec {
+	return &RTPCodec{
+		RTPCodecParameters: webrtc.RTPCodecParameters{
+			RTPCodecCapability: webrtc.RTPCodecCapability{
+				MimeType:     webrtc.MimeTypeAV1,
+				ClockRate:    90000,
+				Channels:     0,
+				SDPFmtpLine:  "level-idx=5;profile=0;tier=0",
+				RTCPFeedback: nil,
+			},
+			PayloadType: 99,
+		},
+		Payloader: &codecs.AV1Payloader{},
 	}
 }
 

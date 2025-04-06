@@ -14,8 +14,9 @@ jobs:
       fail-fast: false
       matrix:
         go:
-          - '1.20'
-          - '1.21'
+          - '1.21' # oldest version this package supports
+          - '1.22' # oldstable Go version
+          - '1.23' # stable Go version
     name: Linux Go ${{ matrix.go }}
     steps:
       - name: Checkout
@@ -31,23 +32,23 @@ jobs:
             libopus-dev \
             libva-dev \
             libvpx-dev \
-            libx264-dev
+            libx11-dev \
+            libx264-dev \
+            libxext-dev
       - name: Run Test Suite
         run: make test
-      - uses: codecov/codecov-action@v3	
-        if: matrix.go == '1.21'
+      - uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
   build-darwin:
     strategy:
       fail-fast: false
       matrix:
-        runs-on:
-          - macos-latest
-          - ['self-hosted', 'macOS', 'ARM64']
         go:
-          - '1.20'
-          - '1.21'
-    runs-on: ${{ matrix.runs-on }}
-    name: Darwin Go ${{ matrix.go }} ${{ join(matrix.runs-on, ' ') }}
+          - '1.22'
+          - '1.23'
+    runs-on: macos-latest
+    name: Darwin Go ${{ matrix.go }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,43 +56,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
-
-      # Set up local brew only on self-hosted darwin
-      - name: Checkout Homebrew
-        if: matrix.runs-on != 'macos-latest'
-        uses: actions/checkout@v4
-        with:
-          repository: Homebrew/brew
-          path: homebrew
-      - name: Local brew cache key
-        if: matrix.runs-on != 'macos-latest'
-        id: brew-cache-key
-        run: echo "key=$(date +'%Y-%U')" | tee ${GITHUB_OUTPUT} # weekly update cache
-      - name: Cache local brew taps
-        if: matrix.runs-on != 'macos-latest'
-        uses: actions/cache@v4
-        with:
-          path: homebrew/Library/Taps
-          key: ${{ runner.os }}-brew-taps-${{ steps.brew-cache-key.outputs.key }}
-          restore-keys: ${{ runner.os }}-brew-taps-
-      - name: Set up brew to install deps under temporary dir
-        if: matrix.runs-on != 'macos-latest'
-        run: |
-          dir="${GITHUB_WORKSPACE}/homebrew"
-          cd "${dir}"
-
-          echo "Set up shellenv" >&2
-          env="$(./bin/brew shellenv)"
-          echo "${env}" | tee -a ${GITHUB_ENV}
-          eval "${env}"
-
-          echo "Set up paths" >&2
-          echo "${dir}/bin" | tee -a ${GITHUB_PATH}
-
-          echo "Brew update" >&2
-          brew update --force --quiet
-          chmod -R go-w "$(brew --prefix)/share/zsh"
-
       - name: Install dependencies
         run: |
           which brew
@@ -102,6 +66,9 @@ jobs:
             x264
       - name: Run Test Suite
         run: make test
+      - uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
   check-licenses:
     runs-on: ubuntu-latest
     name: Check Licenses
@@ -111,7 +78,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: stable
       - name: Installing go-licenses
         run: go install github.com/google/go-licenses@latest
       - name: Checking licenses

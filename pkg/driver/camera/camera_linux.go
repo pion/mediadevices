@@ -125,6 +125,7 @@ func discover(discovered map[string]struct{}, pattern string) {
 
 		var name, busInfo string
 		if webcamCam, err := webcam.Open(cam.path); err == nil {
+			defer webcamCam.Close()
 			name, _ = webcamCam.GetName()
 			busInfo, _ = webcamCam.GetBusInfo()
 		}
