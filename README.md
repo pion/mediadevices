@@ -5,7 +5,7 @@
 </h1>
 <h4 align="center">Go implementation of the <a href="https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices">MediaDevices</a> API</h4>
 <p align="center">
-  <a href="https://pion.ly/slack"><img src="https://img.shields.io/badge/join-us%20on%20slack-gray.svg?longCache=true&logo=slack&colorB=brightgreen" alt="Slack Widget"></a>
+  <a href="https://discord.gg/PngbdqpFbt"><img src="https://img.shields.io/badge/join-us%20on%20discord-gray.svg?longCache=true&logo=discord&colorB=brightblue" alt="join us on Discord"></a> <a href="https://bsky.app/profile/pion.ly"><img src="https://img.shields.io/badge/follow-us%20on%20bluesky-gray.svg?longCache=true&logo=bluesky&colorB=brightblue" alt="Follow us on Bluesky"></a> <a href="https://twitter.com/_pion?ref_src=twsrc%5Etfw"><img src="https://img.shields.io/twitter/url.svg?label=Follow%20%40_pion&style=social&url=https%3A%2F%2Ftwitter.com%2F_pion" alt="Twitter Widget"></a>
   <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/pion/mediadevices/test.yaml">
   <a href="https://pkg.go.dev/github.com/pion/mediadevices"><img src="https://pkg.go.dev/badge/github.com/pion/mediadevices.svg" alt="Go Reference"></a>
   <a href="https://codecov.io/gh/pion/mediadevices"><img src="https://codecov.io/gh/pion/mediadevices/branch/master/graph/badge.svg" alt="Coverage Status"></a>
@@ -164,6 +164,24 @@ An open source API that allows applications such as VLC media player or GStreame
 * Installation:
   * Ubuntu: `apt install libva-dev`
 
+#### Video codecs implemented using ffmpeg
+
+* Package: [github.com/pion/mediadevices/pkg/codec/ffmpeg](https://pkg.go.dev/github.com/pion/mediadevices/pkg/codec/ffmpeg)
+* Installation: You need to enable CGO, and provide the ffmpeg headers and libraries when compiling. For more detail, checkout
+https://github.com/asticode/go-astiav?tab=readme-ov-file#install-ffmpeg-from-source.
+  * NVENC: If you want to use nvenc, you need to install [FFmpeg/nv-codec-headers](https://github.com/FFmpeg/nv-codec-headers) too.
+  Make sure that your driver's version is supported by the nv-codec-headers version you are installing.
+  To install it, clone the repo, checkout to wanted version, and `sudo make install`.
+
+> Currently, only ffmpeg n7.0 and n7.1 are supported.
+
+##### nvenc
+
+Requires ffmpeg build with `--enable-nonfree --enable-nvenc`.
+
+##### x264
+
+Requires ffmpeg build with `--enable-libx264 --enable-gpl`.
 
 #### Audio Codecs
 
@@ -218,9 +236,9 @@ There are 2 common problems:
 The library can be used with our WebRTC implementation. Please refer to that [roadmap](https://github.com/pion/webrtc/issues/9) to track our major milestones.
 
 ### Community
-Pion has an active community on the [Slack](https://pion.ly/slack).
+Pion has an active community on [Discord](https://discord.gg/PngbdqpFbt).
 
-Follow the [Pion Twitter](https://twitter.com/_pion) for project updates and important WebRTC news.
+Follow the [Pion Twitter](https://twitter.com/_pion) and the [Pion Bluesky](https://bsky.app/profile/pion.ly) for project updates and important WebRTC news.
 
 We are always looking to support **your projects**. Please reach out if you have something to build!
 If you need commercial support or don't want to use public methods you can contact us at [team@pion.ly](mailto:team@pion.ly)
