@@ -18,7 +18,7 @@ import (
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/wave"
 	"github.com/pion/rtp"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 )
 
 const (
@@ -77,17 +77,21 @@ type Track interface {
 	NewEncodedReader(codecName string) (EncodedReadCloser, error)
 	// NewEncodedReader creates a new Go standard io.ReadCloser that reads the encoded data in codecName format
 	NewEncodedIOReader(codecName string) (io.ReadCloser, error)
+	// EncoderController returns the encoder controller if the track has one, else returns nil
+	EncoderController() codec.EncoderController
 }
 
 type baseTrack struct {
 	Source
 	err                   error
 	onErrorHandler        func(error)
+	errMu                 sync.Mutex
 	mu                    sync.Mutex
 	endOnce               sync.Once
 	kind                  MediaDeviceType
 	selector              *CodecSelector
 	activePeerConnections map[string]chan<- chan<- struct{}
+	encoderController     codec.EncoderController
 }
 
 func newBaseTrack(source Source, kind MediaDeviceType, selector *CodecSelector) *baseTrack {
@@ -129,10 +133,10 @@ func (track *baseTrack) RID() string {
 // OnEnded sets an error handler. When a track has been created and started, if an
 // error occurs, handler will get called with the error given to the parameter.
 func (track *baseTrack) OnEnded(handler func(error)) {
-	track.mu.Lock()
+	track.errMu.Lock()
 	track.onErrorHandler = handler
 	err := track.err
-	track.mu.Unlock()
+	track.errMu.Unlock()
 
 	if err != nil && handler != nil {
 		// Already errored.
@@ -144,10 +148,10 @@ func (track *baseTrack) OnEnded(handler func(error)) {
 
 // onError is a callback when an error occurs
 func (track *baseTrack) onError(err error) {
-	track.mu.Lock()
+	track.errMu.Lock()
 	track.err = err
 	handler := track.onErrorHandler
-	track.mu.Unlock()
+	track.errMu.Unlock()
 
 	if handler != nil {
 		track.endOnce.Do(func() {
@@ -171,6 +175,14 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 	for _, wantedCodec := range ctx.CodecParameters() {
 		logger.Debugf("trying to build %s rtp reader", wantedCodec.MimeType)
 		encodedReader, err = specializedTrack.NewRTPReader(wantedCodec.MimeType, uint32(ctx.SSRC()), rtpOutboundMTU)
+
+		track.errMu.Lock()
+		if track.err != nil {
+			err = track.err
+			encodedReader = nil
+		}
+		track.errMu.Unlock()
+
 		if err == nil {
 			selectedCodec = wantedCodec
 			break
@@ -221,7 +233,8 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 		}
 	}()
 
-	keyFrameController, ok := encodedReader.Controller().(codec.KeyFrameController)
+	track.encoderController = encodedReader.Controller()
+	keyFrameController, ok := track.encoderController.(codec.KeyFrameController)
 	if ok {
 		go track.rtcpReadLoop(ctx.RTCPReader(), keyFrameController, stopRead)
 	}
@@ -440,6 +453,11 @@ func (track *VideoTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (R
 	}, nil
 }
 
+// returned encoderController might be nil
+func (track *VideoTrack) EncoderController() codec.EncoderController {
+	return track.encoderController
+}
+
 // AudioTrack is a specific track type that contains audio source which allows multiple readers to access, and
 // manipulate.
 type AudioTrack struct {
@@ -560,4 +578,8 @@ func (track *AudioTrack) NewRTPReader(codecName string, ssrc uint32, mtu int) (R
 		closeFn:      encodedReader.Close,
 		controllerFn: encodedReader.Controller,
 	}, nil
+}
+
+func (track *AudioTrack) EncoderController() codec.EncoderController {
+	return track.encoderController
 }

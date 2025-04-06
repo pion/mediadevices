@@ -45,6 +45,7 @@ import (
 	"image"
 	"io"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/codec"
@@ -91,6 +92,8 @@ type encoderVP9 struct {
 	params   ParamsVP9
 
 	rate *framerateDetector
+
+	forceKeyFrame atomic.Bool
 
 	mu     sync.Mutex
 	closed bool
@@ -293,10 +296,11 @@ func (e *encoderVP9) Read() ([]byte, func(), error) {
 		return nil, func() {}, io.EOF
 	}
 
-	img, _, err := e.r.Read()
+	img, release, err := e.r.Read()
 	if err != nil {
 		return nil, func() {}, err
 	}
+	defer release()
 	yuvImg := img.(*image.YCbCr)
 
 	kf := e.frameCnt%e.params.KeyFrameInterval == 0
@@ -304,7 +308,7 @@ func (e *encoderVP9) Read() ([]byte, func(), error) {
 
 	e.frParam.data.framerate = C.uint(e.rate.Calc())
 
-	if kf {
+	if kf || e.forceKeyFrame.CompareAndSwap(true, false) {
 		C.setForceKFFlag9(&e.picParam, 1)
 		C.setFrameTypeFlagVP9(&e.picParam, 0)
 		e.picParam.refresh_frame_flags = 0
@@ -478,6 +482,10 @@ func (e *encoderVP9) Read() ([]byte, func(), error) {
 
 func (e *encoderVP9) Controller() codec.EncoderController {
 	return e
+}
+
+func (e *encoderVP9) ForceKeyFrame() {
+	e.forceKeyFrame.Store(true)
 }
 
 func (e *encoderVP9) Close() error {

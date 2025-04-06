@@ -40,15 +40,9 @@ int listResolution(camera* cam, const char** errstr);
 int listCamera(cameraList* list, const char** errstr);
 int freeCameraList(cameraList* list, const char** errstr);
 
-inline imageProp* getProp(camera* cam, int i)
-{
-  return &cam->props[i];
-}
+imageProp* getProp(camera* cam, int i);
 
-inline char* getName(cameraList* list, int i)
-{
-  return list->name[i];
-}
+char* getName(cameraList* list, int i);
 
 #ifdef __cplusplus
 }

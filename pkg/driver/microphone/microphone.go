@@ -68,6 +68,7 @@ func Initialize() {
 				Label:      device.ID.String(),
 				DeviceType: driver.Microphone,
 				Priority:   priority,
+				Name:       info.Name(),
 			})
 		}
 	}
@@ -212,6 +213,7 @@ func (m *microphone) Properties() []prop.Media {
 			},
 		}
 
+		supportedFormat := true
 		switch malgo.FormatType(format.Format) {
 		case malgo.FormatF32:
 			supportedProp.SampleSize = 4
@@ -219,8 +221,14 @@ func (m *microphone) Properties() []prop.Media {
 		case malgo.FormatS16:
 			supportedProp.SampleSize = 2
 			supportedProp.IsFloat = false
+		default:
+			supportedFormat = false
 		}
 
+		if !supportedFormat {
+			logger.Warnf("format '%s' not supported", format.Format)
+			continue
+		}
 		supportedProps = append(supportedProps, supportedProp)
 		// }
 	}

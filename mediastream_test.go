@@ -4,7 +4,8 @@ import (
 	"io"
 	"testing"
 
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/mediadevices/pkg/codec"
+	"github.com/pion/webrtc/v4"
 )
 
 type mockMediaStreamTrack struct {
@@ -59,6 +60,10 @@ func (track *mockMediaStreamTrack) NewEncodedReader(codecName string) (EncodedRe
 
 func (track *mockMediaStreamTrack) NewEncodedIOReader(codecName string) (io.ReadCloser, error) {
 	return nil, nil
+}
+
+func (track *mockMediaStreamTrack) EncoderController() codec.EncoderController {
+	return nil
 }
 
 func TestMediaStreamFilters(t *testing.T) {

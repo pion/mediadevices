@@ -18,8 +18,6 @@ func TestVP9ShouldImplementBitRateControl(t *testing.T) {
 }
 
 func TestVP9ShouldImplementKeyFrameControl(t *testing.T) {
-	t.SkipNow() // TODO: Implement key frame control
-
 	e := &encoderVP9{}
 	if _, ok := e.Controller().(codec.KeyFrameController); !ok {
 		t.Error()
