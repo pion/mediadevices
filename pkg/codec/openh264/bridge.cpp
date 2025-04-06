@@ -69,6 +69,16 @@ void enc_free(Encoder *e, int *eresult) {
   free(e);
 }
 
+void enc_set_bitrate(Encoder *e, int bitrate) {
+  SEncParamExt encParamExt;
+  e->engine->GetOption(ENCODER_OPTION_SVC_ENCODE_PARAM_EXT, &encParamExt);
+  encParamExt.iTargetBitrate=bitrate;
+  encParamExt.iMaxBitrate=bitrate;
+  encParamExt.sSpatialLayers[0].iSpatialBitrate = bitrate;
+  encParamExt.sSpatialLayers[0].iMaxSpatialBitrate = bitrate;
+  e->engine->SetOption(ENCODER_OPTION_SVC_ENCODE_PARAM_EXT, &encParamExt);
+}
+
 // There's a good reference from ffmpeg in using the encode_frame
 // Reference: https://ffmpeg.org/doxygen/2.6/libopenh264enc_8c_source.html
 Slice enc_encode(Encoder *e, Frame f, int *eresult) {

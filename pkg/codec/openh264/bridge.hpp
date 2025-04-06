@@ -44,6 +44,7 @@ typedef struct Encoder {
 Encoder *enc_new(const EncoderOptions params, int *eresult);
 void enc_free(Encoder *e, int *eresult);
 Slice enc_encode(Encoder *e, Frame f, int *eresult);
+void enc_set_bitrate(Encoder *e, int bitrate);
 #ifdef __cplusplus
 }
 #endif
