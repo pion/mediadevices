@@ -1,10 +1,12 @@
 package microphone
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -32,10 +34,16 @@ var (
 
 type microphone struct {
 	malgo.DeviceInfo
-	chunkChan chan []byte
+	chunkChan       chan []byte
+	deviceCloseFunc func()
 }
 
 func init() {
+	Initialize()
+}
+
+// Initialize finds and registers active playback or capture devices. This is part of an experimental API.
+func Initialize() {
 	var err error
 	ctx, err = malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {
 		logger.Debugf("%v\n", message)
@@ -60,6 +68,7 @@ func init() {
 				Label:      device.ID.String(),
 				DeviceType: driver.Microphone,
 				Priority:   priority,
+				Name:       info.Name(),
 			})
 		}
 	}
@@ -87,9 +96,8 @@ func (m *microphone) Open() error {
 }
 
 func (m *microphone) Close() error {
-	if m.chunkChan != nil {
-		close(m.chunkChan)
-		m.chunkChan = nil
+	if m.deviceCloseFunc != nil {
+		m.deviceCloseFunc()
 	}
 	return nil
 }
@@ -111,6 +119,9 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 	config.PerformanceProfile = malgo.LowLatency
 	config.Capture.Channels = uint32(inputProp.ChannelCount)
 	config.SampleRate = uint32(inputProp.SampleRate)
+	config.PeriodSizeInMilliseconds = uint32(inputProp.Latency.Milliseconds())
+	//FIX: Turn on the microphone with the current device id
+	config.Capture.DeviceID = m.ID.Pointer()
 	if inputProp.SampleSize == 4 && inputProp.IsFloat {
 		config.Capture.Format = malgo.FormatF32
 	} else if inputProp.SampleSize == 2 && !inputProp.IsFloat {
@@ -119,26 +130,44 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 		return nil, errUnsupportedFormat
 	}
 
+	cancelCtx, cancel := context.WithCancel(context.Background())
 	onRecvChunk := func(_, chunk []byte, framecount uint32) {
-		m.chunkChan <- chunk
+		select {
+		case <-cancelCtx.Done():
+		case m.chunkChan <- chunk:
+		}
 	}
 	callbacks.Data = onRecvChunk
 
 	device, err := malgo.InitDevice(ctx.Context, config, callbacks)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
 	err = device.Start()
 	if err != nil {
+		cancel()
 		return nil, err
+	}
+
+	var closeDeviceOnce sync.Once
+	m.deviceCloseFunc = func() {
+		closeDeviceOnce.Do(func() {
+			cancel() // Unblock onRecvChunk
+			device.Uninit()
+
+			if m.chunkChan != nil {
+				close(m.chunkChan)
+				m.chunkChan = nil
+			}
+		})
 	}
 
 	var reader audio.Reader = audio.ReaderFunc(func() (wave.Audio, func(), error) {
 		chunk, ok := <-m.chunkChan
 		if !ok {
-			device.Stop()
-			device.Uninit()
+			m.deviceCloseFunc()
 			return nil, func() {}, io.EOF
 		}
 
@@ -155,9 +184,6 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 		return decodedChunk, func() {}, err
 	})
 
-	// FIXME: The current audio detection and audio encoder can only work with a static latency. Since the latency from the driver
-	//        can fluctuate, we need to stabilize it. Maybe there's a better way for doing this?
-	reader = audio.NewBuffer(int(inputProp.Latency.Seconds() * float64(inputProp.SampleRate)))(reader)
 	return reader, nil
 }
 
@@ -171,36 +197,39 @@ func (m *microphone) Properties() []prop.Media {
 		isBigEndian = true
 	}
 
-	for ch := m.MinChannels; ch <= m.MaxChannels; ch++ {
+	for _, format := range m.Formats {
 		// FIXME: Currently support 48kHz only. We need to implement a resampler first.
 		// for sampleRate := m.MinSampleRate; sampleRate <= m.MaxSampleRate; sampleRate += sampleRateStep {
 		sampleRate := 48000
-		for i := 0; i < int(m.FormatCount); i++ {
-			format := m.Formats[i]
-
-			supportedProp := prop.Media{
-				Audio: prop.Audio{
-					ChannelCount: int(ch),
-					SampleRate:   int(sampleRate),
-					IsBigEndian:  isBigEndian,
-					// miniaudio only supports interleaved at the moment
-					IsInterleaved: true,
-					// FIXME: should change this to a less discrete value
-					Latency: time.Millisecond * 20,
-				},
-			}
-
-			switch malgo.FormatType(format) {
-			case malgo.FormatF32:
-				supportedProp.SampleSize = 4
-				supportedProp.IsFloat = true
-			case malgo.FormatS16:
-				supportedProp.SampleSize = 2
-				supportedProp.IsFloat = false
-			}
-
-			supportedProps = append(supportedProps, supportedProp)
+		supportedProp := prop.Media{
+			Audio: prop.Audio{
+				ChannelCount: int(format.Channels),
+				SampleRate:   int(sampleRate),
+				IsBigEndian:  isBigEndian,
+				// miniaudio only supports interleaved at the moment
+				IsInterleaved: true,
+				// FIXME: should change this to a less discrete value
+				Latency: time.Millisecond * 20,
+			},
 		}
+
+		supportedFormat := true
+		switch malgo.FormatType(format.Format) {
+		case malgo.FormatF32:
+			supportedProp.SampleSize = 4
+			supportedProp.IsFloat = true
+		case malgo.FormatS16:
+			supportedProp.SampleSize = 2
+			supportedProp.IsFloat = false
+		default:
+			supportedFormat = false
+		}
+
+		if !supportedFormat {
+			logger.Warnf("format '%s' not supported", format.Format)
+			continue
+		}
+		supportedProps = append(supportedProps, supportedProp)
 		// }
 	}
 	return supportedProps

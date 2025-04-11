@@ -53,7 +53,7 @@ func TestBufferStoreCopyAndLoad(t *testing.T) {
 				for i := range cloneReal.Data {
 					if reflect.ValueOf(originalReal.Data[i]).Pointer() == reflect.ValueOf(cloneReal.Data[i]).Pointer() {
 						err := fmt.Errorf("Channel %d memory address should be different", i)
-						t.Errorf("%v: %w", errIdenticalAddress, err)
+						t.Errorf("%v: %s", errIdenticalAddress, err)
 					}
 				}
 			},
@@ -89,7 +89,7 @@ func TestBufferStoreCopyAndLoad(t *testing.T) {
 				for i := range cloneReal.Data {
 					if reflect.ValueOf(originalReal.Data[i]).Pointer() == reflect.ValueOf(cloneReal.Data[i]).Pointer() {
 						err := fmt.Errorf("Channel %d memory address should be different", i)
-						t.Errorf("%v: %w", errIdenticalAddress, err)
+						t.Errorf("%v: %s", errIdenticalAddress, err)
 					}
 				}
 			},

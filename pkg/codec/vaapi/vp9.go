@@ -1,3 +1,4 @@
+//go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build dragonfly freebsd linux netbsd openbsd solaris
 
 package vaapi
@@ -44,6 +45,7 @@ import (
 	"image"
 	"io"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/codec"
@@ -90,6 +92,8 @@ type encoderVP9 struct {
 	params   ParamsVP9
 
 	rate *framerateDetector
+
+	forceKeyFrame atomic.Bool
 
 	mu     sync.Mutex
 	closed bool
@@ -292,10 +296,11 @@ func (e *encoderVP9) Read() ([]byte, func(), error) {
 		return nil, func() {}, io.EOF
 	}
 
-	img, _, err := e.r.Read()
+	img, release, err := e.r.Read()
 	if err != nil {
 		return nil, func() {}, err
 	}
+	defer release()
 	yuvImg := img.(*image.YCbCr)
 
 	kf := e.frameCnt%e.params.KeyFrameInterval == 0
@@ -303,7 +308,7 @@ func (e *encoderVP9) Read() ([]byte, func(), error) {
 
 	e.frParam.data.framerate = C.uint(e.rate.Calc())
 
-	if kf {
+	if kf || e.forceKeyFrame.CompareAndSwap(true, false) {
 		C.setForceKFFlag9(&e.picParam, 1)
 		C.setFrameTypeFlagVP9(&e.picParam, 0)
 		e.picParam.refresh_frame_flags = 0
@@ -475,17 +480,21 @@ func (e *encoderVP9) Read() ([]byte, func(), error) {
 	return encoded, func() {}, err
 }
 
-func (e *encoderVP9) SetBitRate(b int) error {
-	panic("SetBitRate is not implemented")
+func (e *encoderVP9) Controller() codec.EncoderController {
+	return e
 }
 
-func (e *encoderVP9) ForceKeyFrame() error {
-	panic("ForceKeyFrame is not implemented")
+func (e *encoderVP9) ForceKeyFrame() {
+	e.forceKeyFrame.Store(true)
 }
 
 func (e *encoderVP9) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+
+	if e.closed {
+		return nil
+	}
 
 	C.vaDestroySurfaces(e.display, &e.surfs[0], C.int(len(e.surfs)))
 	C.vaDestroyContext(e.display, e.ctxID)

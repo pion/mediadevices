@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"sync"
 )
 
 // imageToYCbCr converts src to *image.YCbCr and store it to dst
@@ -60,30 +61,61 @@ func imageToYCbCr(dst *image.YCbCr, src image.Image) {
 	}
 }
 
+// bytePool stores slices to be reused
+// New method is not set as the slice size
+// should be allocated according to subsample ratio
+var bytesPool sync.Pool
+
 // ToI420 converts r to a new reader that will output images in I420 format
 func ToI420(r Reader) Reader {
 	var yuvImg image.YCbCr
+
+	getSlice := func(cLen int) []uint8 {
+		// Retrieve slice from pool
+		dst, ok := bytesPool.Get().([]byte)
+
+		// Compare value or capacity of retrieved object
+		// If less than expected, reallocate new object
+		if !ok || cap(dst) < 2*cLen {
+			// Allocating memory for Cb and Cr
+			dst = make([]byte, 2*cLen, 2*cLen)
+		}
+
+		return dst
+	}
+
 	return ReaderFunc(func() (image.Image, func(), error) {
 		img, _, err := r.Read()
 		if err != nil {
 			return nil, func() {}, err
 		}
 
+		var releaseFunc func() = func() {}
+
 		imageToYCbCr(&yuvImg, img)
 
 		// Covert pixel format to I420
 		switch yuvImg.SubsampleRatio {
-		case image.YCbCrSubsampleRatio444:
-			i444ToI420(&yuvImg)
-		case image.YCbCrSubsampleRatio422:
-			i422ToI420(&yuvImg)
 		case image.YCbCrSubsampleRatio420:
+		case image.YCbCrSubsampleRatio444:
+			cLen := yuvImg.CStride * yuvImg.Rect.Dy() / 4
+			dst := getSlice(cLen)
+			yuvImg = i444ToI420(yuvImg, dst)
+			releaseFunc = func() {
+				bytesPool.Put(dst)
+			}
+		case image.YCbCrSubsampleRatio422:
+			cLen := yuvImg.CStride * (yuvImg.Rect.Dy() / 2)
+			dst := getSlice(cLen)
+			yuvImg = i422ToI420(yuvImg, dst)
+			releaseFunc = func() {
+				bytesPool.Put(dst)
+			}
 		default:
-			return nil, func() {}, fmt.Errorf("unsupported pixel format: %s", yuvImg.SubsampleRatio)
+			return nil, releaseFunc, fmt.Errorf("unsupported pixel format: %s", yuvImg.SubsampleRatio)
 		}
 
-		yuvImg.SubsampleRatio = image.YCbCrSubsampleRatio420
-		return &yuvImg, func() {}, nil
+		return &yuvImg, releaseFunc, nil
 	})
 }
 

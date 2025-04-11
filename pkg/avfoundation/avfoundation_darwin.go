@@ -11,8 +11,10 @@ package avfoundation
 // }
 import "C"
 import (
+	"context"
 	"fmt"
 	"io"
+	"sync"
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/frame"
@@ -32,6 +34,7 @@ type Device struct {
 	// UID is a unique identifier for a device
 	UID     string
 	cDevice C.AVBindDevice
+	Name    string
 }
 
 func frameFormatToAVBind(f frame.Format) (C.AVBindFrameFormat, bool) {
@@ -42,8 +45,8 @@ func frameFormatToAVBind(f frame.Format) (C.AVBindFrameFormat, bool) {
 		return C.AVBindFrameFormatNV21, true
 	case frame.FormatNV12:
 		return C.AVBindFrameFormatNV12, true
-	case frame.FormatYUY2:
-		return C.AVBindFrameFormatYUY2, true
+	case frame.FormatYUYV:
+		return C.AVBindFrameFormatYUYV, true
 	case frame.FormatUYVY:
 		return C.AVBindFrameFormatUYVY, true
 	case frame.FormatBGRA:
@@ -63,8 +66,8 @@ func frameFormatFromAVBind(f C.AVBindFrameFormat) (frame.Format, bool) {
 		return frame.FormatNV21, true
 	case C.AVBindFrameFormatNV12:
 		return frame.FormatNV12, true
-	case C.AVBindFrameFormatYUY2:
-		return frame.FormatYUY2, true
+	case C.AVBindFrameFormatYUYV:
+		return frame.FormatYUYV, true
 	case C.AVBindFrameFormatUYVY:
 		return frame.FormatUYVY, true
 	case C.AVBindFrameFormatBGRA:
@@ -93,6 +96,7 @@ func Devices(mediaType MediaType) ([]Device, error) {
 	for i := range devices {
 		devices[i].UID = C.GoString(&cDevices[i].uid[0])
 		devices[i].cDevice = cDevices[i]
+		devices[i].Name = C.GoString(&cDevices[i].name[0])
 	}
 
 	return devices, nil
@@ -101,9 +105,13 @@ func Devices(mediaType MediaType) ([]Device, error) {
 // ReadCloser is a wrapper around the data callback from AVFoundation. The data received from the
 // the underlying callback can be retrieved by calling Read.
 type ReadCloser struct {
-	dataChan chan []byte
-	id       handleID
-	onClose  func()
+	dataChan   chan []byte
+	id         handleID
+	onClose    func()
+	cancelCtx  context.Context
+	cancelFunc func()
+	closeWG    sync.WaitGroup
+	lock       sync.Mutex
 }
 
 func newReadCloser(onClose func()) *ReadCloser {
@@ -111,12 +119,25 @@ func newReadCloser(onClose func()) *ReadCloser {
 	rc.dataChan = make(chan []byte, 1)
 	rc.onClose = onClose
 	rc.id = register(rc.dataCb)
+	cancelCtx, cancelFunc := context.WithCancel(context.Background())
+	rc.cancelCtx = cancelCtx
+	rc.cancelFunc = cancelFunc
 	return &rc
 }
 
 func (rc *ReadCloser) dataCb(data []byte) {
+	rc.closeWG.Add(1)
+	defer rc.closeWG.Done()
+
 	// TODO: add a policy for slow reader
-	rc.dataChan <- data
+	if rc.cancelCtx.Err() != nil {
+		return
+	}
+	select {
+	// Use the Done channel to avoid waiting for new data from closed camera
+	case <-rc.cancelCtx.Done():
+	case rc.dataChan <- data:
+	}
 }
 
 // Read reads raw data, the format is determined by the media type and property:
@@ -132,17 +153,28 @@ func (rc *ReadCloser) Read() ([]byte, func(), error) {
 
 // Close closes the capturing session, and no data will flow anymore
 func (rc *ReadCloser) Close() {
+	rc.lock.Lock()
+	defer rc.lock.Unlock()
+
+	if rc.cancelCtx.Err() != nil {
+		return // already closed
+	}
+
 	if rc.onClose != nil {
 		rc.onClose()
 	}
-	close(rc.dataChan)
+	rc.cancelFunc()
 	unregister(rc.id)
+	rc.closeWG.Wait()
+	close(rc.dataChan)
 }
 
 // Session represents a capturing session.
 type Session struct {
 	device   Device
 	cSession C.PAVBindSession
+	lock     sync.Mutex
+	closed   bool
 }
 
 // NewSession creates a new capturing session
@@ -160,6 +192,13 @@ func NewSession(device Device) (*Session, error) {
 
 // Close stops capturing session and frees up resources
 func (session *Session) Close() error {
+	session.lock.Lock()
+	defer session.lock.Unlock()
+	if session.closed {
+		return nil
+	}
+	session.closed = true
+
 	if session.cSession == nil {
 		return nil
 	}

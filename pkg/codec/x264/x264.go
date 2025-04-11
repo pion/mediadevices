@@ -39,6 +39,8 @@ func (e cerror) Error() string {
 		return errOpenEngine.Error()
 	case C.ERR_ENCODE:
 		return errEncode.Error()
+	case C.ERR_BITRATE_RECONFIG:
+		return errSetBitrate.Error()
 	default:
 		return "unknown error"
 	}
@@ -58,6 +60,7 @@ var (
 	errAllocPicture  = fmt.Errorf("failed to alloc picture")
 	errOpenEngine    = fmt.Errorf("failed to open x264")
 	errEncode        = fmt.Errorf("failed to encode")
+	errSetBitrate    = fmt.Errorf("failed to change x264 encoder bitrate")
 )
 
 func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, error) {
@@ -102,10 +105,11 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		return nil, func() {}, io.EOF
 	}
 
-	img, _, err := e.r.Read()
+	img, release, err := e.r.Read()
 	if err != nil {
 		return nil, func() {}, err
 	}
+	defer release()
 	yuvImg := img.(*image.YCbCr)
 
 	var rc C.int
@@ -124,12 +128,26 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	return encoded, func() {}, err
 }
 
-func (e *encoder) SetBitRate(b int) error {
-	panic("SetBitRate is not implemented")
-}
+// TODO: Implement bit rate control
+//var _ codec.BitRateController = (*encoder)(nil)
 
 func (e *encoder) ForceKeyFrame() error {
-	panic("ForceKeyFrame is not implemented")
+	e.engine.force_key_frame = C.int(1)
+	return nil
+}
+
+func (e *encoder) SetBitRate(bitrate int) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	errNum := C.apply_target_bitrate(e.engine, C.int(bitrate))
+	if err := errFromC(errNum); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *encoder) Controller() codec.EncoderController {
+	return e
 }
 
 func (e *encoder) Close() error {

@@ -16,6 +16,7 @@ type Params struct {
 	RateControlOvershootPercent  uint
 	RateControlMinQuantizer      uint
 	RateControlMaxQuantizer      uint
+	LagInFrames                  uint
 	ErrorResilient               ErrorResilientMode
 }
 

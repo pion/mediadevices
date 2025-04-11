@@ -47,10 +47,6 @@ func (d *dummy) Close() error {
 }
 
 func (d *dummy) VideoRecord(p prop.Media) (video.Reader, error) {
-	if p.FrameRate == 0 {
-		p.FrameRate = 30
-	}
-
 	colors := [][3]byte{
 		{235, 128, 128},
 		{210, 16, 146},
@@ -143,6 +139,7 @@ func (d dummy) Properties() []prop.Media {
 				Width:       640,
 				Height:      480,
 				FrameFormat: frame.FormatYUYV,
+				FrameRate:   30,
 			},
 		},
 	}

@@ -9,7 +9,7 @@ import (
 	"github.com/pion/mediadevices/pkg/frame"
 )
 
-// MediaConstraints represents set of media propaty constraints.
+// MediaConstraints represents set of media property constraints.
 // Each field constrains property by min/ideal/max range, exact match, or oneof match.
 type MediaConstraints struct {
 	DeviceID StringConstraint
@@ -145,13 +145,16 @@ func (p *MediaConstraints) FitnessDistance(o Media) (float64, bool) {
 	cmps.add(p.Width, o.Width)
 	cmps.add(p.Height, o.Height)
 	cmps.add(p.FrameFormat, o.FrameFormat)
+	// skip framerate if not available in media properties
+	if o.FrameRate > 0.0 {
+		cmps.add(p.FrameRate, o.FrameRate)
+	}
 	cmps.add(p.SampleRate, o.SampleRate)
 	cmps.add(p.Latency, o.Latency)
 	cmps.add(p.ChannelCount, o.ChannelCount)
 	cmps.add(p.IsBigEndian, o.IsBigEndian)
 	cmps.add(p.IsFloat, o.IsFloat)
 	cmps.add(p.IsInterleaved, o.IsInterleaved)
-
 	return cmps.fitnessDistance()
 }
 
@@ -225,16 +228,18 @@ func (c *comparisons) fitnessDistance() (float64, bool) {
 
 // VideoConstraints represents a video's constraints
 type VideoConstraints struct {
-	Width, Height IntConstraint
-	FrameRate     FloatConstraint
-	FrameFormat   FrameFormatConstraint
+	Width, Height          IntConstraint
+	FrameRate              FloatConstraint
+	FrameFormat            FrameFormatConstraint
+	DiscardFramesOlderThan time.Duration
 }
 
 // Video represents a video's constraints
 type Video struct {
-	Width, Height int
-	FrameRate     float32
-	FrameFormat   frame.Format
+	Width, Height          int
+	FrameRate              float32
+	FrameFormat            frame.Format
+	DiscardFramesOlderThan time.Duration
 }
 
 // AudioConstraints represents an audio's constraints

@@ -1,6 +1,7 @@
 package video
 
 import (
+	"errors"
 	"image"
 	"reflect"
 	"testing"
@@ -45,5 +46,23 @@ func TestBroadcast(t *testing.T) {
 
 	if !reflect.DeepEqual(img, actualWithCopy) {
 		t.Fatal("Expected actual frame without copy to be the same with the original")
+	}
+}
+
+func TestBroadcastWithCopyOnReadError(t *testing.T) {
+	expectedError := errors.New("expected error")
+	source := ReaderFunc(func() (image.Image, func(), error) {
+		return nil, func() {}, expectedError
+	})
+
+	broadcaster := NewBroadcaster(source, nil)
+	readerWithCopy := broadcaster.NewReader(true)
+	actualWithCopy, _, err := readerWithCopy.Read()
+
+	if actualWithCopy != nil {
+		t.Fatal("Expected actual frame with copy to be nil")
+	}
+	if err != expectedError {
+		t.Fatal("Expected error to be the same")
 	}
 }

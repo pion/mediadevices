@@ -141,7 +141,9 @@ func (broadcaster *Broadcaster) NewReader(copyFn func(interface{}) interface{}) 
 			data, err, currentCount = ringData.data, ringData.err, ringData.count
 		}
 
-		data = copyFn(data)
+		if data != nil { // data is nil if an error occurred during reading
+			data = copyFn(data)
+		}
 		return
 	})
 }

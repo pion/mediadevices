@@ -23,6 +23,9 @@ package vpx
 // int pktSz(vpx_codec_cx_pkt_t *pkt) {
 //   return pkt->data.frame.sz;
 // }
+// vpx_codec_frame_flags_t pktFrameFlags(vpx_codec_cx_pkt_t *pkt) {
+//   return pkt->data.frame.flags;
+// }
 //
 // // Alloc helpers
 // vpx_codec_ctx_t *newCtx() {
@@ -61,15 +64,18 @@ import (
 )
 
 type encoder struct {
-	codec      *C.vpx_codec_ctx_t
-	raw        *C.vpx_image_t
-	cfg        *C.vpx_codec_enc_cfg_t
-	r          video.Reader
-	frameIndex int
-	tStart     int
-	tLastFrame int
-	frame      []byte
-	deadline   int
+	codec           *C.vpx_codec_ctx_t
+	raw             *C.vpx_image_t
+	cfg             *C.vpx_codec_enc_cfg_t
+	r               video.Reader
+	frameIndex      int
+	tStart          time.Time
+	tLastFrame      time.Time
+	frame           []byte
+	deadline        int
+	requireKeyFrame bool
+	targetBitrate   int
+	isKeyFrame      bool
 
 	mu     sync.Mutex
 	closed bool
@@ -141,6 +147,7 @@ func newParams(codecIface *C.vpx_codec_iface_t) (Params, error) {
 		RateControlOvershootPercent:  uint(cfg.rc_overshoot_pct),
 		RateControlMinQuantizer:      uint(cfg.rc_min_quantizer),
 		RateControlMaxQuantizer:      uint(cfg.rc_max_quantizer),
+		LagInFrames:                  uint(cfg.g_lag_in_frames),
 		ErrorResilient:               ErrorResilientMode(cfg.g_error_resilient),
 	}, nil
 }
@@ -171,6 +178,7 @@ func newEncoder(r video.Reader, p prop.Media, params Params, codecIface *C.vpx_c
 	cfg.g_h = C.uint(p.Height)
 	cfg.g_timebase.num = 1
 	cfg.g_timebase.den = 1000
+	cfg.g_lag_in_frames = C.uint(params.LagInFrames)
 	cfg.rc_target_bitrate = C.uint(params.BitRate) / 1000
 	cfg.kf_max_dist = C.uint(params.KeyFrameInterval)
 
@@ -191,16 +199,17 @@ func newEncoder(r video.Reader, p prop.Media, params Params, codecIface *C.vpx_c
 	); ec != 0 {
 		return nil, fmt.Errorf("vpx_codec_enc_init failed (%d)", ec)
 	}
-	t0 := time.Now().Nanosecond() / 1000000
+	t0 := time.Now()
 	return &encoder{
-		r:          video.ToI420(r),
-		codec:      codec,
-		raw:        rawNoBuffer,
-		cfg:        cfg,
-		tStart:     t0,
-		tLastFrame: t0,
-		deadline:   int(params.Deadline / time.Microsecond),
-		frame:      make([]byte, 1024),
+		r:             video.ToI420(r),
+		codec:         codec,
+		raw:           rawNoBuffer,
+		cfg:           cfg,
+		tStart:        t0,
+		tLastFrame:    t0,
+		deadline:      int(params.Deadline / time.Microsecond),
+		frame:         make([]byte, 1024),
+		targetBitrate: params.BitRate,
 	}, nil
 }
 
@@ -212,10 +221,11 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		return nil, func() {}, io.EOF
 	}
 
-	img, _, err := e.r.Read()
+	img, release, err := e.r.Read()
 	if err != nil {
 		return nil, func() {}, err
 	}
+	defer release()
 	yuvImg := img.(*image.YCbCr)
 	bounds := yuvImg.Bounds()
 	height := C.int(bounds.Dy())
@@ -225,7 +235,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	e.raw.stride[1] = C.int(yuvImg.CStride)
 	e.raw.stride[2] = C.int(yuvImg.CStride)
 
-	t := time.Now().Nanosecond() / 1000000
+	t := time.Now()
 
 	if e.cfg.g_w != C.uint(width) || e.cfg.g_h != C.uint(height) {
 		e.cfg.g_w, e.cfg.g_h = C.uint(width), C.uint(height)
@@ -244,7 +254,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		e.raw.d_w, e.raw.d_h = C.uint(width), C.uint(height)
 	}
 
-	duration := t - e.tLastFrame
+	duration := t.Sub(e.tLastFrame).Microseconds()
 	// VPX doesn't allow 0 duration. If 0 is given, vpx_codec_encode will fail with VPX_CODEC_INVALID_PARAM.
 	// 0 duration is possible because mediadevices first gets the frame meta data by reading from the source,
 	// and consequently the codec will read the first frame from the buffer. This means the first frame won't
@@ -253,15 +263,29 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	if duration == 0 {
 		duration = 1
 	}
+
+	targetVpxBitrate := C.uint(float32(e.targetBitrate / 1000)) // convert to kilobits / second
+	if e.cfg.rc_target_bitrate != targetVpxBitrate && targetVpxBitrate >= 1 {
+		e.cfg.rc_target_bitrate = targetVpxBitrate
+		rc := C.vpx_codec_enc_config_set(e.codec, e.cfg)
+		if rc != C.VPX_CODEC_OK {
+			return nil, func() {}, fmt.Errorf("vpx_codec_enc_config_set failed (%d)", rc)
+		}
+	}
+
 	var flags int
+	if e.requireKeyFrame {
+		flags = flags | C.VPX_EFLAG_FORCE_KF
+	}
 	if ec := C.encode_wrapper(
 		e.codec, e.raw,
-		C.long(t-e.tStart), C.ulong(duration), C.long(flags), C.ulong(e.deadline),
+		C.long(t.Sub(e.tStart).Microseconds()), C.ulong(duration), C.long(flags), C.ulong(e.deadline),
 		(*C.uchar)(&yuvImg.Y[0]), (*C.uchar)(&yuvImg.Cb[0]), (*C.uchar)(&yuvImg.Cr[0]),
 	); ec != C.VPX_CODEC_OK {
 		return nil, func() {}, fmt.Errorf("vpx_codec_encode failed (%d)", ec)
 	}
 
+	e.requireKeyFrame = false
 	e.frameIndex++
 	e.tLastFrame = t
 
@@ -273,6 +297,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 			break
 		}
 		if pkt.kind == C.VPX_CODEC_CX_FRAME_PKT {
+			e.isKeyFrame = C.pktFrameFlags(pkt)&C.VPX_FRAME_IS_KEY == C.VPX_FRAME_IS_KEY
 			encoded := C.GoBytes(unsafe.Pointer(C.pktBuf(pkt)), C.pktSz(pkt))
 			e.frame = append(e.frame, encoded...)
 		}
@@ -283,17 +308,31 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	return encoded, func() {}, err
 }
 
-func (e *encoder) SetBitRate(b int) error {
-	panic("SetBitRate is not implemented")
+func (e *encoder) ForceKeyFrame() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.requireKeyFrame = true
+	return nil
 }
 
-func (e *encoder) ForceKeyFrame() error {
-	panic("ForceKeyFrame is not implemented")
+func (e *encoder) SetBitRate(bitrate int) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.targetBitrate = bitrate
+	return nil
+}
+
+func (e *encoder) Controller() codec.EncoderController {
+	return e
 }
 
 func (e *encoder) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+
+	if e.closed {
+		return nil
+	}
 
 	e.closed = true
 

@@ -1,18 +1,23 @@
 package codec
 
 import (
+	"time"
+
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 )
 
 // RTPCodec wraps webrtc.RTPCodec. RTPCodec might extend webrtc.RTPCodec in the future.
 type RTPCodec struct {
 	webrtc.RTPCodecParameters
 	rtp.Payloader
+
+	// Latency of static frame size codec.
+	Latency time.Duration
 }
 
 // NewRTPH264Codec is a helper to create an H264 codec
@@ -29,6 +34,23 @@ func NewRTPH264Codec(clockrate uint32) *RTPCodec {
 			PayloadType: 125,
 		},
 		Payloader: &codecs.H264Payloader{},
+	}
+}
+
+// NewRTPH265Codec is a helper to create an H265 codec
+func NewRTPH265Codec(clockrate uint32) *RTPCodec {
+	return &RTPCodec{
+		RTPCodecParameters: webrtc.RTPCodecParameters{
+			RTPCodecCapability: webrtc.RTPCodecCapability{
+				MimeType:     webrtc.MimeTypeH265,
+				ClockRate:    90000,
+				Channels:     0,
+				SDPFmtpLine:  "",
+				RTCPFeedback: nil,
+			},
+			PayloadType: 125,
+		},
+		Payloader: &codecs.H265Payloader{},
 	}
 }
 
@@ -63,6 +85,23 @@ func NewRTPVP9Codec(clockrate uint32) *RTPCodec {
 			PayloadType: 98,
 		},
 		Payloader: &codecs.VP9Payloader{},
+	}
+}
+
+// NewRTPAV1Codec is a helper to create an AV1 codec
+func NewRTPAV1Codec(clockrate uint32) *RTPCodec {
+	return &RTPCodec{
+		RTPCodecParameters: webrtc.RTPCodecParameters{
+			RTPCodecCapability: webrtc.RTPCodecCapability{
+				MimeType:     webrtc.MimeTypeAV1,
+				ClockRate:    90000,
+				Channels:     0,
+				SDPFmtpLine:  "level-idx=5;profile=0;tier=0",
+				RTCPFeedback: nil,
+			},
+			PayloadType: 99,
+		},
+		Payloader: &codecs.AV1Payloader{},
 	}
 }
 
@@ -107,15 +146,37 @@ type VideoEncoderBuilder interface {
 	BuildVideoEncoder(r video.Reader, p prop.Media) (ReadCloser, error)
 }
 
-// ReadCloser is an io.ReadCloser with methods for rate limiting: SetBitRate and ForceKeyFrame
+// ReadCloser is an io.ReadCloser with a controller
 type ReadCloser interface {
 	Read() (b []byte, release func(), err error)
 	Close() error
+	Controllable
+}
+
+// EncoderController is the interface allowing to control the encoder behaviour after it's initialisation.
+// It will possibly have common control method in the future.
+// A controller can have optional methods represented by *Controller interfaces
+type EncoderController interface{}
+
+// Controllable is a interface representing a encoder which can be controlled
+// after it's initialisation with an EncoderController
+type Controllable interface {
+	Controller() EncoderController
+}
+
+// KeyFrameController is a interface representing an encoder that can be forced to produce key frame on demand
+type KeyFrameController interface {
+	EncoderController
+	// ForceKeyFrame forces the next frame to be a keyframe, aka intra-frame.
+	ForceKeyFrame() error
+}
+
+// BitRateController is a interface representing an encoder which can have a variable bit rate
+type BitRateController interface {
+	EncoderController
 	// SetBitRate sets current target bitrate, lower bitrate means smaller data will be transmitted
 	// but this also means that the quality will also be lower.
 	SetBitRate(int) error
-	// ForceKeyFrame forces the next frame to be a keyframe, aka intra-frame.
-	ForceKeyFrame() error
 }
 
 // BaseParams represents an codec's encoding properties

@@ -107,12 +107,14 @@ func TestBroadcast(t *testing.T) {
 
 							fps := float64(count) / duration.Seconds()
 							if fps < pauseCond.expectedFPS-2 || fps > pauseCond.expectedFPS+2 {
-								t.Fatal("Unexpected average FPS")
+								t.Error("Unexpected average FPS")
+								return
 							}
 
 							droppedFramesPerSecond := float64(droppedFrames) / duration.Seconds()
 							if droppedFramesPerSecond < pauseCond.expectedDrop-2 || droppedFramesPerSecond > pauseCond.expectedDrop+2 {
-								t.Fatal("Unexpected drop count")
+								t.Error("Unexpected drop count")
+								return
 							}
 
 							fpsChan <- []float64{fps, droppedFramesPerSecond, float64(lastFrameCount)}

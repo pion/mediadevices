@@ -8,6 +8,18 @@
 #include "camera_windows.hpp"
 #include "_cgo_export.h"
 
+
+imageProp* getProp(camera* cam, int i)
+{
+  return &cam->props[i];
+}
+
+char* getName(cameraList* list, int i)
+{
+  return list->name[i];
+}
+
+
 // printErr shows string representation of HRESULT.
 // This is for debugging.
 void printErr(HRESULT hr)
@@ -76,6 +88,7 @@ int listCamera(cameraList* list, const char** errstr)
     {
       list->name[i] = getCameraName(moniker);
       moniker->Release();
+      i++;
     }
   }
 

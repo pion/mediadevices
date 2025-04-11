@@ -46,6 +46,8 @@
         } \
     } while(0)
 
+static NSString *const UnrecognizedMacOSVersionException = @"UnrecognizedMacOSVersionException";
+
 @interface VideoDataDelegate : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
 
 @property (readonly) AVBindDataCallback mCallback;
@@ -74,26 +76,61 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
     if (CMSampleBufferGetNumSamples(sampleBuffer) != 1 ||
         !CMSampleBufferIsValid(sampleBuffer) ||
         !CMSampleBufferDataIsReady(sampleBuffer)) {
-      return;
+        return;
     }
 
     CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
     if (imageBuffer == NULL) {
-      return;
+        return;
     }
 
-    imageBuffer = CVBufferRetain(imageBuffer);
+    CVBufferRetain(imageBuffer);
     CVReturn ret =
         CVPixelBufferLockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
     if (ret != kCVReturnSuccess) {
-      return;
+        CVBufferRelease(imageBuffer);
+        return;
+    }
+    
+    // Handle NV12 special case
+    OSType pixelFormat = CVPixelBufferGetPixelFormatType(imageBuffer);
+    if (pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange) {
+        // Get actual dimensions of image (without padding)
+        size_t width = CVPixelBufferGetWidth(imageBuffer);
+        size_t height = CVPixelBufferGetHeight(imageBuffer);
+        size_t totalSize = /*Y plane*/ width * height + /*UV plane*/ width * height / 2;
+
+        size_t bytesPerRowY = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 0);
+        size_t bytesPerRowUV = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 1);
+
+        void *mergedBuffer = malloc(totalSize);
+        if (!mergedBuffer) {
+            NSLog(@"Failed to allocate memory for merged buffer");
+            CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+            CVBufferRelease(imageBuffer);
+            return;
+        }
+
+        // Truncate data where we know it should end to strip padding
+        void *yPlaneBuf = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
+        for (size_t row = 0; row < height; ++row) {
+            memcpy(mergedBuffer + row * width, yPlaneBuf + row * bytesPerRowY, width);
+        }
+
+        void *uvPlaneBuf = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 1);
+        for (size_t row = 0; row < height / 2; ++row) {
+            memcpy(mergedBuffer + width * height + row * width, uvPlaneBuf + row * bytesPerRowUV, width);
+        }
+
+        _mCallback(_mPUserData, mergedBuffer, (int)totalSize);
+        free(mergedBuffer);
+    } else {
+        void *buf = CVPixelBufferGetBaseAddress(imageBuffer);
+        size_t dataSize = CVPixelBufferGetDataSize(imageBuffer);
+        _mCallback(_mPUserData, buf, (int)dataSize);
     }
 
-    void *buf = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
-    size_t dataSize = CVPixelBufferGetDataSize(imageBuffer);
-    _mCallback(_mPUserData, buf, (int)dataSize);
-
-    CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+    CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
     CVBufferRelease(imageBuffer);
 }
 
@@ -133,16 +170,13 @@ STATUS frameFormatToFourCC(AVBindFrameFormat format, FourCharCode *pFourCC) {
         case AVBindFrameFormatI420:
             *pFourCC = kCVPixelFormatType_420YpCbCr8Planar;
             break;
-        case AVBindFrameFormatNV21:
-            *pFourCC = kCVPixelFormatType_420YpCbCr8BiPlanarFullRange;
-            break;
         case AVBindFrameFormatNV12:
             *pFourCC = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
             break;
         case AVBindFrameFormatUYVY:
             *pFourCC = kCVPixelFormatType_422YpCbCr8;
             break;
-        case AVBindFrameFormatYUY2:
+        case AVBindFrameFormatYUYV:
             *pFourCC = kCVPixelFormatType_422YpCbCr8_yuvs;
             break;
         case AVBindFrameFormatBGRA:
@@ -165,8 +199,6 @@ STATUS frameFormatFromFourCC(FourCharCode fourCC, AVBindFrameFormat *pFormat) {
             *pFormat = AVBindFrameFormatI420;
             break;
         case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
-            *pFormat = AVBindFrameFormatNV21;
-            break;
         case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
             *pFormat = AVBindFrameFormatNV12;
             break;
@@ -174,7 +206,7 @@ STATUS frameFormatFromFourCC(FourCharCode fourCC, AVBindFrameFormat *pFormat) {
             *pFormat = AVBindFrameFormatUYVY;
             break;
         case kCVPixelFormatType_422YpCbCr8_yuvs:
-            *pFormat = AVBindFrameFormatYUY2;
+            *pFormat = AVBindFrameFormatYUYV;
             break;
         case kCVPixelFormatType_32ARGB:
             *pFormat = AVBindFrameFormatBGRA;
@@ -183,8 +215,8 @@ STATUS frameFormatFromFourCC(FourCharCode fourCC, AVBindFrameFormat *pFormat) {
             *pFormat = AVBindFrameFormatARGB;
             break;
          // TODO: Add the rest of frame formats
-         default:
-             retStatus = STATUS_UNSUPPORTED_FRAME_FORMAT;
+        default:
+            retStatus = STATUS_UNSUPPORTED_FRAME_FORMAT;
      }
     return retStatus;
 }
@@ -199,15 +231,32 @@ STATUS AVBindDevices(AVBindMediaType mediaType, PAVBindDevice *ppDevices, int *p
 
     PAVBindDevice pDevice;
     AVMediaType _mediaType = mediaType == AVBindMediaTypeVideo ? AVMediaTypeVideo : AVMediaTypeAudio;
-    NSArray *refAllTypes = @[
-        AVCaptureDeviceTypeBuiltInWideAngleCamera,
-        AVCaptureDeviceTypeBuiltInMicrophone,
-        AVCaptureDeviceTypeExternalUnknown
-    ];
+
+    NSArray *refAllTypes;
+    #if defined(MAC_OS_VERSION_14_0)
+        if (@available(macOS 14.0, *)) {
+            refAllTypes = @[
+                AVCaptureDeviceTypeBuiltInWideAngleCamera,
+                AVCaptureDeviceTypeMicrophone,
+                AVCaptureDeviceTypeExternal,
+            ];
+        } else {
+            @throw [NSException exceptionWithName:UnrecognizedMacOSVersionException
+                                                   reason:@"Unrecognized or unsupported macOS version detected."
+                                                 userInfo:nil];
+        }
+    #else
+        refAllTypes = @[
+           AVCaptureDeviceTypeBuiltInWideAngleCamera,
+           AVCaptureDeviceTypeBuiltInMicrophone,
+           AVCaptureDeviceTypeExternalUnknown,
+        ];
+    #endif
+
     AVCaptureDeviceDiscoverySession *refSession = [AVCaptureDeviceDiscoverySession
-        discoverySessionWithDeviceTypes: refAllTypes
-        mediaType: _mediaType
-        position: AVCaptureDevicePositionUnspecified];
+                                                   discoverySessionWithDeviceTypes: refAllTypes
+                                                   mediaType: _mediaType
+                                                   position: AVCaptureDevicePositionUnspecified];
 
     int i = 0;
     for (AVCaptureDevice *refDevice in refSession.devices) {
@@ -218,6 +267,8 @@ STATUS AVBindDevices(AVBindMediaType mediaType, PAVBindDevice *ppDevices, int *p
         pDevice = devices + i;
         strncpy(pDevice->uid, refDevice.uniqueID.UTF8String, MAX_DEVICE_UID_CHARS);
         pDevice->uid[MAX_DEVICE_UID_CHARS] = '\0';
+        strncpy(pDevice->name, refDevice.localizedName.UTF8String, MAX_DEVICE_NAME_CHARS);
+        pDevice->name[MAX_DEVICE_NAME_CHARS] = '\0';
         i++;
     }
 

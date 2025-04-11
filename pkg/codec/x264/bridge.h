@@ -8,6 +8,7 @@
 #define ERR_ALLOC_PICTURE -3
 #define ERR_OPEN_ENGINE -4
 #define ERR_ENCODE -5
+#define ERR_BITRATE_RECONFIG -6
 
 typedef struct Slice {
   unsigned char *data;
@@ -18,6 +19,7 @@ typedef struct Encoder {
   x264_t *h;
   x264_picture_t pic_in;
   x264_param_t param;
+  int force_key_frame;
 } Encoder;
 
 Encoder *enc_new(x264_param_t param, char *preset, int *rc) {
@@ -77,6 +79,22 @@ fail:
   return NULL;
 }
 
+#define RC_MARGIN 10000 /* 1kilobits / second*/
+static int apply_target_bitrate(Encoder *e, int target_bitrate) {
+  int target_encoder_bitrate = (int)target_bitrate / 1000;
+  if (e->param.rc.i_bitrate == target_encoder_bitrate || target_encoder_bitrate <= 1) {
+    return 0; // if no change to bitrate or target bitrate is too small, we return no error (0)
+  }
+
+  e->param.rc.i_bitrate = target_encoder_bitrate;
+  e->param.rc.f_rate_tolerance = 0.1;
+  e->param.rc.i_vbv_max_bitrate = target_encoder_bitrate + RC_MARGIN / 2;
+  e->param.rc.i_vbv_buffer_size = e->param.rc.i_vbv_max_bitrate;
+  e->param.rc.f_vbv_buffer_init = 0.6;
+  int success = x264_encoder_reconfig(e->h, &e->param);
+  return success; // 0 on success or negative on error
+}
+
 Slice enc_encode(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr, int *rc) {
   x264_nal_t *nal;
   int i_nal;
@@ -85,8 +103,14 @@ Slice enc_encode(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr, int *rc) {
   e->pic_in.img.plane[0] = y;
   e->pic_in.img.plane[1] = cb;
   e->pic_in.img.plane[2] = cr;
+  if (e->force_key_frame) {
+    e->pic_in.i_type = X264_TYPE_IDR;
+  } else {
+    e->pic_in.i_type = X264_TYPE_AUTO;
+  }
 
   int frame_size = x264_encoder_encode(e->h, &nal, &i_nal, &e->pic_in, &pic_out);
+  e->force_key_frame = 0;
   Slice s = {.data_len = frame_size};
   if (frame_size <= 0) {
     *rc = ERR_ENCODE;

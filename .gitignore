@@ -13,3 +13,5 @@
 
 scripts/cross
 coverage.txt
+
+.idea

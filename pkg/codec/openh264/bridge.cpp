@@ -21,29 +21,26 @@ Encoder *enc_new(const EncoderOptions opts, int *eresult) {
     return NULL;
   }
 
-  // TODO: Remove hardcoded values
-  params.iUsageType = CAMERA_VIDEO_REAL_TIME;
+  params.iUsageType = opts.usage_type;
   params.iPicWidth = opts.width;
   params.iPicHeight = opts.height;
   params.iTargetBitrate = opts.target_bitrate;
   params.iMaxBitrate = opts.target_bitrate;
-  params.iRCMode = RC_BITRATE_MODE;
+  params.iRCMode = opts.rc_mode;
   params.fMaxFrameRate = opts.max_fps;
-  params.bEnableFrameSkip = true;
-  params.uiMaxNalSize = 0;
-  params.uiIntraPeriod = 30;
-  // set to 0, so that it'll automatically use multi threads when needed
-  params.iMultipleThreadIdc = 0;
+  params.bEnableFrameSkip = opts.enable_frame_skip;
+  params.uiMaxNalSize = opts.max_nal_size;
+  params.uiIntraPeriod = opts.intra_period;
+  params.iMultipleThreadIdc = opts.multiple_thread_idc;
   // The base spatial layer 0 is the only one we use.
   params.sSpatialLayers[0].iVideoWidth = params.iPicWidth;
   params.sSpatialLayers[0].iVideoHeight = params.iPicHeight;
   params.sSpatialLayers[0].fFrameRate = params.fMaxFrameRate;
   params.sSpatialLayers[0].iSpatialBitrate = params.iTargetBitrate;
   params.sSpatialLayers[0].iMaxSpatialBitrate = params.iTargetBitrate;
-  // Single NAL unit mode
-  params.sSpatialLayers[0].sSliceArgument.uiSliceNum = 1;
-  params.sSpatialLayers[0].sSliceArgument.uiSliceMode = SM_SIZELIMITED_SLICE;
-  params.sSpatialLayers[0].sSliceArgument.uiSliceSizeConstraint = 12800;
+  params.sSpatialLayers[0].sSliceArgument.uiSliceNum = opts.slice_num;
+  params.sSpatialLayers[0].sSliceArgument.uiSliceMode = opts.slice_mode;
+  params.sSpatialLayers[0].sSliceArgument.uiSliceSizeConstraint = opts.slice_size_constraint;
 
   rv = engine->InitializeExt(&params);
   if (rv != 0) {
@@ -72,6 +69,16 @@ void enc_free(Encoder *e, int *eresult) {
   free(e);
 }
 
+void enc_set_bitrate(Encoder *e, int bitrate) {
+  SEncParamExt encParamExt;
+  e->engine->GetOption(ENCODER_OPTION_SVC_ENCODE_PARAM_EXT, &encParamExt);
+  encParamExt.iTargetBitrate=bitrate;
+  encParamExt.iMaxBitrate=bitrate;
+  encParamExt.sSpatialLayers[0].iSpatialBitrate = bitrate;
+  encParamExt.sSpatialLayers[0].iMaxSpatialBitrate = bitrate;
+  e->engine->SetOption(ENCODER_OPTION_SVC_ENCODE_PARAM_EXT, &encParamExt);
+}
+
 // There's a good reference from ffmpeg in using the encode_frame
 // Reference: https://ffmpeg.org/doxygen/2.6/libopenh264enc_8c_source.html
 Slice enc_encode(Encoder *e, Frame f, int *eresult) {
@@ -80,12 +87,16 @@ Slice enc_encode(Encoder *e, Frame f, int *eresult) {
   SFrameBSInfo info = {0};
   Slice payload = {0};
 
+  if(e->force_key_frame == 1) {
+    e->engine->ForceIntraFrame(true);
+    e->force_key_frame = 0;
+  }
+
   pic.iPicWidth = f.width;
   pic.iPicHeight = f.height;
   pic.iColorFormat = videoFormatI420;
-  // We always received I420 format
-  pic.iStride[0] = pic.iPicWidth;
-  pic.iStride[1] = pic.iStride[2] = pic.iPicWidth / 2;
+  pic.iStride[0] = f.ystride;
+  pic.iStride[1] = pic.iStride[2] = f.cstride;
   pic.pData[0] = (unsigned char *)f.y;
   pic.pData[1] = (unsigned char *)f.u;
   pic.pData[2] = (unsigned char *)f.v;

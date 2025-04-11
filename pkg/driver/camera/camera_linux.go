@@ -8,9 +8,15 @@ import (
 	"errors"
 	"image"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
+	"syscall"
+	"time"
+
+	"github.com/pion/mediadevices/pkg/driver/availability"
 
 	"github.com/blackjack/webcam"
 	"github.com/pion/mediadevices/pkg/driver"
@@ -59,6 +65,8 @@ var (
 	}
 )
 
+const bufCount = 2
+
 // Camera implementation using v4l2
 // Reference: https://linuxtv.org/downloads/v4l-dvb-apis/uapi/v4l/videodev.html#videodev
 type camera struct {
@@ -69,46 +77,72 @@ type camera struct {
 	started         bool
 	mutex           sync.Mutex
 	cancel          func()
+	prevFrameTime   time.Time
 }
 
 func init() {
-	discovered := make(map[string]struct{})
+	Initialize()
+}
 
-	discover := func(pattern string) {
-		devices, err := filepath.Glob(pattern)
-		if err != nil {
-			// No v4l device.
-			return
-		}
-		for _, device := range devices {
-			label := filepath.Base(device)
-			reallink, err := os.Readlink(device)
-			if err != nil {
-				reallink = label
-			} else {
-				reallink = filepath.Base(reallink)
-			}
-
-			if _, ok := discovered[reallink]; ok {
-				continue
-			}
-
-			discovered[reallink] = struct{}{}
-			cam := newCamera(device)
-			priority := driver.PriorityNormal
-			if reallink == prioritizedDevice {
-				priority = driver.PriorityHigh
-			}
-			driver.GetManager().Register(cam, driver.Info{
-				Label:      label + LabelSeparator + reallink,
-				DeviceType: driver.Camera,
-				Priority:   priority,
-			})
-		}
+// Initialize finds and registers camera devices. This is part of an experimental API.
+func Initialize() {
+	// Clear all registered camera devices to prevent duplicates.
+	// If first initalize call, this will be a noop.
+	manager := driver.GetManager()
+	for _, d := range manager.Query(driver.FilterVideoRecorder()) {
+		manager.Delete(d.ID())
 	}
+	discovered := make(map[string]struct{})
+	discover(discovered, "/dev/v4l/by-id/*")
+	discover(discovered, "/dev/v4l/by-path/*")
+	discover(discovered, "/dev/video*")
+}
 
-	discover("/dev/v4l/by-path/*")
-	discover("/dev/video*")
+func discover(discovered map[string]struct{}, pattern string) {
+	devices, err := filepath.Glob(pattern)
+	if err != nil {
+		// No v4l device.
+		return
+	}
+	for _, device := range devices {
+		label := filepath.Base(device)
+		reallink, err := os.Readlink(device)
+		if err != nil {
+			reallink = label
+		} else {
+			reallink = filepath.Base(reallink)
+		}
+		if _, ok := discovered[reallink]; ok {
+			continue
+		}
+
+		discovered[reallink] = struct{}{}
+		cam := newCamera(device)
+		priority := driver.PriorityNormal
+		if reallink == prioritizedDevice {
+			priority = driver.PriorityHigh
+		}
+
+		var name, busInfo string
+		if webcamCam, err := webcam.Open(cam.path); err == nil {
+			defer webcamCam.Close()
+			name, _ = webcamCam.GetName()
+			busInfo, _ = webcamCam.GetBusInfo()
+		}
+
+		driver.GetManager().Register(cam, driver.Info{
+			// 	Source: https://www.kernel.org/doc/html/v4.9/media/uapi/v4l/vidioc-querycap.html
+			//	Name of the device, a NUL-terminated UTF-8 string. For example: “Yoyodyne TV/FM”. One driver may support
+			//	different brands or models of video hardware. This information is intended for users, for example in a
+			//	menu of available devices. Since multiple TV cards of the same brand may be installed which are
+			//	supported by the same driver, this name should be combined with the character device file name
+			//	(e.g. /dev/video2) or the bus_info string to avoid ambiguities.
+			Name:       name + LabelSeparator + busInfo,
+			Label:      label + LabelSeparator + reallink,
+			DeviceType: driver.Camera,
+			Priority:   priority,
+		})
+	}
 }
 
 func newCamera(path string) *camera {
@@ -135,14 +169,32 @@ func newCamera(path string) *camera {
 	return c
 }
 
+func getCameraReadTimeout() uint32 {
+	// default to 5 seconds
+	var readTimeoutSec uint32 = 5
+	if val, ok := os.LookupEnv("PION_MEDIADEVICES_CAMERA_READ_TIMEOUT"); ok {
+		if valInt, err := strconv.Atoi(val); err == nil {
+			if valInt > 0 {
+				readTimeoutSec = uint32(valInt)
+			}
+		}
+	}
+	return readTimeoutSec
+}
+
 func (c *camera) Open() error {
 	cam, err := webcam.Open(c.path)
 	if err != nil {
 		return err
 	}
 
-	// Late frames should be discarded. Buffering should be handled in higher level.
-	cam.SetBufferCount(1)
+	// Buffering should be handled in higher level.
+	err = cam.SetBufferCount(bufCount)
+	if err != nil {
+		return err
+	}
+
+	c.prevFrameTime = time.Now()
 	c.cam = cam
 	return nil
 }
@@ -181,11 +233,20 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 		return nil, err
 	}
 
+	if p.FrameRate > 0 {
+		err = c.cam.SetFramerate(float32(p.FrameRate))
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if err := c.cam.StartStreaming(); err != nil {
 		return nil, err
 	}
 
 	cam := c.cam
+
+	readTimeoutSec := getCameraReadTimeout()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
@@ -202,7 +263,14 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 				return nil, func() {}, io.EOF
 			}
 
-			err := cam.WaitForFrame(5) // 5 seconds
+			if p.DiscardFramesOlderThan != 0 && time.Now().Sub(c.prevFrameTime) >= p.DiscardFramesOlderThan {
+				for i := 0; i < bufCount; i++ {
+					_ = cam.WaitForFrame(readTimeoutSec)
+					_, _ = cam.ReadFrame()
+				}
+			}
+
+			err := cam.WaitForFrame(readTimeoutSec)
 			switch err.(type) {
 			case nil:
 			case *webcam.Timeout:
@@ -216,6 +284,10 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 			if err != nil {
 				// Camera has been stopped.
 				return nil, func() {}, err
+			}
+
+			if p.DiscardFramesOlderThan != 0 {
+				c.prevFrameTime = time.Now()
 			}
 
 			// Frame is empty.
@@ -251,13 +323,31 @@ func (c *camera) Properties() []prop.Media {
 			}
 
 			if frameSize.StepWidth == 0 || frameSize.StepHeight == 0 {
-				properties = append(properties, prop.Media{
-					Video: prop.Video{
-						Width:       int(frameSize.MaxWidth),
-						Height:      int(frameSize.MaxHeight),
-						FrameFormat: supportedFormat,
-					},
-				})
+				framerates := c.cam.GetSupportedFramerates(format, uint32(frameSize.MaxWidth), uint32(frameSize.MaxHeight))
+				// If the camera doesn't support framerate, we just add the resolution and format
+				if len(framerates) == 0 {
+					properties = append(properties, prop.Media{
+						Video: prop.Video{
+							Width:       int(frameSize.MaxWidth),
+							Height:      int(frameSize.MaxHeight),
+							FrameFormat: supportedFormat,
+						},
+					})
+					continue
+				}
+
+				for _, framerate := range framerates {
+					for _, fps := range enumFramerate(framerate) {
+						properties = append(properties, prop.Media{
+							Video: prop.Video{
+								Width:       int(frameSize.MaxWidth),
+								Height:      int(frameSize.MaxHeight),
+								FrameFormat: supportedFormat,
+								FrameRate:   fps,
+							},
+						})
+					}
+				}
 			} else {
 				// FIXME: we should probably use a custom data structure to capture all of the supported resolutions
 				for _, supportedResolution := range supportedResolutions {
@@ -276,16 +366,100 @@ func (c *camera) Properties() []prop.Media {
 						continue
 					}
 
-					properties = append(properties, prop.Media{
-						Video: prop.Video{
-							Width:       width,
-							Height:      height,
-							FrameFormat: supportedFormat,
-						},
-					})
+					framerates := c.cam.GetSupportedFramerates(format, uint32(width), uint32(height))
+					if len(framerates) == 0 {
+						properties = append(properties, prop.Media{
+							Video: prop.Video{
+								Width:       width,
+								Height:      height,
+								FrameFormat: supportedFormat,
+							},
+						})
+						continue
+					}
+
+					for _, framerate := range framerates {
+						for _, fps := range enumFramerate(framerate) {
+							properties = append(properties, prop.Media{
+								Video: prop.Video{
+									Width:       width,
+									Height:      height,
+									FrameFormat: supportedFormat,
+									FrameRate:   fps,
+								},
+							})
+						}
+					}
 				}
 			}
 		}
 	}
 	return properties
+}
+
+func (c *camera) IsAvailable() (bool, error) {
+	var err error
+
+	// close the opened file descriptor as quickly as possible and in all cases, including panics
+	func() {
+		var cam *webcam.Webcam
+		if cam, err = webcam.Open(c.path); err == nil {
+			defer cam.Close()
+			var index int32
+			// "Drivers must implement all the input ioctls when the device has one or more inputs..."
+			// Source: https://www.kernel.org/doc/html/latest/userspace-api/media/v4l/video.html?highlight=vidioc_enuminput
+			if index, err = cam.GetInput(); err == nil {
+				err = cam.SelectInput(uint32(index))
+			}
+		}
+	}()
+
+	var errno syscall.Errno
+	errors.As(err, &errno)
+
+	// See https://man7.org/linux/man-pages/man3/errno.3.html
+	switch {
+	case err == nil:
+		return true, nil
+	case errno == syscall.EBUSY:
+		return false, availability.ErrBusy
+	case errno == syscall.ENODEV || errno == syscall.ENOENT:
+		return false, availability.ErrNoDevice
+	default:
+		return false, availability.NewError(errno.Error())
+	}
+}
+
+// enumFramerate returns a list of fps options from a FrameRate struct.
+// discrete framerates will return a list of 1 fps element.
+// stepwise framerates will return a list of all possible fps options.
+func enumFramerate(framerate webcam.FrameRate) []float32 {
+	var framerates []float32
+	if framerate.StepNumerator == 0 && framerate.StepDenominator == 0 {
+		fr, err := calcFramerate(framerate.MaxNumerator, framerate.MaxDenominator)
+		if err != nil {
+			return framerates
+		}
+		framerates = append(framerates, fr)
+	} else {
+		for n := framerate.MinNumerator; n <= framerate.MaxNumerator; n += framerate.StepNumerator {
+			for d := framerate.MinDenominator; d <= framerate.MaxDenominator; d += framerate.StepDenominator {
+				fr, err := calcFramerate(n, d)
+				if err != nil {
+					continue
+				}
+				framerates = append(framerates, fr)
+			}
+		}
+	}
+	return framerates
+}
+
+// calcFramerate turns fraction into a float32 fps value.
+func calcFramerate(numerator uint32, denominator uint32) (float32, error) {
+	if denominator == 0 {
+		return 0, errors.New("framerate denominator is zero")
+	}
+	// round to three decimal places to avoid floating point precision issues
+	return float32(math.Round(1000.0/((float64(numerator))/float64(denominator))) / 1000), nil
 }
