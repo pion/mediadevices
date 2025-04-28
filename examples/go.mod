@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/esimov/pigo v1.4.6
 	github.com/pion/mediadevices v0.0.0
-	github.com/pion/webrtc/v4 v4.0.15
+	github.com/pion/webrtc/v4 v4.1.0
 )
 
 require (
@@ -20,8 +20,8 @@ require (
 	github.com/pion/mdns/v2 v2.0.7 // indirect
 	github.com/pion/randutil v0.1.0 // indirect
 	github.com/pion/rtcp v1.2.15 // indirect
-	github.com/pion/rtp v1.8.13 // indirect
-	github.com/pion/sctp v1.8.38 // indirect
+	github.com/pion/rtp v1.8.15 // indirect
+	github.com/pion/sctp v1.8.39 // indirect
 	github.com/pion/sdp/v3 v3.0.11 // indirect
 	github.com/pion/srtp/v3 v3.0.4 // indirect
 	github.com/pion/stun/v3 v3.0.0 // indirect
