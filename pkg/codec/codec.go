@@ -67,7 +67,9 @@ func NewRTPVP8Codec(clockrate uint32) *RTPCodec {
 			},
 			PayloadType: 96,
 		},
-		Payloader: &codecs.VP8Payloader{},
+		Payloader: &codecs.VP8Payloader{
+			EnablePictureID: true,
+		},
 	}
 }
 
