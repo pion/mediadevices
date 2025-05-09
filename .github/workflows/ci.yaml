@@ -34,9 +34,14 @@ jobs:
             libvpx-dev \
             libx11-dev \
             libx264-dev \
-            libxext-dev
+            libxext-dev \
+            nasm \
+            yasm
       - name: Run Test Suite
-        run: make test
+        run: |
+          make test \
+          && cd pkg/codec/ffmpeg \
+          && make test
       - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -65,7 +70,10 @@ jobs:
             libvpx \
             x264
       - name: Run Test Suite
-        run: make test
+        run: |
+          make test \
+          && cd pkg/codec/ffmpeg \
+          && make test
       - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
