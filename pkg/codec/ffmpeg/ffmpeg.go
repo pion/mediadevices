@@ -17,33 +17,27 @@ import (
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
-type hardwareEncoder struct {
+type baseEncoder struct {
 	codecCtx       *astiav.CodecContext
-	hwFramesCtx    *astiav.HardwareFramesContext
 	frame          *astiav.Frame
-	hwFrame        *astiav.Frame
 	packet         *astiav.Packet
 	width          int
 	height         int
 	r              video.Reader
 	nextIsKeyFrame bool
+	mu             sync.Mutex
+	closed         bool
+}
 
-	mu     sync.Mutex
-	closed bool
+type hardwareEncoder struct {
+	baseEncoder
+
+	hwFramesCtx *astiav.HardwareFramesContext
+	hwFrame     *astiav.Frame
 }
 
 type softwareEncoder struct {
-	codec          *astiav.Codec
-	codecCtx       *astiav.CodecContext
-	frame          *astiav.Frame
-	packet         *astiav.Packet
-	width          int
-	height         int
-	r              video.Reader
-	nextIsKeyFrame bool
-
-	mu     sync.Mutex
-	closed bool
+	baseEncoder
 }
 
 func newHardwareEncoder(r video.Reader, p prop.Media, params Params) (*hardwareEncoder, error) {
@@ -140,8 +134,7 @@ func newHardwareEncoder(r video.Reader, p prop.Media, params Params) (*hardwareE
 	}
 	hwFramesCtx.SetSoftwarePixelFormat(params.pixelFormat)
 
-	err = hwFramesCtx.Initialize()
-	if err != nil {
+	if err = hwFramesCtx.Initialize(); err != nil {
 		codecCtx.Free()
 		hwFramesCtx.Free()
 		return nil, errFailedToInitHwFramesCtx
@@ -149,7 +142,7 @@ func newHardwareEncoder(r video.Reader, p prop.Media, params Params) (*hardwareE
 	codecCtx.SetHardwareFramesContext(hwFramesCtx)
 
 	// Open codec context
-	if err := codecCtx.Open(codec, nil); err != nil {
+	if err = codecCtx.Open(codec, nil); err != nil {
 		codecCtx.Free()
 		hwFramesCtx.Free()
 		return nil, errFailedToOpenCodecCtx
@@ -166,8 +159,7 @@ func newHardwareEncoder(r video.Reader, p prop.Media, params Params) (*hardwareE
 	softwareFrame.SetHeight(p.Height)
 	softwareFrame.SetPixelFormat(params.pixelFormat)
 
-	err = softwareFrame.AllocBuffer(0)
-	if err != nil {
+	if err = softwareFrame.AllocBuffer(0); err != nil {
 		softwareFrame.Free()
 		codecCtx.Free()
 		hwFramesCtx.Free()
@@ -176,8 +168,7 @@ func newHardwareEncoder(r video.Reader, p prop.Media, params Params) (*hardwareE
 
 	hardwareFrame := astiav.AllocFrame()
 
-	err = hardwareFrame.AllocHardwareBuffer(hwFramesCtx)
-	if err != nil {
+	if err = hardwareFrame.AllocHardwareBuffer(hwFramesCtx); err != nil {
 		softwareFrame.Free()
 		hardwareFrame.Free()
 		codecCtx.Free()
@@ -195,15 +186,17 @@ func newHardwareEncoder(r video.Reader, p prop.Media, params Params) (*hardwareE
 	}
 
 	return &hardwareEncoder{
-		codecCtx:       codecCtx,
-		hwFramesCtx:    hwFramesCtx,
-		frame:          softwareFrame,
-		hwFrame:        hardwareFrame,
-		packet:         packet,
-		width:          p.Width,
-		height:         p.Height,
-		r:              r,
-		nextIsKeyFrame: false,
+		baseEncoder: baseEncoder{
+			codecCtx:       codecCtx,
+			frame:          softwareFrame,
+			packet:         packet,
+			width:          p.Width,
+			height:         p.Height,
+			r:              r,
+			nextIsKeyFrame: false,
+		},
+		hwFramesCtx: hwFramesCtx,
+		hwFrame:     hardwareFrame,
 	}, nil
 }
 
@@ -234,17 +227,12 @@ func (e *hardwareEncoder) Read() ([]byte, func(), error) {
 		e.hwFrame.SetPictureType(astiav.PictureType(astiav.PictureTypeNone))
 	}
 
-	err = e.frame.Data().FromImage(img)
-	if err != nil {
+	if err = e.frame.Data().FromImage(img); err != nil {
 		return nil, func() {}, err
 	}
-
-	err = e.frame.TransferHardwareData(e.hwFrame)
-	if err != nil {
+	if err = e.frame.TransferHardwareData(e.hwFrame); err != nil {
 		return nil, func() {}, err
 	}
-
-	// Send frame to encoder
 	if err := e.codecCtx.SendFrame(e.hwFrame); err != nil {
 		return nil, func() {}, err
 	}
@@ -351,8 +339,7 @@ func newSoftwareEncoder(r video.Reader, p prop.Media, params Params) (*softwareE
 	softwareFrame.SetHeight(p.Height)
 	softwareFrame.SetPixelFormat(astiav.PixelFormat(astiav.PixelFormatYuv420P))
 
-	err := softwareFrame.AllocBuffer(0)
-	if err != nil {
+	if err := softwareFrame.AllocBuffer(0); err != nil {
 		softwareFrame.Free()
 		codecCtx.Free()
 		return nil, errFailedToAllocSwBuf
@@ -366,13 +353,15 @@ func newSoftwareEncoder(r video.Reader, p prop.Media, params Params) (*softwareE
 	}
 
 	return &softwareEncoder{
-		codecCtx:       codecCtx,
-		frame:          softwareFrame,
-		packet:         packet,
-		width:          p.Width,
-		height:         p.Height,
-		r:              video.ToI420(r),
-		nextIsKeyFrame: false,
+		baseEncoder: baseEncoder{
+			codecCtx:       codecCtx,
+			frame:          softwareFrame,
+			packet:         packet,
+			width:          p.Width,
+			height:         p.Height,
+			r:              video.ToI420(r),
+			nextIsKeyFrame: false,
+		},
 	}, nil
 }
 
@@ -393,11 +382,10 @@ func (e *softwareEncoder) Read() ([]byte, func(), error) {
 	} else {
 		e.frame.SetPictureType(astiav.PictureType(astiav.PictureTypeNone))
 	}
-	err = e.frame.Data().FromImage(img)
-	if err != nil {
+	if err = e.frame.Data().FromImage(img); err != nil {
 		return nil, func() {}, err
 	}
-	if err := e.codecCtx.SendFrame(e.frame); err != nil {
+	if err = e.codecCtx.SendFrame(e.frame); err != nil {
 		return nil, func() {}, err
 	}
 	for {
