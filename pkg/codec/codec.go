@@ -48,7 +48,7 @@ func NewRTPH265Codec(clockrate uint32) *RTPCodec {
 				SDPFmtpLine:  "",
 				RTCPFeedback: nil,
 			},
-			PayloadType: 125,
+			PayloadType: 116,
 		},
 		Payloader: &codecs.H265Payloader{},
 	}
