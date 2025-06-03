@@ -1,0 +1,173 @@
+name: pkg/codec/ffmpeg CI
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - pkg/codec/ffmepg
+  push:
+    branches:
+      - master
+    paths:
+      - pkg/codec/ffmepg
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go:
+          - '1.21' # oldest version this package supports
+          - '1.22' # oldstable Go version
+          - '1.23' # stable Go version
+    name: Linux Go ${{ matrix.go }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq \
+          && sudo apt-get install --no-install-recommends -y \
+            libopus-dev \
+            libva-dev \
+            libvpx-dev \
+            libx11-dev \
+            libx264-dev \
+            libxext-dev \
+            nasm \
+            yasm
+      - name: Cache FFmpeg build
+        uses: actions/cache@v4
+        id: ffmpeg-cache
+        with:
+          path: |
+            pkg/codec/ffmpeg/tmp/n7.0
+          key: ffmpeg-linux-n7.0-${{ hashFiles('pkg/codec/ffmpeg/Makefile') }}
+          restore-keys: |
+            ffmpeg-linux-n7.0-
+      - name: Check if FFmpeg libraries exist
+        id: ffmpeg-check
+        working-directory: pkg/codec/ffmpeg
+        run: |
+          echo "=== Checking FFmpeg cache status ==="
+          if [ -f "tmp/n7.0/lib/libavcodec.a" ] && [ -f "tmp/n7.0/lib/pkgconfig/libavcodec.pc" ]; then
+            echo "FFmpeg libraries found in cache"
+            echo "ffmpeg_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "FFmpeg libraries missing or incomplete"
+            ls -la tmp/ 2>/dev/null || echo "tmp directory does not exist"
+            ls -la tmp/n7.0/ 2>/dev/null || echo "n7.0 directory does not exist"
+            ls -la tmp/n7.0/lib/ 2>/dev/null || echo "lib directory does not exist"
+            echo "ffmpeg_exists=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Build FFmpeg (if not cached or incomplete)
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true' || steps.ffmpeg-check.outputs.ffmpeg_exists != 'true'
+        working-directory: pkg/codec/ffmpeg
+        run: |
+          echo "=== Starting FFmpeg build ==="
+          ls -la tmp/ 2>/dev/null || echo "tmp directory does not exist"
+          ls -la tmp/n7.0/ 2>/dev/null || echo "n7.0 directory does not exist"
+          make build-ffmpeg
+          echo "=== FFmpeg build finished ==="
+          ls -la tmp/n7.0/
+          ls -la tmp/n7.0/lib/ 2>/dev/null || echo "lib directory not found after build"
+          ls -la tmp/n7.0/include/ 2>/dev/null || echo "include directory not found after build"
+      - name: Verify FFmpeg installation
+        working-directory: pkg/codec/ffmpeg
+        run: |
+          ls -la tmp/n7.0/
+          ls -la tmp/n7.0/lib/ || echo "lib directory not found"
+          ls -la tmp/n7.0/include/ || echo "include directory not found"
+          pkg-config --exists --print-errors libavcodec || echo "pkg-config check failed"
+        env:
+          PKG_CONFIG_PATH: ${{ github.workspace }}/pkg/codec/ffmpeg/tmp/n7.0/lib/pkgconfig
+      - name: Run pkg/codec/ffmpeg Test Suite
+        working-directory: pkg/codec/ffmpeg
+        run: |
+          make test
+        env:
+          PKG_CONFIG_PATH: ${{ github.workspace }}/pkg/codec/ffmpeg/tmp/n7.0/lib/pkgconfig
+      - uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+  build-darwin:
+    strategy:
+      fail-fast: false
+      matrix:
+        go:
+          - '1.22'
+          - '1.23'
+    runs-on: macos-latest
+    name: Darwin Go ${{ matrix.go }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Install dependencies
+        run: |
+          brew install \
+            pkg-config \
+            opus \
+            libvpx \
+            x264
+      - name: Cache FFmpeg build
+        uses: actions/cache@v4
+        id: ffmpeg-cache
+        with:
+          path: |
+            pkg/codec/ffmpeg/tmp/n7.0
+          key: ffmpeg-darwin-n7.0-${{ hashFiles('pkg/codec/ffmpeg/Makefile') }}
+          restore-keys: |
+            ffmpeg-darwin-n7.0-
+      - name: Check if FFmpeg libraries exist
+        id: ffmpeg-check
+        working-directory: pkg/codec/ffmpeg
+        run: |
+          if [ -f "tmp/n7.0/lib/libavcodec.a" ] && [ -f "tmp/n7.0/lib/pkgconfig/libavcodec.pc" ]; then
+            echo "ffmpeg_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "ffmpeg_exists=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Build FFmpeg (if not cached or incomplete)
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true' || steps.ffmpeg-check.outputs.ffmpeg_exists != 'true'
+        working-directory: pkg/codec/ffmpeg
+        run: |
+          echo "=== Starting FFmpeg build ==="
+          ls -la tmp/ 2>/dev/null || echo "tmp directory does not exist"
+          ls -la tmp/n7.0/ 2>/dev/null || echo "n7.0 directory does not exist"
+          make build-ffmpeg
+          echo "=== FFmpeg build finished ==="
+          ls -la tmp/n7.0/
+          ls -la tmp/n7.0/lib/ 2>/dev/null || echo "lib directory not found after build"
+          ls -la tmp/n7.0/include/ 2>/dev/null || echo "include directory not found after build"
+      - name: Run Test Suite
+        working-directory: pkg/codec/ffmpeg
+        run: |
+          make test
+        env:
+          PKG_CONFIG_PATH: ${{ github.workspace }}/pkg/codec/ffmpeg/tmp/n7.0/lib/pkgconfig
+      - uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+  check-licenses:
+    runs-on: ubuntu-latest
+    name: Check Licenses
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Installing go-licenses
+        run: go install github.com/google/go-licenses@latest
+      - name: Checking licenses
+        run: go-licenses check ./...
