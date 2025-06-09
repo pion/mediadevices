@@ -7,10 +7,10 @@ require (
 	github.com/gen2brain/malgo v0.11.23
 	github.com/google/uuid v1.6.0
 	github.com/kbinani/screenshot v0.0.0-20250118074034-a3924b7bbc8c
-	github.com/pion/interceptor v0.1.37
+	github.com/pion/interceptor v0.1.39
 	github.com/pion/logging v0.2.3
 	github.com/pion/rtcp v1.2.15
-	github.com/pion/rtp v1.8.15
+	github.com/pion/rtp v1.8.18
 	github.com/pion/webrtc/v4 v4.1.0
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/image v0.23.0
