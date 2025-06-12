@@ -203,8 +203,10 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 			encodedReader.Close()
 
 			// When there's another call to unbind, it won't block since we remove the current ctx from active connections
-			track.removeActivePeerConnection(ctx.ID())
-			close(signalCh)
+			signalCh := track.removeActivePeerConnection(ctx.ID())
+			if signalCh != nil {
+				close(signalCh)
+			}
 			if doneCh != nil {
 				close(doneCh)
 			}
