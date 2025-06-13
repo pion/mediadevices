@@ -59,6 +59,7 @@ jobs:
       - name: Install dependencies
         run: |
           which brew
+          brew update
           brew install \
             pkg-config \
             opus \
