@@ -10,7 +10,7 @@ require (
 	github.com/pion/interceptor v0.1.40
 	github.com/pion/logging v0.2.3
 	github.com/pion/rtcp v1.2.15
-	github.com/pion/rtp v1.8.18
+	github.com/pion/rtp v1.8.19
 	github.com/pion/webrtc/v4 v4.1.2
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/image v0.23.0
