@@ -31,8 +31,8 @@ jobs:
           go-version: ${{ matrix.go }}
       - name: Install dependencies
         run: |
-          sudo apt-get update -qq \
-          && sudo apt-get install --no-install-recommends -y \
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y \
             libopus-dev \
             libva-dev \
             libvpx-dev \
@@ -68,15 +68,7 @@ jobs:
       - name: Build FFmpeg (if not cached or incomplete)
         if: steps.ffmpeg-cache.outputs.cache-hit != 'true' || steps.ffmpeg-check.outputs.ffmpeg_exists != 'true'
         working-directory: pkg/codec/ffmpeg
-        run: |
-          echo "=== Starting FFmpeg build ==="
-          ls -la tmp/ 2>/dev/null || echo "tmp directory does not exist"
-          ls -la tmp/n7.0/ 2>/dev/null || echo "n7.0 directory does not exist"
-          make build-ffmpeg
-          echo "=== FFmpeg build finished ==="
-          ls -la tmp/n7.0/
-          ls -la tmp/n7.0/lib/ 2>/dev/null || echo "lib directory not found after build"
-          ls -la tmp/n7.0/include/ 2>/dev/null || echo "include directory not found after build"
+        run: make build-ffmpeg
       - name: Verify FFmpeg installation
         working-directory: pkg/codec/ffmpeg
         run: |
@@ -139,15 +131,7 @@ jobs:
       - name: Build FFmpeg (if not cached or incomplete)
         if: steps.ffmpeg-cache.outputs.cache-hit != 'true' || steps.ffmpeg-check.outputs.ffmpeg_exists != 'true'
         working-directory: pkg/codec/ffmpeg
-        run: |
-          echo "=== Starting FFmpeg build ==="
-          ls -la tmp/ 2>/dev/null || echo "tmp directory does not exist"
-          ls -la tmp/n7.0/ 2>/dev/null || echo "n7.0 directory does not exist"
-          make build-ffmpeg
-          echo "=== FFmpeg build finished ==="
-          ls -la tmp/n7.0/
-          ls -la tmp/n7.0/lib/ 2>/dev/null || echo "lib directory not found after build"
-          ls -la tmp/n7.0/include/ 2>/dev/null || echo "include directory not found after build"
+        run: make build-ffmpeg
       - name: Run Test Suite
         working-directory: pkg/codec/ffmpeg
         run: |
