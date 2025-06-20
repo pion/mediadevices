@@ -8,7 +8,7 @@ import (
 
 	"github.com/carbonrobotics/mediadevices/examples/internal/signal"
 	"github.com/pion/mediadevices"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 
 	// If you don't like x264, you can also use vpx by importing as below
 	// "github.com/carbonrobotics/mediadevices/pkg/codec/vpx" // This is required to use VP8/VP9 video encoder
@@ -84,7 +84,7 @@ func main() {
 		})
 
 		_, err = peerConnection.AddTransceiverFromTrack(track,
-			webrtc.RtpTransceiverInit{
+			webrtc.RTPTransceiverInit{
 				Direction: webrtc.RTPTransceiverDirectionSendonly,
 			},
 		)

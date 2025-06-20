@@ -96,6 +96,11 @@ func (e *encoder) ForceKeyFrame() error {
 	return nil
 }
 
+func (e *encoder) SetBitRate(bitrate int) error {
+	C.enc_set_bitrate(e.engine, C.int(bitrate))
+	return nil
+}
+
 func (e *encoder) Controller() codec.EncoderController {
 	return e
 }

@@ -124,6 +124,7 @@ func discover(existing map[driver.Info]struct{}, discovered map[string]struct{},
 
 		var name, busInfo string
 		if webcamCam, err := webcam.Open(cam.path); err == nil {
+			defer webcamCam.Close()
 			name, _ = webcamCam.GetName()
 			busInfo, _ = webcamCam.GetBusInfo()
 			webcamCam.Close() // TODO check this works

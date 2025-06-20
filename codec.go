@@ -9,7 +9,7 @@ import (
 	"github.com/carbonrobotics/mediadevices/pkg/io/audio"
 	"github.com/carbonrobotics/mediadevices/pkg/io/video"
 	"github.com/carbonrobotics/mediadevices/pkg/prop"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 )
 
 // CodecSelector is a container of video and audio encoder builders, which later will be used

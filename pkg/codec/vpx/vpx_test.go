@@ -1,10 +1,12 @@
 package vpx
 
 import (
+	"context"
 	"image"
 	"io"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/carbonrobotics/mediadevices/pkg/codec"
 	"github.com/carbonrobotics/mediadevices/pkg/codec/internal/codectest"
@@ -230,9 +232,76 @@ func TestRequestKeyFrame(t *testing.T) {
 	}
 }
 
-func TestShouldImplementBitRateControl(t *testing.T) {
-	t.SkipNow() // TODO: Implement bit rate control
+func TestSetBitrate(t *testing.T) {
+	for name, factory := range map[string]func() (codec.VideoEncoderBuilder, error){
+		"VP8": func() (codec.VideoEncoderBuilder, error) {
+			p, err := NewVP8Params()
+			return &p, err
+		},
+		"VP9": func() (codec.VideoEncoderBuilder, error) {
+			p, err := NewVP9Params()
+			// Disable latency to ease test and begin to receive packets for each input frame
+			p.LagInFrames = 0
+			return &p, err
+		},
+	} {
+		factory := factory
+		t.Run(name, func(t *testing.T) {
+			param, err := factory()
+			if err != nil {
+				t.Fatal(err)
+			}
 
+			var initialWidth, initialHeight, width, height int = 320, 240, 320, 240
+
+			var cnt uint32
+			r, err := param.BuildVideoEncoder(
+				video.ReaderFunc(func() (image.Image, func(), error) {
+					i := atomic.AddUint32(&cnt, 1)
+					if i == 3 {
+						return nil, nil, io.EOF
+					}
+					return image.NewYCbCr(
+						image.Rect(0, 0, width, height),
+						image.YCbCrSubsampleRatio420,
+					), func() {}, nil
+				}),
+				prop.Media{
+					Video: prop.Video{
+						Width:       initialWidth,
+						Height:      initialHeight,
+						FrameRate:   1,
+						FrameFormat: frame.FormatI420,
+					},
+				},
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, rel, err := r.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			rel()
+			err = r.Controller().(codec.BitRateController).SetBitRate(1000) // 1000 bit/second is ridiculously low, but this is a testcase.
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, rel, err = r.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			rel()
+			_, _, err = r.Read()
+			if err != io.EOF {
+				t.Fatal(err)
+			}
+		})
+
+	}
+}
+
+func TestShouldImplementBitRateControl(t *testing.T) {
 	e := &encoder{}
 	if _, ok := e.Controller().(codec.BitRateController); !ok {
 		t.Error()
@@ -243,5 +312,51 @@ func TestShouldImplementKeyFrameControl(t *testing.T) {
 	e := &encoder{}
 	if _, ok := e.Controller().(codec.KeyFrameController); !ok {
 		t.Error()
+	}
+}
+
+func TestEncoderFrameMonotonic(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	params, err := NewVP8Params()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	encoder, err := params.BuildVideoEncoder(
+		video.ReaderFunc(func() (image.Image, func(), error) {
+			return image.NewYCbCr(
+				image.Rect(0, 0, 320, 240),
+				image.YCbCrSubsampleRatio420,
+			), func() {}, nil
+		},
+		), prop.Media{
+			Video: prop.Video{
+				Width:       320,
+				Height:      240,
+				FrameRate:   30,
+				FrameFormat: frame.FormatI420,
+			},
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ticker := time.NewTicker(33 * time.Millisecond)
+	defer ticker.Stop()
+	ctxx, cancell := context.WithCancel(ctx)
+	defer cancell()
+	for {
+		select {
+		case <-ctxx.Done():
+			return
+		case <-ticker.C:
+			_, rel, err := encoder.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			rel()
+		}
 	}
 }
