@@ -6,7 +6,7 @@ require (
 	github.com/blackjack/webcam v0.6.1
 	github.com/gen2brain/malgo v0.11.23
 	github.com/google/uuid v1.6.0
-	github.com/kbinani/screenshot v0.0.0-20250118074034-a3924b7bbc8c
+	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
 	github.com/pion/interceptor v0.1.40
 	github.com/pion/logging v0.2.3
 	github.com/pion/rtcp v1.2.15
