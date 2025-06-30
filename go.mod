@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/kbinani/screenshot v0.0.0-20250118074034-a3924b7bbc8c
 	github.com/pion/interceptor v0.1.40
-	github.com/pion/logging v0.2.3
+	github.com/pion/logging v0.2.4
 	github.com/pion/rtcp v1.2.15
 	github.com/pion/rtp v1.8.19
 	github.com/pion/webrtc/v4 v4.1.2
