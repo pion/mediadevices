@@ -80,6 +80,8 @@ func newHardwareEncoder(r video.Reader, p prop.Media, params Params) (*hardwareE
 	codecCtx.SetTimeBase(astiav.NewRational(1, int(p.FrameRate)))
 	codecCtx.SetFramerate(codecCtx.TimeBase().Invert())
 	codecCtx.SetBitRate(int64(params.BitRate))
+	codecCtx.SetRateControlMaxRate(int64(params.BitRate + params.BitRate/10))
+	codecCtx.SetRateControlMinRate(int64(params.BitRate - params.BitRate/10))
 	codecCtx.SetGopSize(params.KeyFrameInterval)
 	codecCtx.SetMaxBFrames(0)
 	switch params.codecName {
@@ -107,10 +109,11 @@ func newHardwareEncoder(r video.Reader, p prop.Media, params Params) (*hardwareE
 	case "h264_nvenc", "hevc_nvenc", "av1_nvenc":
 		codecOptions.Set("forced-idr", "1", 0)
 		codecOptions.Set("zerolatency", "1", 0)
+		codecOptions.Set("intra-refresh", "1", 0)
 		codecOptions.Set("delay", "0", 0)
 		codecOptions.Set("tune", "ll", 0)
 		codecOptions.Set("preset", "p1", 0)
-		codecOptions.Set("rc", "cbr", 0)
+		codecOptions.Set("rc", "vbr", 0)
 	case "vp8_vaapi", "vp9_vaapi", "h264_vaapi", "hevc_vaapi":
 		codecOptions.Set("rc_mode", "CBR", 0)
 	}
@@ -233,18 +236,12 @@ func (e *hardwareEncoder) Read() ([]byte, func(), error) {
 	if err = e.frame.TransferHardwareData(e.hwFrame); err != nil {
 		return nil, func() {}, err
 	}
-	if err := e.codecCtx.SendFrame(e.hwFrame); err != nil {
+	if err = e.codecCtx.SendFrame(e.hwFrame); err != nil {
 		return nil, func() {}, err
 	}
 
-	for {
-		if err = e.codecCtx.ReceivePacket(e.packet); err != nil {
-			if errors.Is(err, astiav.ErrEof) || errors.Is(err, astiav.ErrEagain) {
-				continue
-			}
-			return nil, func() {}, err
-		}
-		break
+	if err = e.codecCtx.ReceivePacket(e.packet); err != nil {
+		return nil, func() {}, err
 	}
 
 	data := make([]byte, e.packet.Size())
@@ -266,6 +263,8 @@ func (e *hardwareEncoder) SetBitRate(bitrate int) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.codecCtx.SetBitRate(int64(bitrate))
+	e.codecCtx.SetRateControlMaxRate(int64(bitrate + bitrate/10))
+	e.codecCtx.SetRateControlMinRate(int64(bitrate - bitrate/10))
 	return nil
 }
 
