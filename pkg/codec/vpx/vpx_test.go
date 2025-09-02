@@ -4,6 +4,8 @@ import (
 	"context"
 	"image"
 	"io"
+	"math"
+	"math/rand"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -13,6 +15,7 @@ import (
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEncoder(t *testing.T) {
@@ -359,4 +362,141 @@ func TestEncoderFrameMonotonic(t *testing.T) {
 			rel()
 		}
 	}
+}
+
+func TestVP8DynamicRateControl(t *testing.T) {
+	t.Run("VP8", func(t *testing.T) {
+		p, err := NewVP8Params()
+		if err != nil {
+			t.Fatal(err)
+		}
+		p.LagInFrames = 0 // Disable frame lag buffering for real-time encoding
+		p.RateControlEndUsage = RateControlCBR
+		totalFrames := 100
+		frameRate := 10
+		initialWidth, initialHeight := 800, 600
+		var cnt uint32
+
+		r, err := p.BuildVideoEncoder(
+			video.ReaderFunc(func() (image.Image, func(), error) {
+				i := atomic.AddUint32(&cnt, 1)
+				if i == uint32(totalFrames+1) {
+					return nil, nil, io.EOF
+				}
+				img := image.NewYCbCr(image.Rect(0, 0, initialWidth, initialHeight), image.YCbCrSubsampleRatio420)
+				r := rand.New(rand.NewSource(time.Now().UnixNano()))
+				for i := range img.Y {
+					img.Y[i] = uint8(r.Intn(256))
+				}
+				for i := range img.Cb {
+					img.Cb[i] = uint8(r.Intn(256))
+				}
+				for i := range img.Cr {
+					img.Cr[i] = uint8(r.Intn(256))
+				}
+				return img, func() {}, nil
+			}),
+			prop.Media{
+				Video: prop.Video{
+					Width:       initialWidth,
+					Height:      initialHeight,
+					FrameRate:   float32(frameRate),
+					FrameFormat: frame.FormatI420,
+				},
+			},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		initialBitrate := 100
+		currentBitrate := initialBitrate
+		targetBitrate := 300
+		for i := 0; i < totalFrames; i++ {
+			r.Controller().(codec.KeyFrameController).ForceKeyFrame()
+			r.Controller().(codec.BitRateController).VP8DynamicRateControl(currentBitrate, targetBitrate)
+			data, rel, err := r.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			rel()
+			encodedSize := len(data)
+			currentBitrate = encodedSize * 8 / 1000 / frameRate
+		}
+		assert.Less(t, math.Abs(float64(targetBitrate-currentBitrate)), math.Abs(float64(initialBitrate-currentBitrate)))
+	})
+}
+
+func TestVP8EncodeDecode(t *testing.T) {
+	t.Run("VP8", func(t *testing.T) {
+		initialWidth, initialHeight := 800, 600
+		decoder, err := NewDecoder(prop.Media{
+			Video: prop.Video{
+				Width:       initialWidth,
+				Height:      initialHeight,
+				FrameFormat: frame.FormatI420,
+			},
+		})
+		if err != nil {
+			t.Fatalf("Error creating VP8 decoder: %v", err)
+		}
+		defer decoder.FreeDecoderCtx()
+
+		// [... encoder setup code ...]
+		p, err := NewVP8Params()
+		if err != nil {
+			t.Fatal(err)
+		}
+		p.LagInFrames = 0 // Disable frame lag buffering for real-time encoding
+		p.RateControlEndUsage = RateControlCBR
+		totalFrames := 100
+		var cnt uint32
+		r, err := p.BuildVideoEncoder(
+			video.ReaderFunc(func() (image.Image, func(), error) {
+				i := atomic.AddUint32(&cnt, 1)
+				if i == uint32(totalFrames+1) {
+					return nil, nil, io.EOF
+				}
+				img := image.NewYCbCr(image.Rect(0, 0, initialWidth, initialHeight), image.YCbCrSubsampleRatio420)
+				return img, func() {}, nil
+			}),
+			prop.Media{
+				Video: prop.Video{
+					Width:       initialWidth,
+					Height:      initialHeight,
+					FrameRate:   30,
+					FrameFormat: frame.FormatI420,
+				},
+			},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		data, rel, err := r.Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rel()
+
+		// Decode the frame
+		decoder.Decode(data)
+
+		// Poll for frame with timeout
+		timeout := time.After(2 * time.Second)
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-timeout:
+				t.Fatal("Timeout: No frame received within 2 seconds")
+			case <-ticker.C:
+				frame := decoder.GetFrame()
+				if frame != nil {
+					t.Log("Successfully received and decoded frame")
+					return // Test passes
+				}
+			}
+		}
+	})
 }
