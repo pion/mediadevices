@@ -364,7 +364,7 @@ func TestEncoderFrameMonotonic(t *testing.T) {
 	}
 }
 
-func TestVP8DynamicRateControl(t *testing.T) {
+func TestVP8DynamicQPControl(t *testing.T) {
 	t.Run("VP8", func(t *testing.T) {
 		p, err := NewVP8Params()
 		if err != nil {
@@ -413,7 +413,7 @@ func TestVP8DynamicRateControl(t *testing.T) {
 		targetBitrate := 300
 		for i := 0; i < totalFrames; i++ {
 			r.Controller().(codec.KeyFrameController).ForceKeyFrame()
-			r.Controller().(codec.BitRateController).VP8DynamicRateControl(currentBitrate, targetBitrate)
+			r.Controller().(codec.QPController).DynamicQPControl(currentBitrate, targetBitrate)
 			data, rel, err := r.Read()
 			if err != nil {
 				t.Fatal(err)

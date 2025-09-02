@@ -327,7 +327,7 @@ func (e *encoder) SetBitRate(bitrate int) error {
 	return nil
 }
 
-func (e *encoder) VP8DynamicRateControl(currentBitrate int, targetBitrate int) error {
+func (e *encoder) DynamicQPControl(currentBitrate int, targetBitrate int) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	bitrateDiff := math.Abs(float64(currentBitrate - targetBitrate))

@@ -177,9 +177,12 @@ type BitRateController interface {
 	// SetBitRate sets current target bitrate, lower bitrate means smaller data will be transmitted
 	// but this also means that the quality will also be lower.
 	SetBitRate(int) error
-	// VP8DynamicRateControl is a helper function to dynamically adjust the bitrate of the VP8 codec
-	// based on the current and target bitrate, underlying is dynamic QP adjustment.
-	VP8DynamicRateControl(int, int) error
+}
+
+type QPController interface {
+	EncoderController
+	// DynamicQPControl adjusts the QP of the encoder based on the current and target bitrate
+	DynamicQPControl(int, int) error
 }
 
 // BaseParams represents an codec's encoding properties
