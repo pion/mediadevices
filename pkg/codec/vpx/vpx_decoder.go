@@ -97,9 +97,10 @@ func (d *Decoder) Decode(data []byte) {
 	}
 }
 
-func (d *Decoder) GetFrame() *C.vpx_image_t {
+func (d *Decoder) GetFrame() *VpxImage {
 	iter := C.newIter()
-	return C.getFrame(d.codec, iter)
+	img := C.getFrame(d.codec, iter)
+	return &VpxImage{img: img}
 }
 
 func (d *Decoder) FreeDecoderCtx() {
