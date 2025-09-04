@@ -98,8 +98,11 @@ func (d *Decoder) Decode(data []byte) {
 }
 
 func (d *Decoder) GetFrame() *VpxImage {
-	iter := C.newIter()
-	img := C.getFrame(d.codec, iter)
+	var iter C.vpx_codec_iter_t = nil // initialize to NULL to start iteration
+	img := C.getFrame(d.codec, &iter)
+	if img == nil {
+		return nil
+	}
 	return &VpxImage{img: img}
 }
 
