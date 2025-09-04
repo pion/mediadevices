@@ -179,6 +179,12 @@ type BitRateController interface {
 	SetBitRate(int) error
 }
 
+type QPController interface {
+	EncoderController
+	// DynamicQPControl adjusts the QP of the encoder based on the current and target bitrate
+	DynamicQPControl(currentBitrate int, targetBitrate int) error
+}
+
 // BaseParams represents an codec's encoding properties
 type BaseParams struct {
 	// Target bitrate in bps.

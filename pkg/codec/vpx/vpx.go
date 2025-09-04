@@ -54,6 +54,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"math"
 	"sync"
 	"time"
 	"unsafe"
@@ -80,6 +81,12 @@ type encoder struct {
 	mu     sync.Mutex
 	closed bool
 }
+
+const (
+	kRateControlThreshold = 0.15
+	kMinQuantizer         = 20
+	kMaxQuantizer         = 63
+)
 
 // VP8Params is codec specific paramaters
 type VP8Params struct {
@@ -254,6 +261,10 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		e.raw.d_w, e.raw.d_h = C.uint(width), C.uint(height)
 	}
 
+	if ec := C.vpx_codec_enc_config_set(e.codec, e.cfg); ec != 0 {
+		return nil, func() {}, fmt.Errorf("vpx_codec_enc_config_set failed (%d)", ec)
+	}
+
 	duration := t.Sub(e.tLastFrame).Microseconds()
 	// VPX doesn't allow 0 duration. If 0 is given, vpx_codec_encode will fail with VPX_CODEC_INVALID_PARAM.
 	// 0 duration is possible because mediadevices first gets the frame meta data by reading from the source,
@@ -319,6 +330,24 @@ func (e *encoder) SetBitRate(bitrate int) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.targetBitrate = bitrate
+	return nil
+}
+
+func (e *encoder) DynamicQPControl(currentBitrate int, targetBitrate int) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	bitrateDiff := math.Abs(float64(currentBitrate - targetBitrate))
+	if bitrateDiff <= float64(currentBitrate)*kRateControlThreshold {
+		return nil
+	}
+	currentMax := e.cfg.rc_max_quantizer
+
+	if targetBitrate < currentBitrate {
+		e.cfg.rc_max_quantizer = min(currentMax+1, kMaxQuantizer)
+	} else {
+		e.cfg.rc_max_quantizer = max(currentMax-1, kMinQuantizer)
+	}
+	e.cfg.rc_min_quantizer = e.cfg.rc_max_quantizer
 	return nil
 }
 
