@@ -425,3 +425,78 @@ func TestVP8DynamicQPControl(t *testing.T) {
 		assert.Less(t, math.Abs(float64(targetBitrate-currentBitrate)), math.Abs(float64(initialBitrate-currentBitrate)))
 	})
 }
+
+func TestVP8EncodeDecode(t *testing.T) {
+	t.Run("VP8", func(t *testing.T) {
+		initialWidth, initialHeight := 800, 600
+		decoder, err := NewDecoder(prop.Media{
+			Video: prop.Video{
+				Width:       initialWidth,
+				Height:      initialHeight,
+				FrameFormat: frame.FormatI420,
+			},
+		})
+		if err != nil {
+			t.Fatalf("Error creating VP8 decoder: %v", err)
+		}
+		defer decoder.FreeDecoderCtx()
+
+		// [... encoder setup code ...]
+		p, err := NewVP8Params()
+		if err != nil {
+			t.Fatal(err)
+		}
+		p.LagInFrames = 0 // Disable frame lag buffering for real-time encoding
+		p.RateControlEndUsage = RateControlCBR
+		totalFrames := 100
+		var cnt uint32
+		r, err := p.BuildVideoEncoder(
+			video.ReaderFunc(func() (image.Image, func(), error) {
+				i := atomic.AddUint32(&cnt, 1)
+				if i == uint32(totalFrames+1) {
+					return nil, nil, io.EOF
+				}
+				img := image.NewYCbCr(image.Rect(0, 0, initialWidth, initialHeight), image.YCbCrSubsampleRatio420)
+				return img, func() {}, nil
+			}),
+			prop.Media{
+				Video: prop.Video{
+					Width:       initialWidth,
+					Height:      initialHeight,
+					FrameRate:   30,
+					FrameFormat: frame.FormatI420,
+				},
+			},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		data, rel, err := r.Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rel()
+
+		// Decode the frame
+		decoder.Decode(data)
+
+		// Poll for frame with timeout
+		timeout := time.After(2 * time.Second)
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-timeout:
+				t.Fatal("Timeout: No frame received within 2 seconds")
+			case <-ticker.C:
+				frame := decoder.GetFrame()
+				if frame != nil {
+					t.Log("Successfully received and decoded frame")
+					return // Test passes
+				}
+			}
+		}
+	})
+}
