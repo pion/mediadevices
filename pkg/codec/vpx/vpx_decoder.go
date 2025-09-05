@@ -86,15 +86,15 @@ func NewDecoder(p prop.Media) (Decoder, error) {
 	}, nil
 }
 
-func (d *Decoder) Decode(data []byte) {
+func (d *Decoder) Decode(data []byte) error {
 	if len(data) == 0 {
-		return
+		return fmt.Errorf("empty data")
 	}
 	status := C.decodeFrame(d.codec, (*C.uint8_t)(&data[0]), C.uint(len(data)))
 	if status != C.VPX_CODEC_OK {
-		fmt.Println("Decode failed", status)
-		panic("Decode failed")
+		return fmt.Errorf("Decode failed: %v", status)
 	}
+	return nil
 }
 
 func (d *Decoder) GetFrame() *VpxImage {
