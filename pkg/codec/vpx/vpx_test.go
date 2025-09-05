@@ -479,7 +479,10 @@ func TestVP8EncodeDecode(t *testing.T) {
 		defer rel()
 
 		// Decode the frame
-		decoder.Decode(data)
+		err = decoder.Decode(data)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		// Poll for frame with timeout
 		timeout := time.After(2 * time.Second)
