@@ -429,7 +429,8 @@ func TestVP8DynamicQPControl(t *testing.T) {
 func TestVP8EncodeDecode(t *testing.T) {
 	t.Run("VP8", func(t *testing.T) {
 		initialWidth, initialHeight := 800, 600
-		decoder, err := NewDecoder(prop.Media{
+		reader, writer := io.Pipe()
+		decoder, err := BuildVideoDecoder(reader, prop.Media{
 			Video: prop.Video{
 				Width:       initialWidth,
 				Height:      initialHeight,
@@ -439,7 +440,7 @@ func TestVP8EncodeDecode(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error creating VP8 decoder: %v", err)
 		}
-		defer decoder.FreeDecoderCtx()
+		defer decoder.Close()
 
 		// [... encoder setup code ...]
 		p, err := NewVP8Params()
@@ -479,10 +480,8 @@ func TestVP8EncodeDecode(t *testing.T) {
 		defer rel()
 
 		// Decode the frame
-		err = decoder.Decode(data)
-		if err != nil {
-			t.Fatal(err)
-		}
+		writer.Write(data)
+		writer.Close()
 
 		// Poll for frame with timeout
 		timeout := time.After(2 * time.Second)
@@ -494,7 +493,11 @@ func TestVP8EncodeDecode(t *testing.T) {
 			case <-timeout:
 				t.Fatal("Timeout: No frame received within 2 seconds")
 			case <-ticker.C:
-				frame := decoder.GetFrame()
+				frame, rel, err := decoder.Read()
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer rel()
 				if frame != nil {
 					t.Log("Successfully received and decoded frame")
 					return // Test passes

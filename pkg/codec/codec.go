@@ -1,6 +1,8 @@
 package codec
 
 import (
+	"image"
+	"io"
 	"time"
 
 	"github.com/pion/mediadevices/pkg/io/audio"
@@ -151,6 +153,15 @@ type ReadCloser interface {
 	Read() (b []byte, release func(), err error)
 	Close() error
 	Controllable
+}
+
+type VideoDecoderBuilder interface {
+	BuildVideoDecoder(r io.Reader, p prop.Media) (VideoDecoder, error)
+}
+
+type VideoDecoder interface {
+	Read() (image.Image, func(), error)
+	Close() error
 }
 
 // EncoderController is the interface allowing to control the encoder behaviour after it's initialisation.
