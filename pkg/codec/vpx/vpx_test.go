@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -449,7 +450,7 @@ func TestVP8EncodeDecode(t *testing.T) {
 		}
 		p.LagInFrames = 0 // Disable frame lag buffering for real-time encoding
 		p.RateControlEndUsage = RateControlCBR
-		totalFrames := 100
+		totalFrames := 10
 		var cnt uint32
 		r, err := p.BuildVideoEncoder(
 			video.ReaderFunc(func() (image.Image, func(), error) {
@@ -473,36 +474,47 @@ func TestVP8EncodeDecode(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		data, rel, err := r.Read()
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer rel()
+		var wg sync.WaitGroup
+		wg.Add(1)
 
-		// Decode the frame
-		writer.Write(data)
-		writer.Close()
-
-		// Poll for frame with timeout
-		timeout := time.After(2 * time.Second)
-		ticker := time.NewTicker(10 * time.Millisecond)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-timeout:
-				t.Fatal("Timeout: No frame received within 2 seconds")
-			case <-ticker.C:
-				frame, rel, err := decoder.Read()
+		counter := 0
+		go func() {
+			defer wg.Done()
+			for {
+				img, rel, err := decoder.Read()
+				if err == io.EOF {
+					return
+				}
 				if err != nil {
-					t.Fatal(err)
+					t.Errorf("decoder read error: %v", err)
+					return
 				}
-				defer rel()
-				if frame != nil {
-					t.Log("Successfully received and decoded frame")
-					return // Test passes
-				}
+				assert.Equal(t, initialWidth, img.Bounds().Dx())
+				assert.Equal(t, initialHeight, img.Bounds().Dy())
+				rel()
+				counter++
+			}
+		}()
+
+		// --- feed encoded frames to writer
+		for {
+			data, rel, err := r.Read()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatalf("encoder error: %v", err)
+			}
+			_, werr := writer.Write(data)
+			rel()
+			if werr != nil {
+				t.Fatalf("writer error: %v", werr)
 			}
 		}
+		writer.Close()
+
+		// ✅ wait until decoder goroutine is done
+		wg.Wait()
+		assert.Equal(t, counter, totalFrames)
 	})
 }

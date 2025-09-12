@@ -99,7 +99,6 @@ func NewDecoder(r io.Reader, p prop.Media) (codec.VideoDecoder, error) {
 }
 
 func (d *decoder) Read() (image.Image, func(), error) {
-
 	n, err := d.reader.Read(d.buf)
 	if err != nil {
 		return nil, nil, err
@@ -107,7 +106,7 @@ func (d *decoder) Read() (image.Image, func(), error) {
 	if n > 0 {
 		status := C.decodeFrame(d.codec, (*C.uint8_t)(&d.buf[0]), C.uint(n))
 		if status != C.VPX_CODEC_OK {
-			return nil, nil, fmt.Errorf("Decode failed: %v", status)
+			return nil, nil, fmt.Errorf("decode failed: %v", status)
 		}
 	}
 
