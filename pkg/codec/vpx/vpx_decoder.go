@@ -51,25 +51,35 @@ void freeDecoderCtx(vpx_codec_ctx_t* ctx) {
 import "C"
 import (
 	"fmt"
+	"image"
+	"io"
 	"sync"
 	"time"
+	"unsafe"
 
+	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
-type Decoder struct {
+type decoder struct {
 	codec      *C.vpx_codec_ctx_t
 	raw        *C.vpx_image_t
 	cfg        *C.vpx_codec_dec_cfg_t
 	frameIndex int
 	tStart     time.Time
 	tLastFrame time.Time
+	reader     io.Reader
+	buf        []byte
 
 	mu     sync.Mutex
 	closed bool
 }
 
-func NewDecoder(p prop.Media) (Decoder, error) {
+func BuildVideoDecoder(r io.Reader, property prop.Media) (codec.VideoDecoder, error) {
+	return NewDecoder(r, property)
+}
+
+func NewDecoder(r io.Reader, p prop.Media) (codec.VideoDecoder, error) {
 	cfg := &C.vpx_codec_dec_cfg_t{}
 	cfg.threads = 1
 	cfg.w = C.uint(p.Width)
@@ -77,35 +87,61 @@ func NewDecoder(p prop.Media) (Decoder, error) {
 
 	codec := C.newDecoderCtx()
 	if C.decoderInit(codec, C.ifaceVP8Decoder()) != C.VPX_CODEC_OK {
-		return Decoder{}, fmt.Errorf("vpx_codec_dec_init failed")
+		return nil, fmt.Errorf("vpx_codec_dec_init failed")
 	}
 
-	return Decoder{
-		codec: codec,
-		cfg:   cfg,
+	return &decoder{
+		codec:  codec,
+		cfg:    cfg,
+		reader: r,
+		buf:    make([]byte, 1024*1024),
 	}, nil
 }
 
-func (d *Decoder) Decode(data []byte) error {
-	if len(data) == 0 {
-		return fmt.Errorf("empty data")
-	}
-	status := C.decodeFrame(d.codec, (*C.uint8_t)(&data[0]), C.uint(len(data)))
-	if status != C.VPX_CODEC_OK {
-		return fmt.Errorf("Decode failed: %v", status)
-	}
-	return nil
-}
+func (d *decoder) Read() (image.Image, func(), error) {
 
-func (d *Decoder) GetFrame() *VpxImage {
+	n, err := d.reader.Read(d.buf)
+	if err != nil {
+		return nil, nil, err
+	}
+	if n > 0 {
+		status := C.decodeFrame(d.codec, (*C.uint8_t)(&d.buf[0]), C.uint(n))
+		if status != C.VPX_CODEC_OK {
+			return nil, nil, fmt.Errorf("Decode failed: %v", status)
+		}
+	}
+
 	var iter C.vpx_codec_iter_t = nil // initialize to NULL to start iteration
-	img := C.getFrame(d.codec, &iter)
-	if img == nil {
-		return nil
+	input := C.getFrame(d.codec, &iter)
+	if input == nil {
+		return nil, nil, io.EOF
 	}
-	return &VpxImage{img: img}
+	w := int(input.d_w)
+	h := int(input.d_h)
+	yStride := int(input.stride[0])
+	uStride := int(input.stride[1])
+	vStride := int(input.stride[2])
+
+	ySrc := unsafe.Slice((*byte)(unsafe.Pointer(input.planes[0])), yStride*h)
+	uSrc := unsafe.Slice((*byte)(unsafe.Pointer(input.planes[1])), uStride*h/2)
+	vSrc := unsafe.Slice((*byte)(unsafe.Pointer(input.planes[2])), vStride*h/2)
+
+	dst := image.NewYCbCr(image.Rect(0, 0, w, h), image.YCbCrSubsampleRatio420)
+
+	// copy luma
+	for r := 0; r < h; r++ {
+		copy(dst.Y[r*dst.YStride:r*dst.YStride+w], ySrc[r*yStride:r*yStride+w])
+	}
+	// copy chroma
+	for r := 0; r < h/2; r++ {
+		copy(dst.Cb[r*dst.CStride:r*dst.CStride+w/2], uSrc[r*uStride:r*uStride+w/2])
+		copy(dst.Cr[r*dst.CStride:r*dst.CStride+w/2], vSrc[r*vStride:r*vStride+w/2])
+	}
+	return dst, func() {}, nil
 }
 
-func (d *Decoder) FreeDecoderCtx() {
+func (d *decoder) Close() error {
 	C.freeDecoderCtx(d.codec)
+	d.closed = true
+	return nil
 }
