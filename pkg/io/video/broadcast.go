@@ -27,7 +27,7 @@ func NewBroadcaster(source Reader, config *BroadcasterConfig) *Broadcaster {
 		coreConfig = config.Core
 	}
 
-	broadcaster := io.NewBroadcaster(io.ReaderFunc(func() (interface{}, func(), error) {
+	broadcaster := io.NewBroadcaster(io.ReaderFunc(func() (any, func(), error) {
 		return source.Read()
 	}), coreConfig)
 
@@ -39,11 +39,11 @@ func NewBroadcaster(source Reader, config *BroadcasterConfig) *Broadcaster {
 // buffer, this means that slow readers might miss some data if they're really late and the data is no longer
 // in the ring buffer.
 func (broadcaster *Broadcaster) NewReader(copyFrame bool) Reader {
-	copyFn := func(src interface{}) interface{} { return src }
+	copyFn := func(src any) any { return src }
 
 	if copyFrame {
 		buffer := NewFrameBuffer(0)
-		copyFn = func(src interface{}) interface{} {
+		copyFn = func(src any) any {
 			realSrc, _ := src.(image.Image)
 			buffer.StoreCopy(realSrc)
 			return buffer.Load()
@@ -60,7 +60,7 @@ func (broadcaster *Broadcaster) NewReader(copyFrame bool) Reader {
 
 // ReplaceSource replaces the underlying source. This operation is thread safe.
 func (broadcaster *Broadcaster) ReplaceSource(source Reader) error {
-	return broadcaster.ioBroadcaster.ReplaceSource(io.ReaderFunc(func() (interface{}, func(), error) {
+	return broadcaster.ioBroadcaster.ReplaceSource(io.ReaderFunc(func() (any, func(), error) {
 		return source.Read()
 	}))
 }

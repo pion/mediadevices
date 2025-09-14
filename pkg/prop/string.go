@@ -2,6 +2,7 @@ package prop
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -55,10 +56,8 @@ type StringOneOf []string
 
 // Compare implements StringConstraint.
 func (f StringOneOf) Compare(a string) (float64, bool) {
-	for _, ff := range f {
-		if ff == a {
-			return 0.0, true
-		}
+	if slices.Contains(f, a) {
+		return 0.0, true
 	}
 	return 1.0, false
 }

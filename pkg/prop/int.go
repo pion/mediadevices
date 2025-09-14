@@ -3,6 +3,7 @@ package prop
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 )
 
@@ -53,10 +54,8 @@ type IntOneOf []int
 
 // Compare implements IntConstraint.
 func (i IntOneOf) Compare(a int) (float64, bool) {
-	for _, ii := range i {
-		if ii == a {
-			return 0.0, true
-		}
+	if slices.Contains(i, a) {
+		return 0.0, true
 	}
 	return 1.0, false
 }

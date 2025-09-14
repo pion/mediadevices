@@ -2,6 +2,7 @@ package mediadevices
 
 import (
 	"io"
+	"slices"
 	"testing"
 
 	"github.com/pion/mediadevices/pkg/codec"
@@ -93,13 +94,7 @@ func TestMediaStreamFilters(t *testing.T) {
 		}
 
 		for _, a := range actual {
-			found := false
-			for _, e := range expected {
-				if e == a {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(expected, a)
 
 			if !found {
 				t.Fatalf("%s: Expected to find %p in the query results", t.Name(), a)

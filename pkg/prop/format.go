@@ -3,6 +3,7 @@ package prop
 import (
 	"fmt"
 	"github.com/pion/mediadevices/pkg/frame"
+	"slices"
 	"strings"
 )
 
@@ -56,10 +57,8 @@ type FrameFormatOneOf []frame.Format
 
 // Compare implements FrameFormatConstraint.
 func (f FrameFormatOneOf) Compare(a frame.Format) (float64, bool) {
-	for _, ff := range f {
-		if ff == a {
-			return 0.0, true
-		}
+	if slices.Contains(f, a) {
+		return 0.0, true
 	}
 	return 1.0, false
 }

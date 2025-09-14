@@ -1,7 +1,8 @@
 // Package vnc implements a VNC client.
 //
 // References:
-//   [PROTOCOL]: http://tools.ietf.org/html/rfc6143
+//
+//	[PROTOCOL]: http://tools.ietf.org/html/rfc6143
 package vnc
 
 import (
@@ -96,7 +97,7 @@ func (c *ClientConn) CutText(text string) error {
 	var buf bytes.Buffer
 
 	// This is the fixed size data we'll send
-	fixedData := []interface{}{
+	fixedData := []any{
 		uint8(6),
 		uint8(0),
 		uint8(0),
@@ -141,7 +142,7 @@ func (c *ClientConn) FramebufferUpdateRequest(incremental bool, x, y, width, hei
 		incrementalByte = 1
 	}
 
-	data := []interface{}{
+	data := []any{
 		uint8(3),
 		incrementalByte,
 		x, y, width, height,
@@ -172,7 +173,7 @@ func (c *ClientConn) KeyEvent(keysym uint32, down bool) error {
 		downFlag = 1
 	}
 
-	data := []interface{}{
+	data := []any{
 		uint8(4),
 		downFlag,
 		uint8(0),
@@ -199,7 +200,7 @@ func (c *ClientConn) KeyEvent(keysym uint32, down bool) error {
 func (c *ClientConn) PointerEvent(mask ButtonMask, x, y uint16) error {
 	var buf bytes.Buffer
 
-	data := []interface{}{
+	data := []any{
 		uint8(5),
 		uint8(mask),
 		x,
@@ -225,7 +226,7 @@ func (c *ClientConn) PointerEvent(mask ButtonMask, x, y uint16) error {
 //
 // See RFC 6143 Section 7.5.2
 func (c *ClientConn) SetEncodings(encs []Encoding) error {
-	data := make([]interface{}, 3+len(encs))
+	data := make([]any, 3+len(encs))
 	data[0] = uint8(2)
 	data[1] = uint8(0)
 	data[2] = uint16(len(encs))
@@ -319,7 +320,7 @@ func (c *ClientConn) handshake() error {
 	}
 
 	// Respond with the version we will support
-	if maxMinor<8 {
+	if maxMinor < 8 {
 		if _, err = c.c.Write([]byte("RFB 003.003\n")); err != nil {
 			return err
 		}
@@ -331,7 +332,7 @@ func (c *ClientConn) handshake() error {
 		if numSecurityTypes == 0 {
 			return fmt.Errorf("no security types: %s", c.readErrorReason())
 		}
-	}else{
+	} else {
 		if _, err = c.c.Write([]byte("RFB 003.008\n")); err != nil {
 			return err
 		}

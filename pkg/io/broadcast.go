@@ -17,7 +17,7 @@ const (
 var errEmptySource = fmt.Errorf("Source can't be nil")
 
 type broadcasterData struct {
-	data  interface{}
+	data  any
 	count uint32
 	err   error
 }
@@ -124,10 +124,10 @@ func NewBroadcaster(source Reader, config *BroadcasterConfig) *Broadcaster {
 // copyFn is used to copy the data from the source to individual readers. Broadcaster uses a small ring
 // buffer, this means that slow readers might miss some data if they're really late and the data is no longer
 // in the ring buffer.
-func (broadcaster *Broadcaster) NewReader(copyFn func(interface{}) interface{}) Reader {
+func (broadcaster *Broadcaster) NewReader(copyFn func(any) any) Reader {
 	currentCount := broadcaster.buffer.lastCount()
 
-	return ReaderFunc(func() (data interface{}, release func(), err error) {
+	return ReaderFunc(func() (data any, release func(), err error) {
 		currentCount++
 		if push := broadcaster.buffer.acquire(currentCount); push != nil {
 			data, _, err = broadcaster.source.Load().(Reader).Read()

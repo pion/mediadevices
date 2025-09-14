@@ -11,13 +11,13 @@ type Reader interface {
 	// there will be new allocations during streaming, and old unused memory will become garbage. As a consequence,
 	// these garbage will put a lot of pressure to the garbage collector and makes it to run more often and finish
 	// slower as the heap memory usage increases and more garbage to collect.
-	Read() (data interface{}, release func(), err error)
+	Read() (data any, release func(), err error)
 }
 
 // ReaderFunc is a proxy type for Reader
-type ReaderFunc func() (data interface{}, release func(), err error)
+type ReaderFunc func() (data any, release func(), err error)
 
-func (f ReaderFunc) Read() (data interface{}, release func(), err error) {
+func (f ReaderFunc) Read() (data any, release func(), err error) {
 	data, release, err = f()
 	return
 }
