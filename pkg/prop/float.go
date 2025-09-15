@@ -3,6 +3,7 @@ package prop
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 )
 
@@ -53,10 +54,8 @@ type FloatOneOf []float32
 
 // Compare implements FloatConstraint.
 func (f FloatOneOf) Compare(a float32) (float64, bool) {
-	for _, ff := range f {
-		if ff == a {
-			return 0.0, true
-		}
+	if slices.Contains(f, a) {
+		return 0.0, true
 	}
 	return 1.0, false
 }

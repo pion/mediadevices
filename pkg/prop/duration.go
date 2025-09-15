@@ -3,6 +3,7 @@ package prop
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"time"
 )
@@ -54,10 +55,8 @@ type DurationOneOf []time.Duration
 
 // Compare implements DurationConstraint.
 func (d DurationOneOf) Compare(a time.Duration) (float64, bool) {
-	for _, ii := range d {
-		if ii == a {
-			return 0.0, true
-		}
+	if slices.Contains(d, a) {
+		return 0.0, true
 	}
 	return 1.0, false
 }

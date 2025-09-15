@@ -63,7 +63,7 @@ func (*FramebufferUpdateMessage) Read(c *ClientConn, r io.Reader) (ServerMessage
 		var encodingType int32
 
 		rect := &rects[i]
-		data := []interface{}{
+		data := []any{
 			&rect.X,
 			&rect.Y,
 			&rect.Width,
@@ -128,7 +128,7 @@ func (*SetColorMapEntriesMessage) Read(c *ClientConn, r io.Reader) (ServerMessag
 	for i := uint16(0); i < numColors; i++ {
 
 		color := &result.Colors[i]
-		data := []interface{}{
+		data := []any{
 			&color.R,
 			&color.G,
 			&color.B,
