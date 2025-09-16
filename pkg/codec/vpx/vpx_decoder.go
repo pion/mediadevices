@@ -41,6 +41,11 @@ vpx_image_t* getFrame(vpx_codec_ctx_t* ctx, vpx_codec_iter_t* iter) {
     return vpx_codec_get_frame(ctx, iter);
 }
 
+// Frees a decoded frane
+void freeFrame(vpx_image_t* f) {
+	vpx_img_free(f);
+}
+
 // Frees a decoder context
 void freeDecoderCtx(vpx_codec_ctx_t* ctx) {
     vpx_codec_destroy(ctx);
@@ -65,6 +70,7 @@ type decoder struct {
 	codec      *C.vpx_codec_ctx_t
 	raw        *C.vpx_image_t
 	cfg        *C.vpx_codec_dec_cfg_t
+	iter       C.vpx_codec_iter_t
 	frameIndex int
 	tStart     time.Time
 	tLastFrame time.Time
@@ -93,27 +99,29 @@ func NewDecoder(r io.Reader, p prop.Media) (codec.VideoDecoder, error) {
 	return &decoder{
 		codec:  codec,
 		cfg:    cfg,
+		iter:   nil, // initialize to NULL to start iteration
 		reader: r,
 		buf:    make([]byte, 1024*1024),
 	}, nil
 }
 
 func (d *decoder) Read() (image.Image, func(), error) {
-	n, err := d.reader.Read(d.buf)
-	if err != nil {
-		return nil, nil, err
-	}
-	if n > 0 {
+	var input *C.vpx_image_t
+	for {
+		input = C.getFrame(d.codec, &d.iter)
+		if input != nil {
+			break
+		}
+		d.iter = nil
+		// Read if there are no remained frames in the decoder
+		n, err := d.reader.Read(d.buf)
+		if err != nil {
+			return nil, nil, err
+		}
 		status := C.decodeFrame(d.codec, (*C.uint8_t)(&d.buf[0]), C.uint(n))
 		if status != C.VPX_CODEC_OK {
 			return nil, nil, fmt.Errorf("decode failed: %v", status)
 		}
-	}
-
-	var iter C.vpx_codec_iter_t = nil // initialize to NULL to start iteration
-	input := C.getFrame(d.codec, &iter)
-	if input == nil {
-		return nil, nil, io.EOF
 	}
 	w := int(input.d_w)
 	h := int(input.d_h)
@@ -136,6 +144,7 @@ func (d *decoder) Read() (image.Image, func(), error) {
 		copy(dst.Cb[r*dst.CStride:r*dst.CStride+w/2], uSrc[r*uStride:r*uStride+w/2])
 		copy(dst.Cr[r*dst.CStride:r*dst.CStride+w/2], vSrc[r*vStride:r*vStride+w/2])
 	}
+	C.freeFrame(input)
 	return dst, func() {}, nil
 }
 
