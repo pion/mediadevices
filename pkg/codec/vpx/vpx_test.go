@@ -512,9 +512,7 @@ func TestVP8EncodeDecode(t *testing.T) {
 			}
 		}
 		writer.Close()
-
-		// ✅ wait until decoder goroutine is done
 		wg.Wait()
-		assert.Equal(t, counter, totalFrames)
+		assert.Equal(t, totalFrames, counter)
 	})
 }
