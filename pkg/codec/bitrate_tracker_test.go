@@ -1,4 +1,4 @@
-package vpx
+package codec
 
 import (
 	"math"
