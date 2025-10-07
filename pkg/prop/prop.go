@@ -86,10 +86,8 @@ func (p *Media) merge(o any, set setterFn) {
 				continue
 			}
 
-			// TODO: Replace this with fieldB.IsZero() when we move to go1.13
 			// If non-boolean or non-discrete values are zeroes we skip them
-			if fieldB.Interface() == reflect.Zero(fieldB.Type()).Interface() &&
-				fieldB.Kind() != reflect.Bool {
+			if fieldB.IsZero() && fieldB.Kind() != reflect.Bool {
 				continue
 			}
 
