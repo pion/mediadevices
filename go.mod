@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/blackjack/webcam v0.6.1
-	github.com/gen2brain/malgo v0.11.23
+	github.com/gen2brain/malgo v0.11.24
 	github.com/google/uuid v1.6.0
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
 	github.com/pion/interceptor v0.1.41
