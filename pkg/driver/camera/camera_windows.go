@@ -1,6 +1,6 @@
 package camera
 
-// #cgo LDFLAGS: -lstrmiids -lole32 -lquartz
+// #cgo LDFLAGS: -lstrmiids -lole32 -loleaut32 -lquartz
 // #include <dshow.h>
 // #include "camera_windows.hpp"
 import "C"
@@ -59,13 +59,14 @@ func Initialize() {
 }
 
 func (c *camera) Open() error {
-	c.ch = make(chan []byte)
+	c.ch = make(chan []byte, 2)
 	c.cam = &C.camera{
 		name: C.CString(c.name),
 	}
 
 	var errStr *C.char
 	if C.listResolution(c.cam, &errStr) != 0 {
+		C.free(unsafe.Pointer(c.cam.name))
 		return fmt.Errorf("failed to open device: %s", C.GoString(errStr))
 	}
 
@@ -75,36 +76,45 @@ func (c *camera) Open() error {
 //export imageCallback
 func imageCallback(cam uintptr) {
 	callbacksMu.RLock()
-	cb, ok := callbacks[uintptr(unsafe.Pointer(cam))]
+	cb, ok := callbacks[cam]
 	callbacksMu.RUnlock()
 	if !ok {
 		return
 	}
 
 	copy(cb.bufGo, cb.buf)
-	cb.ch <- cb.bufGo
+	select {
+	case cb.ch <- cb.bufGo:
+	default:
+		// Channel closed or full, skip frame
+	}
 }
 
 func (c *camera) Close() error {
+	// Remove from callbacks first to stop receiving frames
 	callbacksMu.Lock()
 	key := uintptr(unsafe.Pointer(c.cam))
-	if _, ok := callbacks[key]; ok {
-		delete(callbacks, key)
-	}
+	delete(callbacks, key)
 	callbacksMu.Unlock()
-	close(c.ch)
 
+	// Stop camera before closing channel
 	if c.cam != nil {
-		C.free(unsafe.Pointer(c.cam.name))
 		C.freeCamera(c.cam)
+		C.free(unsafe.Pointer(c.cam.name))
 		c.cam = nil
 	}
+
+	// Now safe to close channel
+	if c.ch != nil {
+		close(c.ch)
+	}
+
 	return nil
 }
 
 func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	nPix := p.Width * p.Height
-	c.buf = make([]byte, nPix*2) // for YUY2
+	c.buf = make([]byte, nPix*2)
 	c.bufGo = make([]byte, nPix*2)
 	c.cam.width = C.int(p.Width)
 	c.cam.height = C.int(p.Height)
@@ -127,11 +137,11 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 			return nil, func() {}, io.EOF
 		}
 		img.Y = b[:nPix]
-		img.Cb = b[nPix : nPix+nPix/2]
-		img.Cr = b[nPix+nPix/2 : nPix*2]
+		img.Cb = b[nPix : nPix+nPix/4]
+		img.Cr = b[nPix+nPix/4 : nPix+nPix/2]
 		img.YStride = p.Width
 		img.CStride = p.Width / 2
-		img.SubsampleRatio = image.YCbCrSubsampleRatio422
+		img.SubsampleRatio = image.YCbCrSubsampleRatio420
 		img.Rect = image.Rect(0, 0, p.Width, p.Height)
 		return img, func() {}, nil
 	})
@@ -142,8 +152,8 @@ func (c *camera) Properties() []prop.Media {
 	properties := []prop.Media{}
 	for i := 0; i < int(c.cam.numProps); i++ {
 		p := C.getProp(c.cam, C.int(i))
-		// TODO: support other FOURCC
-		if p.fcc == fourccYUY2 {
+		// Support both YUY2 and NV12 formats
+		if p.fcc == fourccYUY2 || p.fcc == fourccNV12 {
 			properties = append(properties, prop.Media{
 				Video: prop.Video{
 					Width:       int(p.width),
@@ -157,5 +167,6 @@ func (c *camera) Properties() []prop.Media {
 }
 
 const (
-	fourccYUY2 = 0x32595559
+	fourccYUY2 = 0x32595559 // 'YUY2'
+	fourccNV12 = 0x3231564E // 'NV12'
 )
