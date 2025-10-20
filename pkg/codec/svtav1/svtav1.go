@@ -39,8 +39,6 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	}
 	enc.param.source_width = C.uint32_t(p.Width)
 	enc.param.source_height = C.uint32_t(p.Height)
-	enc.param.encoder_bit_depth = 8
-	enc.param.encoder_color_format = C.EB_YUV420
 	enc.param.profile = C.MAIN_PROFILE
 	enc.param.level = 0               // auto
 	enc.param.hierarchical_levels = 0 // auto
@@ -60,7 +58,7 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	enc.param.intra_period_length = C.int32_t(params.KeyFrameInterval)
 
 	if err := errFromC(C.enc_init(enc)); err != nil {
-		_ = C.enc_close(enc)
+		_ = C.enc_free(enc)
 		return nil, err
 	}
 
@@ -81,6 +79,8 @@ func errFromC(ret C.int) error {
 		return ErrSetEncParam
 	case C.ERR_ENC_INIT:
 		return ErrEncInit
+	case C.ERR_SEND_PICTURE:
+		return ErrSendPicture
 	default:
 		return ErrUnknownErrorCode
 	}
@@ -108,6 +108,8 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		(*C.uchar)(&yuvImg.Y[0]),
 		(*C.uchar)(&yuvImg.Cb[0]),
 		(*C.uchar)(&yuvImg.Cr[0]),
+		C.int(yuvImg.YStride),
+		C.int(yuvImg.CStride),
 	)
 	if err := errFromC(ret); err != nil {
 		return nil, func() {}, err
@@ -156,7 +158,7 @@ func (e *encoder) Close() error {
 		return nil
 	}
 
-	if err := errFromC(C.enc_close(e.engine)); err != nil {
+	if err := errFromC(C.enc_free(e.engine)); err != nil {
 		return err
 	}
 
