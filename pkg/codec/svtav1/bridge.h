@@ -22,7 +22,11 @@ int enc_new(Encoder **e) {
   *e = malloc(sizeof(Encoder));
   (*e)->param = malloc(sizeof(EbSvtAv1EncConfiguration));
 
-  sret = svt_av1_enc_init_handle(&(*e)->handle, *e, (*e)->param);
+#if SVT_AV1_CHECK_VERSION(3, 0, 0)
+  sret = svt_av1_enc_init_handle(&(*e)->handle, (*e)->param);
+#else
+  sret = svt_av1_enc_init_handle(&(*e)->handle, NULL, (*e)->param);
+#endif
   if (sret != EB_ErrorNone) {
     free((*e)->param);
     free(*e);
