@@ -57,6 +57,7 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	enc.param.max_qp_allowed = 63
 	enc.param.min_qp_allowed = 0
 	enc.param.intra_refresh_type = C.SVT_AV1_KF_REFRESH
+	enc.param.intra_period_length = C.int32_t(params.KeyFrameInterval)
 
 	if err := errFromC(C.enc_init(enc)); err != nil {
 		_ = C.enc_close(enc)
@@ -112,6 +113,13 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		return nil, func() {}, err
 	}
 
+	if e.engine.param.force_key_frames == 1 {
+		e.engine.param.force_key_frames = 0
+		if err := errFromC(C.enc_apply_param(e.engine)); err != nil {
+			return nil, func() {}, err
+		}
+	}
+
 	encoded := C.GoBytes(unsafe.Pointer(buf.data), buf.len)
 	return encoded, func() {}, err
 }
@@ -120,6 +128,11 @@ func (e *encoder) Read() ([]byte, func(), error) {
 //var _ codec.BitRateController = (*encoder)(nil)
 
 func (e *encoder) ForceKeyFrame() error {
+	if C.enc_is_force_keyframe_supported() == 0 {
+		// Force keyframe on this mode is supported since SVT-AV1 v1.8.0
+		return nil
+	}
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
 

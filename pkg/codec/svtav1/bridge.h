@@ -1,3 +1,4 @@
+#include <EbSvtAv1.h>
 #include <EbSvtAv1Enc.h>
 #include <EbSvtAv1ErrorCodes.h>
 #include <stdint.h>
@@ -72,3 +73,11 @@ int enc_close(Encoder *e) {
 
   return 0;
 }
+
+int enc_is_force_keyframe_supported() {
+#if SVT_AV1_CHECK_VERSION(1, 8, 0)
+  return 1;
+#endif
+  return 0;
+}
+
