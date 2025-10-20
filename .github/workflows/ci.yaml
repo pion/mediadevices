@@ -56,9 +56,10 @@ jobs:
         run: |
           which brew
           brew install \
-            pkg-config \
-            opus \
             libvpx \
+            opus \
+            pkg-config \
+            svt-av1 \
             x264
       - name: Run Test Suite
         run: make test
