@@ -11,6 +11,8 @@
 typedef struct Encoder {
   EbSvtAv1EncConfiguration *param;
   EbComponentType *handle;
+
+  bool force_keyframe;
 } Encoder;
 
 typedef struct Buffer {
@@ -40,6 +42,13 @@ int enc_new(Encoder **e) {
 int enc_init(Encoder *e) {
   EbErrorType sret;
 
+  // Force adding keyframe for EB_AV1_KEY_PICTURE
+#if SVT_AV1_CHECK_VERSION(3, 0, 0)
+  e->param->force_key_frames = true;
+#elif SVT_AV1_CHECK_VERSION(1, 8, 0)
+  e->param->force_key_frames = 1;
+#endif
+
   sret = svt_av1_enc_set_parameter(e->handle, e->param);
   if (sret != EB_ErrorNone) {
     return ERR_SET_ENC_PARAM;
@@ -62,17 +71,8 @@ int enc_apply_param(Encoder *e) {
   return 0;
 }
 
-int enc_set_force_keyframe(Encoder *e, int force) {
-  // Force keyframe on this mode is supported since SVT-AV1 v1.8.0
-  // v3.0.0 and later uses stdbool type
-
-#if SVT_AV1_CHECK_VERSION(3, 0, 0)
-  e->param->force_key_frames = force ? true : false;
-  return enc_apply_param(e);
-#elif SVT_AV1_CHECK_VERSION(1, 8, 0)
-  e->param->force_key_frames = force;
-  return enc_apply_param(e);
-#endif
+int enc_force_keyframe(Encoder *e) {
+  e->force_keyframe = true;
   return 0;
 }
 
@@ -80,15 +80,12 @@ unsigned char dummy[] = {0, 1, 2, 3};
 
 int enc_encode(Encoder *e, Buffer *out, uint8_t *y, uint8_t *cb, uint8_t *cr) {
   // TODO: implement
+  if (e->force_keyframe) {
+    // header->pic_type = EB_AV1_KEY_PICTURE;
+    e->force_keyframe = false;
+  }
   out->data = dummy;
   out->len = 4;
-
-  if (e->param->force_key_frames) {
-    int ret = enc_set_force_keyframe(e, 0);
-    if (ret) {
-      return ret;
-    }
-  }
 
   return 0;
 }

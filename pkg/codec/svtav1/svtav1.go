@@ -124,7 +124,7 @@ func (e *encoder) ForceKeyFrame() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if err := errFromC(C.enc_set_force_keyframe(e.engine, 1)); err != nil {
+	if err := errFromC(C.enc_force_keyframe(e.engine)); err != nil {
 		return err
 	}
 
