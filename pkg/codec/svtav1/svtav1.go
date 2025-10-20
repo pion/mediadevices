@@ -81,6 +81,8 @@ func errFromC(ret C.int) error {
 		return ErrEncInit
 	case C.ERR_SEND_PICTURE:
 		return ErrSendPicture
+	case C.ERR_GET_PACKET:
+		return ErrGetPacket
 	default:
 		return ErrUnknownErrorCode
 	}
@@ -101,7 +103,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	defer release()
 	yuvImg := img.(*image.YCbCr)
 
-	var buf C.Buffer
+	var buf *C.EbBufferHeaderType
 	ret := C.enc_encode(
 		e.engine,
 		&buf,
@@ -115,7 +117,9 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		return nil, func() {}, err
 	}
 
-	encoded := C.GoBytes(unsafe.Pointer(buf.data), buf.len)
+	encoded := C.GoBytes(unsafe.Pointer(buf.p_buffer), C.int(buf.n_filled_len))
+	C.svt_av1_enc_release_out_buffer(&buf)
+
 	return encoded, func() {}, err
 }
 

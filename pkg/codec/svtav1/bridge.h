@@ -9,6 +9,7 @@
 #define ERR_SET_ENC_PARAM 2
 #define ERR_ENC_INIT 3
 #define ERR_SEND_PICTURE 4
+#define ERR_GET_PACKET 5
 
 typedef struct Encoder {
   EbSvtAv1EncConfiguration *param;
@@ -17,11 +18,6 @@ typedef struct Encoder {
 
   bool force_keyframe;
 } Encoder;
-
-typedef struct Buffer {
-  unsigned char *data;
-  int len;
-} Buffer;
 
 int enc_free(Encoder *e) {
   free(e->in_buf->p_buffer);
@@ -88,9 +84,7 @@ int enc_force_keyframe(Encoder *e) {
   return 0;
 }
 
-unsigned char dummy[] = {0, 1, 2, 3};
-
-int enc_encode(Encoder *e, Buffer *out, uint8_t *y, uint8_t *cb, uint8_t *cr, int ystride, int cstride) {
+int enc_encode(Encoder *e, EbBufferHeaderType **out, uint8_t *y, uint8_t *cb, uint8_t *cr, int ystride, int cstride) {
   EbSvtIOFormat *in_data = (EbSvtIOFormat *)e->in_buf->p_buffer;
   in_data->luma = y;
   in_data->cb = cb;
@@ -115,9 +109,10 @@ int enc_encode(Encoder *e, Buffer *out, uint8_t *y, uint8_t *cb, uint8_t *cr, in
     return ERR_SEND_PICTURE;
   }
 
-  // TODO: read encoded data
-  out->data = dummy;
-  out->len = 4;
+  sret = svt_av1_enc_get_packet(e->handle, out, 0);
+  if (sret != EB_ErrorNone) {
+    return ERR_GET_PACKET;
+  }
 
   return 0;
 }

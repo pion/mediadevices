@@ -10,4 +10,5 @@ var (
 	ErrSetEncParam      = errors.New("failed to set encoder parameters")
 	ErrEncInit          = errors.New("failed to initialize encoder")
 	ErrSendPicture      = errors.New("failed to send picture")
+	ErrGetPacket        = errors.New("failed to get packet")
 )
