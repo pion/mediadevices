@@ -1,6 +1,7 @@
 #include <EbSvtAv1.h>
 #include <EbSvtAv1Enc.h>
 #include <EbSvtAv1ErrorCodes.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #define ERR_INIT_ENC_HANDLER 1
@@ -61,12 +62,33 @@ int enc_apply_param(Encoder *e) {
   return 0;
 }
 
+int enc_set_force_keyframe(Encoder *e, int force) {
+  // Force keyframe on this mode is supported since SVT-AV1 v1.8.0
+  // v3.0.0 and later uses stdbool type
+
+#if SVT_AV1_CHECK_VERSION(3, 0, 0)
+  e->param->force_key_frames = force ? true : false;
+  return enc_apply_param(e);
+#elif SVT_AV1_CHECK_VERSION(1, 8, 0)
+  e->param->force_key_frames = force;
+  return enc_apply_param(e);
+#endif
+  return 0;
+}
+
 unsigned char dummy[] = {0, 1, 2, 3};
 
 int enc_encode(Encoder *e, Buffer *out, uint8_t *y, uint8_t *cb, uint8_t *cr) {
   // TODO: implement
   out->data = dummy;
   out->len = 4;
+
+  if (e->param->force_key_frames) {
+    int ret = enc_set_force_keyframe(e, 0);
+    if (ret) {
+      return ret;
+    }
+  }
 
   return 0;
 }
@@ -77,11 +99,3 @@ int enc_close(Encoder *e) {
 
   return 0;
 }
-
-int enc_is_force_keyframe_supported() {
-#if SVT_AV1_CHECK_VERSION(1, 8, 0)
-  return 1;
-#endif
-  return 0;
-}
-
