@@ -27,9 +27,6 @@ type encoder struct {
 func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, error) {
 	var enc *C.Encoder
 
-	if params.KeyFrameInterval == 0 {
-		params.KeyFrameInterval = 60
-	}
 	if p.FrameRate == 0 {
 		p.FrameRate = 30
 	}
@@ -48,6 +45,8 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	enc.param.frame_rate_denominator = 1000
 	enc.param.intra_refresh_type = C.SVT_AV1_KF_REFRESH
 	enc.param.intra_period_length = C.int32_t(params.KeyFrameInterval)
+	enc.param.starting_buffer_level_ms = C.int64_t(params.StartingBufferLevel.Milliseconds())
+	enc.param.optimal_buffer_level_ms = C.int64_t(params.OptimalBufferLevel.Milliseconds())
 
 	if err := errFromC(C.enc_init(enc)); err != nil {
 		_ = C.enc_free(enc)

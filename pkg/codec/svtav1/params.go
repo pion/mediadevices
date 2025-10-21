@@ -1,6 +1,8 @@
 package svtav1
 
 import (
+	"time"
+
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -15,6 +17,9 @@ type Params struct {
 	// 4-6: a balance of efficiency and reasonable compute time
 	// 7-13: real-time encoding
 	Preset int
+
+	StartingBufferLevel time.Duration
+	OptimalBufferLevel  time.Duration
 }
 
 // NewParams returns default x264 codec specific parameters.
@@ -23,7 +28,9 @@ func NewParams() (Params, error) {
 		BaseParams: codec.BaseParams{
 			KeyFrameInterval: 60,
 		},
-		Preset: 9,
+		Preset:              9,
+		StartingBufferLevel: 400 * time.Millisecond,
+		OptimalBufferLevel:  200 * time.Millisecond,
 	}, nil
 }
 
