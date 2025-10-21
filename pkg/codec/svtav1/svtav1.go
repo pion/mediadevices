@@ -108,6 +108,9 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	if err := errFromC(ret); err != nil {
 		return nil, func() {}, err
 	}
+	if buf == nil {
+		return []byte{}, func() {}, nil
+	}
 
 	encoded := C.GoBytes(unsafe.Pointer(buf.p_buffer), C.int(buf.n_filled_len))
 	C.svt_av1_enc_release_out_buffer(&buf)

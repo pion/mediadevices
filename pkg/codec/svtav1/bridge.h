@@ -110,6 +110,9 @@ int enc_encode(Encoder *e, EbBufferHeaderType **out, uint8_t *y, uint8_t *cb, ui
   }
 
   sret = svt_av1_enc_get_packet(e->handle, out, 0);
+  if (sret == EB_NoErrorEmptyQueue) {
+    return 0;
+  }
   if (sret != EB_ErrorNone) {
     return ERR_GET_PACKET;
   }
