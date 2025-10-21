@@ -88,39 +88,36 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		return nil, func() {}, io.EOF
 	}
 
-	for {
-		img, release, err := e.r.Read()
-		if err != nil {
-			return nil, func() {}, err
-		}
-		defer release()
-		yuvImg := img.(*image.YCbCr)
-
-		if err := errFromC(C.enc_send_frame(
-			e.engine,
-			(*C.uchar)(&yuvImg.Y[0]),
-			(*C.uchar)(&yuvImg.Cb[0]),
-			(*C.uchar)(&yuvImg.Cr[0]),
-			C.int(yuvImg.YStride),
-			C.int(yuvImg.CStride),
-		)); err != nil {
-			return nil, func() {}, err
-		}
-
-		var buf *C.EbBufferHeaderType
-		if err := errFromC(C.enc_get_packet(e.engine, &buf)); err != nil {
-			return nil, func() {}, err
-		}
-		if buf == nil {
-			// Feed frames until receiving a packet
-			continue
-		}
-
-		encoded := C.GoBytes(unsafe.Pointer(buf.p_buffer), C.int(buf.n_filled_len))
-		C.svt_av1_enc_release_out_buffer(&buf)
-
-		return encoded, func() {}, err
+	img, release, err := e.r.Read()
+	if err != nil {
+		return nil, func() {}, err
 	}
+	defer release()
+	yuvImg := img.(*image.YCbCr)
+
+	if err := errFromC(C.enc_send_frame(
+		e.engine,
+		(*C.uchar)(&yuvImg.Y[0]),
+		(*C.uchar)(&yuvImg.Cb[0]),
+		(*C.uchar)(&yuvImg.Cr[0]),
+		C.int(yuvImg.YStride),
+		C.int(yuvImg.CStride),
+	)); err != nil {
+		return nil, func() {}, err
+	}
+
+	var buf *C.EbBufferHeaderType
+	if err := errFromC(C.enc_get_packet(e.engine, &buf)); err != nil {
+		return nil, func() {}, err
+	}
+	if buf == nil {
+		return []byte{}, func() {}, nil
+	}
+
+	encoded := C.GoBytes(unsafe.Pointer(buf.p_buffer), C.int(buf.n_filled_len))
+	C.svt_av1_enc_release_out_buffer(&buf)
+
+	return encoded, func() {}, err
 }
 
 // TODO: Implement bit rate control
