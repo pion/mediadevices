@@ -20,6 +20,7 @@ type Params struct {
 
 	StartingBufferLevel time.Duration
 	OptimalBufferLevel  time.Duration
+	MaximumBufferSize   time.Duration
 }
 
 // NewParams returns default x264 codec specific parameters.
@@ -31,6 +32,7 @@ func NewParams() (Params, error) {
 		Preset:              9,
 		StartingBufferLevel: 400 * time.Millisecond,
 		OptimalBufferLevel:  200 * time.Millisecond,
+		MaximumBufferSize:   500 * time.Millisecond,
 	}, nil
 }
 

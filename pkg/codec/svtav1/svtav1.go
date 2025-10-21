@@ -47,6 +47,7 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	enc.param.intra_period_length = C.int32_t(params.KeyFrameInterval)
 	enc.param.starting_buffer_level_ms = C.int64_t(params.StartingBufferLevel.Milliseconds())
 	enc.param.optimal_buffer_level_ms = C.int64_t(params.OptimalBufferLevel.Milliseconds())
+	enc.param.maximum_buffer_size_ms = C.int64_t(params.MaximumBufferSize.Milliseconds())
 
 	if err := errFromC(C.enc_init(enc)); err != nil {
 		_ = C.enc_free(enc)
