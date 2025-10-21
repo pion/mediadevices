@@ -10,7 +10,6 @@ import (
 	"image"
 	"io"
 	"sync"
-	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/io/video"
@@ -22,6 +21,8 @@ type encoder struct {
 	r      video.Reader
 	mu     sync.Mutex
 	closed bool
+
+	outPool sync.Pool
 }
 
 func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, error) {
@@ -57,6 +58,11 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	e := encoder{
 		engine: enc,
 		r:      video.ToI420(r),
+		outPool: sync.Pool{
+			New: func() any {
+				return []byte(nil)
+			},
+		},
 	}
 	return &e, nil
 }
@@ -116,10 +122,19 @@ func (e *encoder) Read() ([]byte, func(), error) {
 			continue
 		}
 
-		encoded := C.GoBytes(unsafe.Pointer(buf.p_buffer), C.int(buf.n_filled_len))
+		n := int(buf.n_filled_len)
+		outBuf := e.outPool.Get().([]byte)
+		if cap(outBuf) < n {
+			outBuf = make([]byte, n)
+		}
+		outBuf = outBuf[:n]
+
+		C.memcpy_uint8((*C.uchar)(&outBuf[0]), buf.p_buffer, C.size_t(n))
 		C.svt_av1_enc_release_out_buffer(&buf)
 
-		return encoded, func() {}, err
+		return outBuf, func() {
+			e.outPool.Put(outBuf)
+		}, err
 	}
 }
 
