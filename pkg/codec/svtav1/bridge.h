@@ -120,3 +120,8 @@ int enc_get_packet(Encoder *e, EbBufferHeaderType **out) {
 
   return 0;
 }
+
+void memcpy_uint8(uint8_t *dst, const uint8_t *src, size_t n) {
+  // Just make CGO types compatible
+  memcpy(dst, src, n);
+}
