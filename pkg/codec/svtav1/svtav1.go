@@ -95,17 +95,19 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	defer release()
 	yuvImg := img.(*image.YCbCr)
 
-	var buf *C.EbBufferHeaderType
-	ret := C.enc_encode(
+	if err := errFromC(C.enc_send_frame(
 		e.engine,
-		&buf,
 		(*C.uchar)(&yuvImg.Y[0]),
 		(*C.uchar)(&yuvImg.Cb[0]),
 		(*C.uchar)(&yuvImg.Cr[0]),
 		C.int(yuvImg.YStride),
 		C.int(yuvImg.CStride),
-	)
-	if err := errFromC(ret); err != nil {
+	)); err != nil {
+		return nil, func() {}, err
+	}
+
+	var buf *C.EbBufferHeaderType
+	if err := errFromC(C.enc_get_packet(e.engine, &buf)); err != nil {
 		return nil, func() {}, err
 	}
 	if buf == nil {
