@@ -84,7 +84,7 @@ int enc_force_keyframe(Encoder *e) {
   return 0;
 }
 
-int enc_send(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr, int ystride, int cstride) {
+int enc_encode(Encoder *e, EbBufferHeaderType **out, uint8_t *y, uint8_t *cb, uint8_t *cr, int ystride, int cstride) {
   EbSvtIOFormat *in_data = (EbSvtIOFormat *)e->in_buf->p_buffer;
   in_data->luma = y;
   in_data->cb = cb;
@@ -103,15 +103,13 @@ int enc_send(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr, int ystride, int 
   e->in_buf->n_filled_len = ystride * e->param->source_height;
   e->in_buf->n_filled_len += 2 * cstride * e->param->source_height / 2;
 
-  const EbErrorType sret = svt_av1_enc_send_picture(e->handle, e->in_buf);
+  EbErrorType sret;
+  sret = svt_av1_enc_send_picture(e->handle, e->in_buf);
   if (sret != EB_ErrorNone) {
     return ERR_SEND_PICTURE;
   }
-  return 0;
-}
 
-int enc_get_packet(Encoder *e, EbBufferHeaderType **out) {
-  const EbErrorType sret = svt_av1_enc_get_packet(e->handle, out, 0);
+  sret = svt_av1_enc_get_packet(e->handle, out, 0);
   if (sret != EB_ErrorNone) {
     return ERR_GET_PACKET;
   }

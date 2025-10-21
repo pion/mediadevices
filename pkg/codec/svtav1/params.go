@@ -23,7 +23,7 @@ func NewParams() (Params, error) {
 		BaseParams: codec.BaseParams{
 			KeyFrameInterval: 60,
 		},
-		Preset: 8,
+		Preset: 9,
 	}, nil
 }
 

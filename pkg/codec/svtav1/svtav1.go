@@ -18,11 +18,10 @@ import (
 )
 
 type encoder struct {
-	engine    *C.Encoder
-	r         video.Reader
-	mu        sync.Mutex
-	closed    bool
-	errSource error
+	engine *C.Encoder
+	r      video.Reader
+	mu     sync.Mutex
+	closed bool
 }
 
 func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, error) {
@@ -59,9 +58,6 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 		engine: enc,
 		r:      video.ToI420(r),
 	}
-
-	go e.sourceReadLoop()
-
 	return &e, nil
 }
 
@@ -84,45 +80,6 @@ func errFromC(ret C.int) error {
 	}
 }
 
-func (e *encoder) sourceReadLoop() {
-	defer func() {
-		e.mu.Lock()
-		defer e.mu.Unlock()
-
-		if err := errFromC(C.enc_free(e.engine)); err != nil {
-			e.errSource = err
-		}
-	}()
-
-	for {
-		img, release, err := e.r.Read()
-		if err != nil {
-			e.mu.Lock()
-			e.errSource = err
-			e.mu.Unlock()
-			return
-		}
-		yuvImg := img.(*image.YCbCr)
-
-		ret := C.enc_send(
-			e.engine,
-			(*C.uchar)(&yuvImg.Y[0]),
-			(*C.uchar)(&yuvImg.Cb[0]),
-			(*C.uchar)(&yuvImg.Cr[0]),
-			C.int(yuvImg.YStride),
-			C.int(yuvImg.CStride),
-		)
-
-		release()
-		if err := errFromC(ret); err != nil {
-			e.mu.Lock()
-			e.errSource = err
-			e.mu.Unlock()
-			return
-		}
-	}
-}
-
 func (e *encoder) Read() ([]byte, func(), error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -130,12 +87,24 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	if e.closed {
 		return nil, func() {}, io.EOF
 	}
-	if e.errSource != nil {
-		return nil, func() {}, e.errSource
+
+	img, release, err := e.r.Read()
+	if err != nil {
+		return nil, func() {}, err
 	}
+	defer release()
+	yuvImg := img.(*image.YCbCr)
 
 	var buf *C.EbBufferHeaderType
-	ret := C.enc_get_packet(e.engine, &buf)
+	ret := C.enc_encode(
+		e.engine,
+		&buf,
+		(*C.uchar)(&yuvImg.Y[0]),
+		(*C.uchar)(&yuvImg.Cb[0]),
+		(*C.uchar)(&yuvImg.Cr[0]),
+		C.int(yuvImg.YStride),
+		C.int(yuvImg.CStride),
+	)
 	if err := errFromC(ret); err != nil {
 		return nil, func() {}, err
 	}
@@ -143,7 +112,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	encoded := C.GoBytes(unsafe.Pointer(buf.p_buffer), C.int(buf.n_filled_len))
 	C.svt_av1_enc_release_out_buffer(&buf)
 
-	return encoded, func() {}, nil
+	return encoded, func() {}, err
 }
 
 // TODO: Implement bit rate control
@@ -179,8 +148,16 @@ func (e *encoder) Controller() codec.EncoderController {
 
 func (e *encoder) Close() error {
 	e.mu.Lock()
-	e.closed = true
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
+	if e.closed {
+		return nil
+	}
+
+	if err := errFromC(C.enc_free(e.engine)); err != nil {
+		return err
+	}
+
+	e.closed = true
 	return nil
 }
