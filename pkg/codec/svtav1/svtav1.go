@@ -139,9 +139,6 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	}
 }
 
-// TODO: Implement bit rate control
-//var _ codec.BitRateController = (*encoder)(nil)
-
 func (e *encoder) ForceKeyFrame() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
