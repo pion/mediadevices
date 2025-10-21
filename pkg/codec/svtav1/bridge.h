@@ -110,7 +110,7 @@ int enc_send_frame(Encoder *e, uint8_t *y, uint8_t *cb, uint8_t *cr, int ystride
 }
 
 int enc_get_packet(Encoder *e, EbBufferHeaderType **out) {
-  const EbErrorType sret = svt_av1_enc_get_packet(e->handle, out, 1);
+  const EbErrorType sret = svt_av1_enc_get_packet(e->handle, out, 0);
   if (sret == EB_NoErrorEmptyQueue) {
     return 0;
   }
