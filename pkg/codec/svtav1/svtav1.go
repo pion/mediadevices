@@ -126,8 +126,9 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		outBuf := e.outPool.Get().([]byte)
 		if cap(outBuf) < n {
 			outBuf = make([]byte, n)
+		} else {
+			outBuf = outBuf[:n]
 		}
-		outBuf = outBuf[:n]
 
 		C.memcpy_uint8((*C.uchar)(&outBuf[0]), buf.p_buffer, C.size_t(n))
 		C.svt_av1_enc_release_out_buffer(&buf)
