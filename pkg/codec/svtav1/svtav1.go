@@ -40,20 +40,12 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	enc.param.source_width = C.uint32_t(p.Width)
 	enc.param.source_height = C.uint32_t(p.Height)
 	enc.param.profile = C.MAIN_PROFILE
-	enc.param.level = 0               // auto
-	enc.param.hierarchical_levels = 0 // auto
 	enc.param.enc_mode = C.int8_t(params.Preset)
-	enc.param.tier = 0 // main
 	enc.param.rate_control_mode = C.SVT_AV1_RC_MODE_CBR
-	enc.param.pred_structure = 1 // LOW_DELAY
-	enc.param.qp = 50            // default
+	enc.param.pred_structure = C.SVT_AV1_PRED_LOW_DELAY_B
 	enc.param.target_bit_rate = C.uint32_t(params.BitRate)
-	enc.param.intra_period_length = -2 // auto
 	enc.param.frame_rate_numerator = C.uint32_t(p.FrameRate * 1000)
 	enc.param.frame_rate_denominator = 1000
-	enc.param.enable_tpl_la = 0 // LOW_DELAY requires no TPL
-	enc.param.max_qp_allowed = 63
-	enc.param.min_qp_allowed = 0
 	enc.param.intra_refresh_type = C.SVT_AV1_KF_REFRESH
 	enc.param.intra_period_length = C.int32_t(params.KeyFrameInterval)
 
