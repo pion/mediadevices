@@ -15,8 +15,8 @@ import (
 	// "github.com/pion/mediadevices/pkg/codec/openh264"
 	// or if you use a raspberry pi like, you can use mmal for using its hardware encoder
 	// "github.com/pion/mediadevices/pkg/codec/mmal"
-	"github.com/pion/mediadevices/pkg/codec/opus" // This is required to use opus audio encoder
-	"github.com/pion/mediadevices/pkg/codec/x264" // This is required to use h264 video encoder
+	"github.com/pion/mediadevices/pkg/codec/opus"
+	"github.com/pion/mediadevices/pkg/codec/svtav1"
 
 	// Note: If you don't have a camera or microphone or your adapters are not supported,
 	//       you can always swap your adapters with our dummy adapters below.
@@ -40,18 +40,19 @@ func main() {
 	signal.Decode(signal.MustReadStdin(), &offer)
 
 	// Create a new RTCPeerConnection
-	x264Params, err := x264.NewParams()
+	vParams, err := svtav1.NewParams()
 	if err != nil {
 		panic(err)
 	}
-	x264Params.BitRate = 500_000 // 500kbps
+	vParams.BitRate = 200_000
+	vParams.Preset = 8
 
 	opusParams, err := opus.NewParams()
 	if err != nil {
 		panic(err)
 	}
 	codecSelector := mediadevices.NewCodecSelector(
-		mediadevices.WithVideoEncoders(&x264Params),
+		mediadevices.WithVideoEncoders(&vParams),
 		mediadevices.WithAudioEncoders(&opusParams),
 	)
 
