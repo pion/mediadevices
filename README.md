@@ -149,6 +149,14 @@ A codec library which supports H.264 encoding and decoding. It is suitable for u
 * Package: [github.com/pion/mediadevices/pkg/codec/openh264](https://pkg.go.dev/github.com/pion/mediadevices/pkg/codec/openh264)
 * Installation: no installation needed, included as a static binary
 
+##### svtav1
+A free software video codec library from the Alliance for Open Media that implements AV1 video coding formats.
+
+* Package: [github.com/pion/mediadevices/pkg/codec/svtav1](https://pkg.go.dev/github.com/pion/mediadevices/pkg/codec/svtav1)
+* Installation:
+  * Mac: `brew install svt-av1`
+  * Ubuntu: `apt install libsvtav1enc-dev`
+
 ##### vpx
 A free software video codec library from Google and the Alliance for Open Media that implements VP8/VP9 video coding formats.
 
