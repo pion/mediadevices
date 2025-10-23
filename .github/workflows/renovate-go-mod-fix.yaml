@@ -20,4 +20,6 @@ jobs:
           github_token: ${{ secrets.PIONBOT_GITHUB_TOKEN }}
           commit_style: squash
           push: force
-          go_mod_paths: ./
+          go_mod_paths: |
+            ./
+            ./examples/
