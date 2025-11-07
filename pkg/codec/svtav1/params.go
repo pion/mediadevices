@@ -8,7 +8,7 @@ import (
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
-// Params stores libx264 specific encoding parameters.
+// Params stores SVT-AV1 specific encoding parameters.
 type Params struct {
 	codec.BaseParams
 
@@ -23,7 +23,7 @@ type Params struct {
 	MaximumBufferSize   time.Duration
 }
 
-// NewParams returns default x264 codec specific parameters.
+// NewParams returns default SVT-AV1 codec specific parameters.
 func NewParams() (Params, error) {
 	return Params{
 		BaseParams: codec.BaseParams{
@@ -41,7 +41,7 @@ func (p *Params) RTPCodec() *codec.RTPCodec {
 	return codec.NewRTPAV1Codec(90000)
 }
 
-// BuildVideoEncoder builds x264 encoder with given params
+// BuildVideoEncoder builds SVT-AV1 encoder with given params
 func (p *Params) BuildVideoEncoder(r video.Reader, property prop.Media) (codec.ReadCloser, error) {
 	return newEncoder(r, property, *p)
 }
