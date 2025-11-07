@@ -20,6 +20,10 @@ typedef struct Encoder {
 } Encoder;
 
 int enc_free(Encoder *e) {
+  if (e->handle != NULL) {
+    svt_av1_enc_deinit(e->handle);
+    svt_av1_enc_deinit_handle(e->handle);
+  }
   free(e->in_buf->p_buffer);
   free(e->in_buf);
   free(e->param);
@@ -36,6 +40,8 @@ int enc_new(Encoder **e) {
   memset((*e)->in_buf, 0, sizeof(EbBufferHeaderType));
   (*e)->in_buf->p_buffer = malloc(sizeof(EbSvtIOFormat));
   (*e)->in_buf->size = sizeof(EbBufferHeaderType);
+
+  (*e)->handle = NULL;
 
 #if SVT_AV1_CHECK_VERSION(3, 0, 0)
   const EbErrorType sret = svt_av1_enc_init_handle(&(*e)->handle, (*e)->param);
