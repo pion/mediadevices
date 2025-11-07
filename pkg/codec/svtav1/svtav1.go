@@ -67,25 +67,6 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	return &e, nil
 }
 
-func errFromC(ret C.int) error {
-	switch ret {
-	case 0:
-		return nil
-	case C.ERR_INIT_ENC_HANDLER:
-		return ErrInitEncHandler
-	case C.ERR_SET_ENC_PARAM:
-		return ErrSetEncParam
-	case C.ERR_ENC_INIT:
-		return ErrEncInit
-	case C.ERR_SEND_PICTURE:
-		return ErrSendPicture
-	case C.ERR_GET_PACKET:
-		return ErrGetPacket
-	default:
-		return ErrUnknownErrorCode
-	}
-}
-
 func (e *encoder) Read() ([]byte, func(), error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
