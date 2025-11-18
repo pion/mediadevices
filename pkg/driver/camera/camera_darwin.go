@@ -29,19 +29,65 @@ func init() {
 
 // Initialize finds and registers camera devices. This is part of an experimental API.
 func Initialize() {
+	manager := driver.GetManager()
+	for _, d := range manager.Query(driver.FilterVideoRecorder()) {
+		manager.Delete(d.ID())
+	}
+
 	devices, err := avfoundation.Devices(avfoundation.Video)
 	if err != nil {
 		panic(err)
 	}
 
 	for _, device := range devices {
+		drivers := manager.Query(func(d driver.Driver) bool {
+			return d.Info().Label == device.UID
+		})
+		if len(drivers) > 0 {
+			continue
+		}
+
 		cam := newCamera(device)
-		driver.GetManager().Register(cam, driver.Info{
+		manager.Register(cam, driver.Info{
 			Label:      device.UID,
 			DeviceType: driver.Camera,
 			Name:       device.Name,
 		})
 	}
+}
+
+// StartObserver starts the background observer to monitor for device changes.
+func StartObserver() error {
+	manager := driver.GetManager()
+
+	avfoundation.SetOnDeviceChange(func(device avfoundation.Device, event avfoundation.DeviceEventType) {
+		switch event {
+		case avfoundation.DeviceEventConnected:
+			drivers := manager.Query(func(d driver.Driver) bool {
+				return d.Info().Label == device.UID
+			})
+			if len(drivers) > 0 {
+				return
+			}
+
+			cam := newCamera(device)
+			manager.Register(cam, driver.Info{
+				Label:      device.UID,
+				DeviceType: driver.Camera,
+				Name:       device.Name,
+			})
+
+		case avfoundation.DeviceEventDisconnected:
+			drivers := manager.Query(func(d driver.Driver) bool {
+				return d.Info().Label == device.UID
+			})
+			for _, d := range drivers {
+				manager.Delete(d.ID())
+			}
+		}
+	})
+
+	return avfoundation.StartObserver()
 }
 
 func newCamera(device avfoundation.Device) *camera {
