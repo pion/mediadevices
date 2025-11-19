@@ -2,9 +2,10 @@ package avfoundation
 
 /*
 #cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework AVFoundation -framework Foundation
+#cgo LDFLAGS: -framework AVFoundation -framework Foundation -framework CoreMedia -framework CoreVideo
 #include <stdlib.h>
-#include "deviceobserver.h"
+#include <string.h>
+#include "AVFoundationBind/DeviceObserver.h"
 
 extern void deviceEventBridge(void *userData, DeviceEventType eventType, DeviceInfo *device);
 
@@ -56,6 +57,25 @@ func SetOnDeviceChange(f func(Device, DeviceEventType)) {
 	observerLock.Lock()
 	defer observerLock.Unlock()
 	onDeviceChange = f
+}
+
+func createDevice(uid, name string) Device {
+	var d Device
+	d.UID = uid
+	d.Name = name
+
+	// Copy strings to C char arrays
+	cUID := C.CString(uid)
+	defer C.free(unsafe.Pointer(cUID))
+	C.strncpy(&d.cDevice.uid[0], cUID, C.MAX_DEVICE_UID_CHARS)
+	d.cDevice.uid[C.MAX_DEVICE_UID_CHARS] = 0
+
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+	C.strncpy(&d.cDevice.name[0], cName, C.MAX_DEVICE_NAME_CHARS)
+	d.cDevice.name[C.MAX_DEVICE_NAME_CHARS] = 0
+
+	return d
 }
 
 //export goDeviceEventCallback
@@ -136,20 +156,32 @@ func StartObserver() error {
 		var count C.int
 		status := C.DeviceObserverGetDevices(&devices[0], &count)
 
+		var initialDevices []Device
 		observerLock.Lock()
 		if status == nil {
 			deviceCache = make(map[string]Device)
+			initialDevices = make([]Device, 0, int(count))
 			for i := 0; i < int(count); i++ {
 				uid := C.GoString(&devices[i].uid[0])
 				name := C.GoString(&devices[i].name[0])
-				deviceCache[uid] = createDevice(uid, name)
+				dev := createDevice(uid, name)
+				deviceCache[uid] = dev
+				initialDevices = append(initialDevices, dev)
 			}
 		}
+		cb := onDeviceChange
 		observerState = observerRunning
 		observerLock.Unlock()
 
 		// Signal success to all waiters
 		close(initDone)
+
+		// Replay current devices so downstream observers register them.
+		if cb != nil {
+			for _, dev := range initialDevices {
+				cb(dev, DeviceEventConnected)
+			}
+		}
 
 		// Run Loop
 		for {

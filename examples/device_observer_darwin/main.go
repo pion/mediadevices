@@ -8,17 +8,12 @@ import (
 
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/driver/camera"
-	_ "github.com/pion/mediadevices/pkg/driver/camera"
 )
 
 func main() {
-	fmt.Println("=== Production Device Query Example ===")
-	fmt.Println()
-	fmt.Println("This example demonstrates query-based device discovery.")
-	fmt.Println("The background observer automatically updates the device list")
-	fmt.Println("when cameras are connected or disconnected, so subsequent queries")
-	fmt.Println("return updated results without manual re-initialization.")
-	fmt.Println()
+	fmt.Println("This example demonstrates query-based camera device discovery on Darwin.")
+	fmt.Println("The background observer automatically updates the manager's device list")
+	fmt.Println("when cameras are connected or disconnected.")
 
 	camera.StartObserver()
 	defer camera.StopObserver()
@@ -26,7 +21,6 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	queryCount := 0
 
-	// Initial query
 	queryDevices(0)
 
 	for {
@@ -37,20 +31,18 @@ func main() {
 		}
 
 		input := strings.TrimSpace(scanner.Text())
-		if strings.ToLower(input) == "q" || strings.ToLower(input) == "quit" {
+		if strings.ToLower(input) == "q" {
 			break
 		}
 
 		queryCount++
 		queryDevices(queryCount)
 	}
-
-	fmt.Println("Goodbye!")
 }
 
 func queryDevices(count int) {
 	if count > 0 {
-		fmt.Printf("--- Query #%d ---\n", count)
+		fmt.Printf("Query #%d\n", count)
 	}
 
 	devices := driver.GetManager().Query(driver.FilterVideoRecorder())

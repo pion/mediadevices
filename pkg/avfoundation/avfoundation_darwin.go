@@ -3,8 +3,6 @@ package avfoundation
 
 // #cgo CFLAGS: -x objective-c
 // #cgo LDFLAGS: -framework AVFoundation -framework Foundation -framework CoreMedia -framework CoreVideo
-// #include <stdlib.h>
-// #include <string.h>
 // #include "AVFoundationBind/AVFoundationBind.h"
 // #include "AVFoundationBind/AVFoundationBind.m"
 // extern void onData(void*, void*, int);
@@ -94,25 +92,6 @@ func Devices(mediaType MediaType) ([]Device, error) {
 	}
 
 	return devices, nil
-}
-
-func createDevice(uid, name string) Device {
-	var d Device
-	d.UID = uid
-	d.Name = name
-
-	// Copy strings to C char arrays
-	cUID := C.CString(uid)
-	defer C.free(unsafe.Pointer(cUID))
-	C.strncpy(&d.cDevice.uid[0], cUID, C.MAX_DEVICE_UID_CHARS)
-	d.cDevice.uid[C.MAX_DEVICE_UID_CHARS] = 0
-
-	cName := C.CString(name)
-	defer C.free(unsafe.Pointer(cName))
-	C.strncpy(&d.cDevice.name[0], cName, C.MAX_DEVICE_NAME_CHARS)
-	d.cDevice.name[C.MAX_DEVICE_NAME_CHARS] = 0
-
-	return d
 }
 
 // ReadCloser is a wrapper around the data callback from AVFoundation. The data received from the
