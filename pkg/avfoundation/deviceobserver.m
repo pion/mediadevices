@@ -4,10 +4,8 @@
 
 static STATUS STATUS_OK = (STATUS)NULL;
 
-// External Go callback function
 extern void goDeviceEventCallback(void *userData, int eventType, DeviceInfo *device);
 
-// Bridge function to call Go callback
 void deviceEventBridge(void *userData, DeviceEventType eventType, DeviceInfo *device) {
     goDeviceEventCallback(userData, (int)eventType, device);
 }
@@ -29,7 +27,6 @@ void deviceEventBridge(void *userData, DeviceEventType eventType, DeviceInfo *de
         _userData = userData;
         _observing = NO;
 
-        // Create discovery session for video devices
         NSArray *deviceTypes = @[
             AVCaptureDeviceTypeBuiltInWideAngleCamera,
             AVCaptureDeviceTypeExternal
@@ -122,6 +119,9 @@ void deviceEventBridge(void *userData, DeviceEventType eventType, DeviceInfo *de
             _callback(_userData, DeviceEventDisconnected, &info);
         }
     }
+
+    [addedUIDs release];
+    [removedUIDs release];
 }
 
 - (void)dealloc {
@@ -179,6 +179,7 @@ STATUS DeviceObserverDestroy(void) {
         }
 
         [gObserver stopObserving];
+        [gObserver release];
         gObserver = nil;
 
         return STATUS_OK;

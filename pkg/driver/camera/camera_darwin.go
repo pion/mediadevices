@@ -90,6 +90,10 @@ func StartObserver() error {
 	return avfoundation.StartObserver()
 }
 
+func StopObserver() error {
+	return avfoundation.StopObserver()
+}
+
 func newCamera(device avfoundation.Device) *camera {
 	return &camera{
 		device: device,

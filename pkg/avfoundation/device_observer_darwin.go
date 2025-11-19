@@ -20,12 +20,29 @@ import (
 	"unsafe"
 )
 
+type observerStateType int
+
+const (
+	observerStopped observerStateType = iota
+	observerStarting
+	observerRunning
+)
+
 var (
+	// observerLock protects all observer state variables.
+	// Must NOT be held when invoking user callbacks to avoid deadlock (double lock acquisition).
 	observerLock   sync.Mutex
 	deviceCache    = make(map[string]Device)
-	observing      bool
-	stopObserver   chan struct{}
+	observerState  observerStateType
 	onDeviceChange func(Device, DeviceEventType)
+
+	// Signals stop to the observer goroutine
+	stopObserver chan struct{}
+	// Coordinates waiting for the observer goroutine to stop
+	observerWg sync.WaitGroup
+	// Allows concurrent StartObserver callers to wait on same init result
+	initDone chan struct{}
+	initErr  error
 )
 
 type DeviceEventType int
@@ -46,58 +63,81 @@ func goDeviceEventCallback(userData unsafe.Pointer, eventType C.int, device *C.D
 	uid := C.GoString(&device.uid[0])
 	name := C.GoString(&device.name[0])
 
-	observerLock.Lock()
-	defer observerLock.Unlock()
-
 	d := createDevice(uid, name)
 	et := DeviceEventType(eventType)
 
+	observerLock.Lock()
 	if eventType == C.DeviceEventConnected {
 		deviceCache[uid] = d
 	} else if eventType == C.DeviceEventDisconnected {
 		delete(deviceCache, uid)
 	}
+	cb := onDeviceChange
+	observerLock.Unlock()
 
-	if onDeviceChange != nil {
-		onDeviceChange(d, et)
+	if cb != nil {
+		cb(d, et) // invoke outside of observerLock to avoid deadlock (double lock acquisition)
 	}
 }
 
-// StartObserver starts the device observer and a background run loop
+// StartObserver starts the device observer and a background run loop.
+// Safe to call concurrently; only one observer will be started.
 func StartObserver() error {
 	observerLock.Lock()
-	if observing {
+
+	switch observerState {
+	case observerRunning:
 		observerLock.Unlock()
 		return nil
+	case observerStarting:
+		// Another goroutine is starting the observer; wait on same result
+		done := initDone
+		observerLock.Unlock()
+		<-done
+		observerLock.Lock()
+		err := initErr
+		observerLock.Unlock()
+		return err
+	case observerStopped:
+		// start
 	}
-	observerLock.Unlock() // Unlock to allow goroutine to acquire it during populate
 
-	initErrCh := make(chan error)
+	observerState = observerStarting
 	stopObserver = make(chan struct{})
+	initDone = make(chan struct{})
+	initErr = nil
+	observerWg.Add(1)
 
 	go func() {
+		defer observerWg.Done()
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
+		var err error
+
 		if status := C.DeviceObserverInitWithBridge(); status != nil {
-			initErrCh <- fmt.Errorf("failed to init observer: %s", C.GoString(status))
+			err = fmt.Errorf("failed to init observer: %s", C.GoString(status))
+		} else if status := C.DeviceObserverStart(); status != nil {
+			C.DeviceObserverDestroy() // prevents objective-c object leak on error
+			err = fmt.Errorf("failed to start observer: %s", C.GoString(status))
+		}
+
+		if err != nil {
+			observerLock.Lock()
+			observerState = observerStopped
+			initErr = err
+			observerLock.Unlock()
+			close(initDone) // unblock all waiters
 			return
 		}
 
-		// Start
-		if status := C.DeviceObserverStart(); status != nil {
-			initErrCh <- fmt.Errorf("failed to start observer: %s", C.GoString(status))
-			return
-		}
-
-		// Initial population safely
+		// Initial population
 		var devices [C.MAX_DEVICES]C.DeviceInfo
 		var count C.int
 		status := C.DeviceObserverGetDevices(&devices[0], &count)
 
 		observerLock.Lock()
 		if status == nil {
-			// Clear existing cache to be sure
 			deviceCache = make(map[string]Device)
 			for i := 0; i < int(count); i++ {
 				uid := C.GoString(&devices[i].uid[0])
@@ -105,11 +145,11 @@ func StartObserver() error {
 				deviceCache[uid] = createDevice(uid, name)
 			}
 		}
-		observing = true
+		observerState = observerRunning
 		observerLock.Unlock()
 
-		// Signal success
-		close(initErrCh)
+		// Signal success to all waiters
+		close(initDone)
 
 		// Run Loop
 		for {
@@ -119,60 +159,35 @@ func StartObserver() error {
 				C.DeviceObserverDestroy()
 				return
 			default:
-				// Run for small intervals to allow checking stop channel
 				C.DeviceObserverRunFor(0.1)
 			}
 		}
 	}()
 
+	observerLock.Unlock()
+
 	// Wait for initialization
-	return <-initErrCh
+	<-initDone
+	observerLock.Lock()
+	err := initErr
+	observerLock.Unlock()
+	return err
 }
 
-// StopObserver stops the device observer
+// StopObserver stops the device observer.
+// Safe to call concurrently or when already stopped.
 func StopObserver() error {
 	observerLock.Lock()
-	defer observerLock.Unlock()
-
-	if !observing {
+	if observerState != observerRunning {
+		observerLock.Unlock()
 		return nil
 	}
 
 	close(stopObserver)
-	observing = false
+	observerState = observerStopped
+	observerLock.Unlock()
 
-	// The cleanup happens in the background goroutine
+	observerWg.Wait()
+
 	return nil
-}
-
-// GetDevices returns the currently connected video devices.
-// If the observer is running, it returns the cached state.
-// If not, it queries the system directly.
-func GetDevices() ([]Device, error) {
-	observerLock.Lock()
-	defer observerLock.Unlock()
-
-	if observing {
-		var result []Device
-		for _, d := range deviceCache {
-			result = append(result, d)
-		}
-		return result, nil
-	}
-
-	// Fallback to direct query if not observing
-	var devices [C.MAX_DEVICES]C.DeviceInfo
-	var count C.int
-	status := C.DeviceObserverGetDevices(&devices[0], &count)
-	if status != nil {
-		return nil, fmt.Errorf("%s", C.GoString(status))
-	}
-
-	result := make([]Device, 0, count)
-	for i := 0; i < int(count); i++ {
-		uid := C.GoString(&devices[i].uid[0])
-		name := C.GoString(&devices[i].name[0])
-		result = append(result, createDevice(uid, name))
-	}
-	return result, nil
 }

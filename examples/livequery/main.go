@@ -21,6 +21,7 @@ func main() {
 	fmt.Println()
 
 	camera.StartObserver()
+	defer camera.StopObserver()
 
 	scanner := bufio.NewScanner(os.Stdin)
 	queryCount := 0
