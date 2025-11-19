@@ -125,8 +125,8 @@ void deviceEventBridge(void *pUserData, DeviceEventType eventType, DeviceInfo *p
         AVCaptureDevice *refDevice = refNewDeviceMap[uid];
         DeviceInfo info;
         memset(&info, 0, sizeof(info));
-        strncpy(info.uid, refDevice.uniqueID.UTF8String, MAX_DEVICE_UID_CHARS - 1);
-        strncpy(info.name, refDevice.localizedName.UTF8String, MAX_DEVICE_NAME_CHARS - 1);
+        strncpy(info.uid, refDevice.uniqueID.UTF8String, MAX_DEVICE_UID_CHARS);
+        strncpy(info.name, refDevice.localizedName.UTF8String, MAX_DEVICE_NAME_CHARS);
 
         if (mCallback) {
             mCallback(mUserData, DeviceEventConnected, &info);
@@ -138,8 +138,8 @@ void deviceEventBridge(void *pUserData, DeviceEventType eventType, DeviceInfo *p
         AVCaptureDevice *refDevice = refOldDeviceMap[uid];
         DeviceInfo info;
         memset(&info, 0, sizeof(info));
-        strncpy(info.uid, refDevice.uniqueID.UTF8String, MAX_DEVICE_UID_CHARS - 1);
-        strncpy(info.name, refDevice.localizedName.UTF8String, MAX_DEVICE_NAME_CHARS - 1);
+        strncpy(info.uid, refDevice.uniqueID.UTF8String, MAX_DEVICE_UID_CHARS);
+        strncpy(info.name, refDevice.localizedName.UTF8String, MAX_DEVICE_NAME_CHARS);
 
         if (mCallback) {
             mCallback(mUserData, DeviceEventDisconnected, &info);
@@ -234,8 +234,8 @@ STATUS DeviceObserverGetDevices(DeviceInfo *pDevices, int *pCount) {
             if (i >= MAX_DEVICES) break;
 
             memset(&pDevices[i], 0, sizeof(DeviceInfo));
-            strncpy(pDevices[i].uid, refDevice.uniqueID.UTF8String, MAX_DEVICE_UID_CHARS - 1);
-            strncpy(pDevices[i].name, refDevice.localizedName.UTF8String, MAX_DEVICE_NAME_CHARS - 1);
+            strncpy(pDevices[i].uid, refDevice.uniqueID.UTF8String, MAX_DEVICE_UID_CHARS);
+            strncpy(pDevices[i].name, refDevice.localizedName.UTF8String, MAX_DEVICE_NAME_CHARS);
             i++;
         }
 
