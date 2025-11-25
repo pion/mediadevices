@@ -49,6 +49,8 @@ typedef enum AVBindFrameFormat {
     AVBindFrameFormatNV12,
     AVBindFrameFormatYUYV,
     AVBindFrameFormatUYVY,
+    AVBindFrameFormatBGRA,
+    AVBindFrameFormatARGB,
 } AVBindFrameFormat;
 
 typedef void (*AVBindDataCallback)(void *userData, void *buf, int len);
