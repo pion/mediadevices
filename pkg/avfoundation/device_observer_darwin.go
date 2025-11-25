@@ -16,7 +16,6 @@ static const char* DeviceObserverInitWithBridge() {
 import "C"
 import (
 	"fmt"
-	"runtime"
 	"sync"
 	"unsafe"
 )
@@ -130,8 +129,6 @@ func StartObserver() error {
 
 	go func() {
 		defer observerWg.Done()
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
 
 		var err error
 
@@ -208,11 +205,21 @@ func StartObserver() error {
 
 // StopObserver stops the device observer.
 // Safe to call concurrently or when already stopped.
+// If called during startup, waits for initialization to complete before stopping.
 func StopObserver() error {
 	observerLock.Lock()
-	if observerState != observerRunning {
+
+	switch observerState {
+	case observerStopped:
 		observerLock.Unlock()
 		return nil
+	case observerStarting:
+		done := initDone
+		observerLock.Unlock()
+		<-done
+		fallthrough
+	case observerRunning:
+		// Proceed to stop
 	}
 
 	close(stopObserver)
