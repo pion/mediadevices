@@ -230,3 +230,22 @@ func StopObserver() error {
 
 	return nil
 }
+
+// LookupCachedDevice returns the cached device that matches the provided UID.
+// The returned boolean indicates whether the device was present in the cache.
+// Callers should verify IsObserverRunning before relying on the result.
+func LookupCachedDevice(uid string) (Device, bool) {
+	observerLock.Lock()
+	defer observerLock.Unlock()
+
+	dev, ok := deviceCache[uid]
+	return dev, ok
+}
+
+// IsObserverRunning reports whether the device observer has successfully started
+// and populated the in-memory cache.
+func IsObserverRunning() bool {
+	observerLock.Lock()
+	defer observerLock.Unlock()
+	return observerState == observerRunning
+}

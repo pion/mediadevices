@@ -3,12 +3,14 @@ package camera
 import (
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"io"
 	"time"
 
 	"github.com/pion/mediadevices/pkg/avfoundation"
 	"github.com/pion/mediadevices/pkg/driver"
+	"github.com/pion/mediadevices/pkg/driver/availability"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -66,10 +68,21 @@ func StartObserver() error {
 			})
 
 		case avfoundation.DeviceEventDisconnected:
+			fmt.Printf("[DISCONNECT EVENT] Device: %s (UID: %s)\n", device.Name, device.UID)
 			drivers := manager.Query(func(d driver.Driver) bool {
 				return d.Info().Label == device.UID
 			})
+			fmt.Printf("[DISCONNECT EVENT] Found %d matching drivers\n", len(drivers))
 			for _, d := range drivers {
+				status := d.Status()
+				fmt.Printf("[DISCONNECT EVENT] Driver %s status: %s\n", d.Info().Label, status)
+				if status != driver.StateClosed {
+					fmt.Printf("[DISCONNECT EVENT] Closing driver %s to stop active sessions\n", d.Info().Label)
+					if err := d.Close(); err != nil {
+						fmt.Printf("[DISCONNECT EVENT] Failed to close driver %s: %v\n", d.Info().Label, err)
+					}
+				}
+				fmt.Printf("[DISCONNECT EVENT] Deleting driver %s\n", d.Info().Label)
 				manager.Delete(d.ID())
 			}
 		}
@@ -99,15 +112,23 @@ func (cam *camera) Open() error {
 }
 
 func (cam *camera) Close() error {
-	if cam.rcClose != nil {
-		cam.rcClose()
-	}
-
 	if cam.cancel != nil {
 		cam.cancel()
+		cam.cancel = nil
 	}
 
-	return cam.session.Close()
+	if cam.rcClose != nil {
+		cam.rcClose()
+		cam.rcClose = nil
+	}
+
+	if cam.session != nil {
+		err := cam.session.Close()
+		cam.session = nil
+		return err
+	}
+
+	return nil
 }
 
 func (cam *camera) VideoRecord(property prop.Media) (video.Reader, error) {
@@ -147,6 +168,61 @@ func (cam *camera) VideoRecord(property prop.Media) (video.Reader, error) {
 
 func (cam *camera) Properties() []prop.Media {
 	return cam.session.Properties()
+}
+
+func (cam *camera) IsAvailable() (bool, error) {
+	// If this camera already has an active session, check if the device is still physically present
+	if cam.session != nil {
+		if avfoundation.IsObserverRunning() {
+			if _, ok := avfoundation.LookupCachedDevice(cam.device.UID); !ok {
+				// Device was physically unplugged while session was active
+				// The session is now invalid
+				return false, availability.ErrNoDevice
+			}
+		} else {
+			// Observer not running, enumerate devices to check
+			devices, err := avfoundation.Devices(avfoundation.Video)
+			if err != nil {
+				return false, err
+			}
+			deviceFound := false
+			for _, device := range devices {
+				if device.UID == cam.device.UID {
+					deviceFound = true
+					break
+				}
+			}
+			if !deviceFound {
+				// Device was physically unplugged while session was active
+				return false, availability.ErrNoDevice
+			}
+		}
+		// Device is still present, but session is active (in use by this camera)
+		// Not available for others to use
+		return false, errors.New("camera session already active")
+	}
+
+	// No active session, check if device is available
+	if avfoundation.IsObserverRunning() {
+		if _, ok := avfoundation.LookupCachedDevice(cam.device.UID); ok {
+			return true, nil
+		}
+		return false, availability.ErrNoDevice
+	}
+
+	// If the observer is not running, fallback to stale device list from startup
+	devices, err := avfoundation.Devices(avfoundation.Video)
+	if err != nil {
+		return false, err
+	}
+
+	for _, device := range devices {
+		if device.UID == cam.device.UID {
+			return true, nil
+		}
+	}
+
+	return false, availability.ErrNoDevice
 }
 
 // syncVideoRecorders keeps the manager in lockstep with the hardware before the first user query.
