@@ -1,13 +1,22 @@
 FROM dockercore/golang-cross as m1cross
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update -qq && apt-get install -y -q --no-install-recommends \
-    cmake \
-    git \
-    libssl-dev \
-    libxml2-dev \
-    libz-dev \
-  && rm -rf /var/lib/apt/lists/*
+
+# Fix broken buster repositories due to Debian 10 being archived
+RUN printf '%s\n' \
+  'deb http://archive.debian.org/debian buster main contrib non-free' \
+  'deb http://archive.debian.org/debian-security buster/updates main contrib non-free' \
+  > /etc/apt/sources.list
+
+RUN apt-get -o Acquire::Check-Valid-Until=false update -qq && \
+    apt-get install -y -q --no-install-recommends \
+        cmake \
+        git \
+        python3 \
+        libssl-dev \
+        libxml2-dev \
+        zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV SDK_VERSION=11.3 \
     TARGET_DIR=/osxcross/target \

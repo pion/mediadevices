@@ -35,6 +35,10 @@ func main() {
 	}
 	dest := os.Args[1]
 
+	a := mediadevices.EnumerateDevices()
+
+	print(a)
+
 	mediaStream, err := mediadevices.GetUserMedia(mediadevices.MediaStreamConstraints{
 		Video: func(constraint *mediadevices.MediaTrackConstraints) {
 			constraint.Width = prop.Int(600)
