@@ -58,6 +58,16 @@ func Initialize() {
 	C.freeCameraList(&list, &errStr)
 }
 
+// StartObserver is a stub implementation for Windows.
+func StartObserver() error {
+	return nil
+}
+
+// StopObserver is a stub implementation for Windows.
+func StopObserver() error {
+	return nil
+}
+
 func (c *camera) Open() error {
 	c.ch = make(chan []byte)
 	c.cam = &C.camera{
