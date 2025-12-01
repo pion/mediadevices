@@ -3,7 +3,6 @@ package camera
 import (
 	"context"
 	"errors"
-	"fmt"
 	"image"
 	"io"
 	"time"
@@ -68,21 +67,15 @@ func StartObserver() error {
 			})
 
 		case avfoundation.DeviceEventDisconnected:
-			fmt.Printf("[DISCONNECT EVENT] Device: %s (UID: %s)\n", device.Name, device.UID)
 			drivers := manager.Query(func(d driver.Driver) bool {
 				return d.Info().Label == device.UID
 			})
-			fmt.Printf("[DISCONNECT EVENT] Found %d matching drivers\n", len(drivers))
 			for _, d := range drivers {
 				status := d.Status()
-				fmt.Printf("[DISCONNECT EVENT] Driver %s status: %s\n", d.Info().Label, status)
 				if status != driver.StateClosed {
-					fmt.Printf("[DISCONNECT EVENT] Closing driver %s to stop active sessions\n", d.Info().Label)
 					if err := d.Close(); err != nil {
-						fmt.Printf("[DISCONNECT EVENT] Failed to close driver %s: %v\n", d.Info().Label, err)
 					}
 				}
-				fmt.Printf("[DISCONNECT EVENT] Deleting driver %s\n", d.Info().Label)
 				manager.Delete(d.ID())
 			}
 		}
