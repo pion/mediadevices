@@ -164,38 +164,6 @@ func (cam *camera) Properties() []prop.Media {
 }
 
 func (cam *camera) IsAvailable() (bool, error) {
-	// If this camera already has an active session, check if the device is still physically present
-	if cam.session != nil {
-		if avfoundation.IsObserverRunning() {
-			if _, ok := avfoundation.LookupCachedDevice(cam.device.UID); !ok {
-				// Device was physically unplugged while session was active
-				// The session is now invalid
-				return false, availability.ErrNoDevice
-			}
-		} else {
-			// Observer not running, enumerate devices to check
-			devices, err := avfoundation.Devices(avfoundation.Video)
-			if err != nil {
-				return false, err
-			}
-			deviceFound := false
-			for _, device := range devices {
-				if device.UID == cam.device.UID {
-					deviceFound = true
-					break
-				}
-			}
-			if !deviceFound {
-				// Device was physically unplugged while session was active
-				return false, availability.ErrNoDevice
-			}
-		}
-		// Device is still present, but session is active (in use by this camera)
-		// Not available for others to use
-		return false, errors.New("camera session already active")
-	}
-
-	// No active session, check if device is available
 	if avfoundation.IsObserverRunning() {
 		if _, ok := avfoundation.LookupCachedDevice(cam.device.UID); ok {
 			return true, nil
@@ -203,19 +171,8 @@ func (cam *camera) IsAvailable() (bool, error) {
 		return false, availability.ErrNoDevice
 	}
 
-	// If the observer is not running, fallback to stale device list from startup
-	devices, err := avfoundation.Devices(avfoundation.Video)
-	if err != nil {
-		return false, err
-	}
-
-	for _, device := range devices {
-		if device.UID == cam.device.UID {
-			return true, nil
-		}
-	}
-
-	return false, availability.ErrNoDevice
+	// If the observer is not running, we can't check if the device is available
+	return false, availability.ErrUnimplemented
 }
 
 // syncVideoRecorders keeps the manager in lockstep with the hardware before the first user query.
