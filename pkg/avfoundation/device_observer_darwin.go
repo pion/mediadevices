@@ -16,6 +16,7 @@ static const char* DeviceObserverInitWithBridge() {
 import "C"
 import (
 	"fmt"
+	"runtime"
 	"sync"
 	"unsafe"
 )
@@ -100,6 +101,9 @@ func goDeviceEventCallback(userData unsafe.Pointer, eventType C.int, device *C.D
 }
 
 // StartObserver starts the device observer and a background run loop.
+// The caller must invoke StartObserver from the main thread in order to
+// receive device events. This is because NSRunLoop, the run loop that
+// AVFoundation uses, only runs on the main thread.
 // Safe to call concurrently; only one observer will be started.
 func StartObserver() error {
 	observerLock.Lock()
@@ -128,6 +132,10 @@ func StartObserver() error {
 	observerWg.Add(1)
 
 	go func() {
+		// Since caller is expected to invoke StartObserver from the main thread,
+		// we can lock this bg goroutine to the main thread here.
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
 		defer observerWg.Done()
 
 		var err error
