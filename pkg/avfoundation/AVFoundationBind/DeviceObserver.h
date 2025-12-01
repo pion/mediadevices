@@ -47,7 +47,7 @@ typedef void (*DeviceEventCallback)(void *userData, DeviceEventType eventType, D
 // Returns NULL on success, error string on failure
 STATUS DeviceObserverInit(DeviceEventCallback callback, void *userData);
 
-// Start observing device events (runs on current thread's run loop)
+// Start observing device events (notifications will be delivered via the run loop)
 STATUS DeviceObserverStart(void);
 
 // Stop observing device events
