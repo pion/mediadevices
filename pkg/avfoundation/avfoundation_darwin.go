@@ -136,11 +136,24 @@ func (rc *ReadCloser) dataCb(data []byte) {
 //   - For video, each call will return a frame.
 //   - For audio, each call will return a chunk which its size configured by Latency
 func (rc *ReadCloser) Read() ([]byte, func(), error) {
-	data, ok := <-rc.dataChan
-	if !ok {
-		return nil, func() {}, io.EOF
+	data, _, err := rc.ReadContext(context.Background())
+	if err != nil {
+		return nil, func() {}, err
 	}
 	return data, func() {}, nil
+}
+
+// ReadContext is Read but with a context for better error handling e.g. timeout, cancellation, etc.
+func (rc *ReadCloser) ReadContext(ctx context.Context) ([]byte, func(), error) {
+	select {
+	case <-ctx.Done():
+		return nil, func() {}, ctx.Err()
+	case data, ok := <-rc.dataChan:
+		if !ok {
+			return nil, func() {}, io.EOF
+		}
+		return data, func() {}, nil
+	}
 }
 
 // Close closes the capturing session, and no data will flow anymore
