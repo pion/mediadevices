@@ -24,27 +24,51 @@ import (
 type observerStateType int
 
 const (
-	observerStopped observerStateType = iota
-	observerStarting
-	observerRunning
+	observerInitial   observerStateType = iota
+	observerSetup                       // KVO initialized on main thread but not pumping run loop
+	observerStarting                    // Starting run loop (transitioning to running)
+	observerRunning                     // Run loop is actively pumping
+	observerDestroyed                   // Destroyed and cannot be restarted
 )
 
-var (
-	// observerLock protects all observer state variables.
-	// Must NOT be held when invoking user callbacks to avoid deadlock (double lock acquisition).
-	observerLock   sync.Mutex
-	deviceCache    = make(map[string]Device)
-	observerState  observerStateType
+// deviceObserver manages the AVFoundation device observer lifecycle with the singleton pattern.
+// The observer is single-use. Once DestroyObserver is called, it cannot be restarted.
+type deviceObserver struct {
+	// mu protects all non-channel, non-waitgroup observer state fields.
+	// Must not be held when invoking user callbacks to avoid deadlock (double lock acquisition).
+	mu             sync.Mutex
+	deviceCache    map[string]Device
+	state          observerStateType
 	onDeviceChange func(Device, DeviceEventType)
 
-	// Signals stop to the observer goroutine
-	stopObserver chan struct{}
-	// Coordinates waiting for the observer goroutine to stop
-	observerWg sync.WaitGroup
-	// Allows concurrent StartObserver callers to wait on same init result
-	initDone chan struct{}
-	initErr  error
+	// Signals the goroutine to start pumping NSRunLoop
+	startPumping chan struct{}
+	// Signals destroy to the observer goroutine
+	destroyObserver chan struct{}
+	// Coordinates waiting for the observer goroutine to complete
+	wg sync.WaitGroup
+	// Allows concurrent callers to wait on same setup result
+	setupDone chan struct{}
+	// setupErr is the error returned by the setup goroutine. It is protected by mu
+	setupErr error
+	// Allows concurrent StartObserver callers to wait on same start result
+	startDone chan struct{}
+}
+
+var (
+	observerSingleton     *deviceObserver
+	observerSingletonOnce sync.Once
 )
+
+func getObserver() *deviceObserver {
+	observerSingletonOnce.Do(func() {
+		observerSingleton = &deviceObserver{
+			deviceCache: make(map[string]Device),
+			state:       observerInitial,
+		}
+	})
+	return observerSingleton
+}
 
 type DeviceEventType int
 
@@ -54,9 +78,10 @@ const (
 )
 
 func SetOnDeviceChange(f func(Device, DeviceEventType)) {
-	observerLock.Lock()
-	defer observerLock.Unlock()
-	onDeviceChange = f
+	obs := getObserver()
+	obs.mu.Lock()
+	defer obs.mu.Unlock()
+	obs.onDeviceChange = f
 }
 
 func createDevice(uid, name string) Device {
@@ -86,112 +111,130 @@ func goDeviceEventCallback(userData unsafe.Pointer, eventType C.int, device *C.D
 	d := createDevice(uid, name)
 	et := DeviceEventType(eventType)
 
-	observerLock.Lock()
+	obs := getObserver()
+	obs.mu.Lock()
 	if eventType == C.DeviceEventConnected {
-		deviceCache[uid] = d
+		obs.deviceCache[uid] = d
 	} else if eventType == C.DeviceEventDisconnected {
-		delete(deviceCache, uid)
+		delete(obs.deviceCache, uid)
 	}
-	cb := onDeviceChange
-	observerLock.Unlock()
+	cb := obs.onDeviceChange
+	obs.mu.Unlock()
 
 	if cb != nil {
-		cb(d, et) // invoke outside of observerLock to avoid deadlock (double lock acquisition)
+		cb(d, et)
 	}
 }
 
-// StartObserver starts the device observer and a background run loop.
-// The caller must invoke StartObserver from the main thread in order to
-// receive device events. This is because NSRunLoop, the run loop that
-// AVFoundation uses, only runs on the main thread.
-// Safe to call concurrently; only one observer will be started.
-func StartObserver() error {
-	observerLock.Lock()
+// setup initializes the device observer and starts a goroutine locked to a thread for NSRunLoop,
+// but does not begin pumping the run loop yet. The goroutine waits idle until start is called.
+func (obs *deviceObserver) setup() error {
+	obs.mu.Lock()
 
-	switch observerState {
-	case observerRunning:
-		observerLock.Unlock()
+	if obs.state == observerSetup || obs.state == observerStarting || obs.state == observerRunning {
+		// Already setup or beyond
+		obs.mu.Unlock()
 		return nil
-	case observerStarting:
-		// Another goroutine is starting the observer; wait on same result
-		done := initDone
-		observerLock.Unlock()
-		<-done
-		observerLock.Lock()
-		err := initErr
-		observerLock.Unlock()
-		return err
-	case observerStopped:
-		// start
 	}
 
-	observerState = observerStarting
-	stopObserver = make(chan struct{})
-	initDone = make(chan struct{})
-	initErr = nil
-	observerWg.Add(1)
+	if obs.state == observerDestroyed {
+		obs.mu.Unlock()
+		return fmt.Errorf("device observer is single-use and was destroyed, so it cannot be restarted")
+	}
+
+	if obs.setupDone != nil {
+		done := obs.setupDone
+		obs.mu.Unlock()
+		<-done
+		obs.mu.Lock()
+		err := obs.setupErr
+		obs.mu.Unlock()
+		return err
+	}
+
+	// We're first to setup, initialize the channels
+	obs.setupDone = make(chan struct{})
+	obs.setupErr = nil
+	obs.startPumping = make(chan struct{})
+	obs.startDone = make(chan struct{})
+	obs.destroyObserver = make(chan struct{})
+	obs.wg.Add(1)
+	obs.mu.Unlock()
 
 	go func() {
-		// Since caller is expected to invoke StartObserver from the main thread,
-		// we can lock this bg goroutine to the main thread here.
+		// Since caller is expected to invoke setup from the main thread,
+		// we can lock this bg goroutine to the main thread here to set up C observer on.
+		defer obs.wg.Done()
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
-		defer observerWg.Done()
 
 		var err error
-
 		if status := C.DeviceObserverInitWithBridge(); status != nil {
 			err = fmt.Errorf("failed to init observer: %s", C.GoString(status))
 		} else if status := C.DeviceObserverStart(); status != nil {
-			C.DeviceObserverDestroy() // prevents objective-c object leak on error
+			C.DeviceObserverDestroy() // remember to clean up C objects on error
 			err = fmt.Errorf("failed to start observer: %s", C.GoString(status))
 		}
 
 		if err != nil {
-			observerLock.Lock()
-			observerState = observerStopped
-			initErr = err
-			observerLock.Unlock()
-			close(initDone) // unblock all waiters
+			obs.mu.Lock()
+			obs.state = observerInitial
+			obs.setupErr = err
+			obs.mu.Unlock()
+			close(obs.setupDone) // unblock setupDone waiters with error
 			return
 		}
 
-		// Initial population
+		// Populate device cache and prepare initial device list for callbacks
 		var devices [C.MAX_DEVICES]C.DeviceInfo
 		var count C.int
 		status := C.DeviceObserverGetDevices(&devices[0], &count)
-
 		var initialDevices []Device
-		observerLock.Lock()
+		obs.mu.Lock()
 		if status == nil {
-			deviceCache = make(map[string]Device)
-			initialDevices = make([]Device, 0, int(count))
+			obs.deviceCache = make(map[string]Device)
 			for i := 0; i < int(count); i++ {
 				uid := C.GoString(&devices[i].uid[0])
 				name := C.GoString(&devices[i].name[0])
 				dev := createDevice(uid, name)
-				deviceCache[uid] = dev
+				obs.deviceCache[uid] = dev
 				initialDevices = append(initialDevices, dev)
 			}
 		}
-		cb := onDeviceChange
-		observerState = observerRunning
-		observerLock.Unlock()
+		obs.state = observerSetup
+		obs.mu.Unlock()
 
-		// Signal success to all waiters
-		close(initDone)
+		close(obs.setupDone) // Setup complete, unblock waiters
 
-		// Replay current devices so downstream observers register them.
+		// Wait for signal to start pumping or destroy
+		select {
+		case <-obs.destroyObserver:
+			// Destroyed before pumping the run loop
+			C.DeviceObserverStop()
+			C.DeviceObserverDestroy()
+			return
+		case <-obs.startPumping:
+			// Proceed to pump loop
+		}
+
+		// Transition to running
+		obs.mu.Lock()
+		cb := obs.onDeviceChange
+		obs.state = observerRunning
+		obs.mu.Unlock()
+
+		close(obs.startDone)
+
+		// Replay current devices so downstream observers register them
 		if cb != nil {
 			for _, dev := range initialDevices {
 				cb(dev, DeviceEventConnected)
 			}
 		}
 
-		// Run Loop
 		for {
 			select {
-			case <-stopObserver:
+			case <-obs.destroyObserver:
 				C.DeviceObserverStop()
 				C.DeviceObserverDestroy()
 				return
@@ -201,59 +244,129 @@ func StartObserver() error {
 		}
 	}()
 
-	observerLock.Unlock()
-
-	// Wait for initialization
-	<-initDone
-	observerLock.Lock()
-	err := initErr
-	observerLock.Unlock()
+	// Wait for goroutine to complete setup
+	<-obs.setupDone
+	obs.mu.Lock()
+	err := obs.setupErr
+	obs.mu.Unlock()
 	return err
 }
 
-// StopObserver stops the device observer.
-// Safe to call concurrently or when already stopped.
-// If called during startup, waits for initialization to complete before stopping.
-func StopObserver() error {
-	observerLock.Lock()
+// start signals the observer goroutine to begin pumping the run loop.
+func (obs *deviceObserver) start() error {
+	obs.mu.Lock()
 
-	switch observerState {
-	case observerStopped:
-		observerLock.Unlock()
-		return nil
-	case observerStarting:
-		done := initDone
-		observerLock.Unlock()
-		<-done
-		fallthrough
-	case observerRunning:
-		// Proceed to stop
+	for {
+		switch obs.state {
+		case observerDestroyed:
+			obs.mu.Unlock()
+			return fmt.Errorf("cannot start observer: observer has been destroyed and cannot be restarted")
+		case observerRunning:
+			obs.mu.Unlock()
+			return nil
+		case observerStarting:
+			// Another goroutine is starting the run loop; wait on same result
+			done := obs.startDone
+			obs.mu.Unlock()
+			<-done
+			return nil
+		case observerInitial:
+			// Need to setup first
+			obs.mu.Unlock()
+			if err := obs.setup(); err != nil {
+				return err
+			}
+			obs.mu.Lock()
+			continue // re-check state as it may have changed by another goroutine e.g. destroyed
+		case observerSetup:
+			// proceed to start
+		}
+		break
 	}
 
-	close(stopObserver)
-	observerState = observerStopped
-	observerLock.Unlock()
+	obs.state = observerStarting
+	pump := obs.startPumping
+	obs.mu.Unlock()
 
-	observerWg.Wait()
+	close(pump)
+
+	<-obs.startDone
+	return nil
+}
+
+// destroy destroys the device observer and releases all C/Objective-C resources.
+// The observer cannot be restarted after being destroyed.
+func (obs *deviceObserver) destroy() error {
+	obs.mu.Lock()
+
+	switch obs.state {
+	case observerInitial, observerDestroyed:
+		obs.state = observerDestroyed
+		obs.mu.Unlock()
+		return nil
+	case observerSetup, observerRunning:
+		// Proceed to destroy
+	case observerStarting:
+		// Wait for transition to running
+		done := obs.startDone
+		obs.mu.Unlock()
+		<-done
+		obs.mu.Lock()
+		// Proceed to destroy
+	}
+
+	destroy := obs.destroyObserver
+	obs.mu.Unlock()
+
+	close(destroy)
+	obs.wg.Wait()
+
+	obs.mu.Lock()
+	obs.state = observerDestroyed
+	obs.mu.Unlock()
 
 	return nil
+}
+
+// SetupObserver initializes the device observer and starts a goroutine
+// locked to a thread for NSRunLoop, but does not begin pumping the run loop yet.
+// The goroutine waits idle until StartObserver is called, avoiding CPU overhead.
+// Safe to call concurrently and idempotently.
+func SetupObserver() error {
+	return getObserver().setup()
+}
+
+// StartObserver signals the observer goroutine to begin pumping the run loop.
+// If SetupObserver has not been called, StartObserver will call it first.
+// Safe to call concurrently and idempotently.
+func StartObserver() error {
+	return getObserver().start()
+}
+
+// DestroyObserver destroys the device observer and releases all C/Objective-C resources.
+// The observer is single-use and cannot be restarted after being destroyed.
+// Safe to call concurrently and idempotently.
+func DestroyObserver() error {
+	return getObserver().destroy()
 }
 
 // LookupCachedDevice returns the cached device that matches the provided UID.
 // The returned boolean indicates whether the device was present in the cache.
 // Callers should verify IsObserverRunning before relying on the result.
 func LookupCachedDevice(uid string) (Device, bool) {
-	observerLock.Lock()
-	defer observerLock.Unlock()
+	obs := getObserver()
+	obs.mu.Lock()
+	defer obs.mu.Unlock()
 
-	dev, ok := deviceCache[uid]
+	dev, ok := obs.deviceCache[uid]
 	return dev, ok
 }
 
 // IsObserverRunning reports whether the device observer has successfully started
 // and populated the in-memory cache.
 func IsObserverRunning() bool {
-	observerLock.Lock()
-	defer observerLock.Unlock()
-	return observerState == observerRunning
+	obs := getObserver()
+	obs.mu.Lock()
+	defer obs.mu.Unlock()
+	return obs.state == observerRunning
 }

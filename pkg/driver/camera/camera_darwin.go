@@ -45,8 +45,11 @@ func Initialize() {
 	}
 }
 
-// StartObserver starts the background observer to monitor for device changes.
-func StartObserver() error {
+// SetupObserver initializes the device observer on the main thread without starting monitoring.
+// This allows setup on the main thread (required by macOS) without CPU overhead until StartObserver is called.
+// The caller must invoke SetupObserver from the main thread for proper NSRunLoop setup.
+// Safe to call concurrently and idempotent; multiple calls are no-ops if already setup.
+func SetupObserver() error {
 	manager := driver.GetManager()
 
 	avfoundation.SetOnDeviceChange(func(device avfoundation.Device, event avfoundation.DeviceEventType) {
@@ -81,15 +84,25 @@ func StartObserver() error {
 		}
 	})
 
+	return avfoundation.SetupObserver()
+}
+
+// StartObserver starts the background observer to monitor for device changes.
+// If SetupObserver has not been called, StartObserver will call it first.
+// Safe to call concurrently and idempotently.
+func StartObserver() error {
 	if err := avfoundation.StartObserver(); err != nil {
 		return err
 	}
 
-	return syncVideoRecorders(manager)
+	return syncVideoRecorders(driver.GetManager())
 }
 
-func StopObserver() error {
-	return avfoundation.StopObserver()
+// DestroyObserver destroys the device observer and releases all resources.
+// The observer is single-use and cannot be restarted after being destroyed.
+// Safe to call concurrently and idempotently.
+func DestroyObserver() error {
+	return avfoundation.DestroyObserver()
 }
 
 func newCamera(device avfoundation.Device) *camera {
@@ -171,8 +184,7 @@ func (cam *camera) IsAvailable() (bool, error) {
 		return false, availability.ErrNoDevice
 	}
 
-	// If the observer is not running, we can't check if the device is available
-	return false, availability.ErrUnimplemented
+	return false, availability.ErrObserverUnavailable
 }
 
 // syncVideoRecorders keeps the manager in lockstep with the hardware before the first user query.
