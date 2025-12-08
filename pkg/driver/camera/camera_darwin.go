@@ -133,7 +133,6 @@ func (cam *camera) Close() error {
 		cam.session = nil
 		return err
 	}
-
 	return nil
 }
 
