@@ -98,13 +98,18 @@ func Initialize() {
 	discover(discovered, "/dev/video*")
 }
 
+// SetupObserver is a stub implementation for Linux.
+func SetupObserver() error {
+	return nil
+}
+
 // StartObserver is a stub implementation for Linux.
 func StartObserver() error {
 	return nil
 }
 
-// StopObserver is a stub implementation for Linux.
-func StopObserver() error {
+// DestroyObserver is a stub implementation for Linux.
+func DestroyObserver() error {
 	return nil
 }
 
