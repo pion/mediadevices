@@ -16,7 +16,7 @@ func main() {
 	fmt.Println("when cameras are connected or disconnected.")
 
 	camera.StartObserver()
-	defer camera.StopObserver()
+	defer camera.DestroyObserver()
 
 	scanner := bufio.NewScanner(os.Stdin)
 	queryCount := 0
