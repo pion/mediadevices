@@ -34,25 +34,24 @@ const (
 // deviceObserver manages the AVFoundation device observer lifecycle with the singleton pattern.
 // The observer is single-use. Once DestroyObserver is called, it cannot be restarted.
 type deviceObserver struct {
-	// mu protects all non-channel, non-waitgroup observer state fields.
+	// Signals observer to transition to the startup state
+	signalStart chan struct{}
+	// Signals observer to destroy and stop pumping the NSRunLoop in the bg routine (if running)
+	signalDestroy chan struct{}
+	// Closed when setup state logic completes.
+	setupDone chan struct{}
+	// Closed when startup state logic completes.
+	startDone chan struct{}
+	// Coordinates waiting for the observer goroutine to complete
+	wg sync.WaitGroup
+
+	// mu protects all below state fields.
 	// Must not be held when invoking user callbacks to avoid deadlock (double lock acquisition).
 	mu             sync.Mutex
 	deviceCache    map[string]Device
 	state          observerStateType
 	onDeviceChange func(Device, DeviceEventType)
-
-	// Signals the goroutine to start pumping NSRunLoop
-	startPumping chan struct{}
-	// Signals destroy to the observer goroutine
-	destroyObserver chan struct{}
-	// Coordinates waiting for the observer goroutine to complete
-	wg sync.WaitGroup
-	// Allows concurrent callers to wait on same setup result
-	setupDone chan struct{}
-	// setupErr is the error returned by the setup goroutine. It is protected by mu
-	setupErr error
-	// Allows concurrent StartObserver callers to wait on same start result
-	startDone chan struct{}
+	setupErr       error
 }
 
 var (
@@ -152,11 +151,11 @@ func (obs *deviceObserver) setup() error {
 	}
 
 	// We're first to setup, initialize the channels
+	obs.signalStart = make(chan struct{})
+	obs.signalDestroy = make(chan struct{})
 	obs.setupDone = make(chan struct{})
-	obs.setupErr = nil
-	obs.startPumping = make(chan struct{})
 	obs.startDone = make(chan struct{})
-	obs.destroyObserver = make(chan struct{})
+	obs.setupErr = nil
 	obs.wg.Add(1)
 	obs.mu.Unlock()
 
@@ -180,7 +179,7 @@ func (obs *deviceObserver) setup() error {
 			obs.state = observerInitial
 			obs.setupErr = err
 			obs.mu.Unlock()
-			close(obs.setupDone) // unblock setupDone waiters with error
+			close(obs.setupDone)
 			return
 		}
 
@@ -203,52 +202,58 @@ func (obs *deviceObserver) setup() error {
 		obs.state = observerSetup
 		obs.mu.Unlock()
 
-		close(obs.setupDone) // Setup complete, unblock waiters
+		close(obs.setupDone)
 
-		// Wait for signal to start pumping or destroy
-		select {
-		case <-obs.destroyObserver:
-			// Destroyed before pumping the run loop
-			C.DeviceObserverStop()
-			C.DeviceObserverDestroy()
-			return
-		case <-obs.startPumping:
-			// Proceed to pump loop
-		}
-
-		// Transition to running
-		obs.mu.Lock()
-		cb := obs.onDeviceChange
-		obs.state = observerRunning
-		obs.mu.Unlock()
-
-		close(obs.startDone)
-
-		// Replay current devices so downstream observers register them
-		if cb != nil {
-			for _, dev := range initialDevices {
-				cb(dev, DeviceEventConnected)
-			}
-		}
-
-		for {
-			select {
-			case <-obs.destroyObserver:
-				C.DeviceObserverStop()
-				C.DeviceObserverDestroy()
-				return
-			default:
-				C.DeviceObserverRunFor(0.1)
-			}
-		}
+		// STATE BOUNDARY: setup phase complete, now entering startup phase
+		obs.waitForStartAndRun(initialDevices)
 	}()
 
-	// Wait for goroutine to complete setup
-	<-obs.setupDone
+	<-obs.setupDone // waits for goroutine to complete setup
 	obs.mu.Lock()
 	err := obs.setupErr
 	obs.mu.Unlock()
 	return err
+}
+
+// waitForStartAndRun waits for the start signal, then transitions to running state
+// and pumps the NSRunLoop.
+func (obs *deviceObserver) waitForStartAndRun(initialDevices []Device) {
+	// Wait for signal to start pumping or destroy
+	select {
+	case <-obs.signalDestroy:
+		C.DeviceObserverStop()
+		C.DeviceObserverDestroy()
+		return
+	case <-obs.signalStart:
+		// Transition to running
+	}
+
+	obs.mu.Lock()
+	cb := obs.onDeviceChange
+	obs.state = observerRunning
+	obs.mu.Unlock()
+
+	close(obs.startDone)
+
+	// Replay current devices
+	if cb != nil {
+		for _, dev := range initialDevices {
+			cb(dev, DeviceEventConnected)
+		}
+	}
+
+	// STATE BOUNDARY: startup -> running
+	for {
+		select {
+		case <-obs.signalDestroy:
+			// STATE BOUNDARY: running -> destroyed
+			C.DeviceObserverStop()
+			C.DeviceObserverDestroy()
+			return
+		default:
+			C.DeviceObserverRunFor(0.1)
+		}
+	}
 }
 
 // start signals the observer goroutine to begin pumping the run loop.
@@ -257,18 +262,6 @@ func (obs *deviceObserver) start() error {
 
 	for {
 		switch obs.state {
-		case observerDestroyed:
-			obs.mu.Unlock()
-			return fmt.Errorf("cannot start observer: observer has been destroyed and cannot be restarted")
-		case observerRunning:
-			obs.mu.Unlock()
-			return nil
-		case observerStarting:
-			// Another goroutine is starting the run loop; wait on same result
-			done := obs.startDone
-			obs.mu.Unlock()
-			<-done
-			return nil
 		case observerInitial:
 			// Need to setup first
 			obs.mu.Unlock()
@@ -277,14 +270,26 @@ func (obs *deviceObserver) start() error {
 			}
 			obs.mu.Lock()
 			continue // re-check state as it may have changed by another goroutine e.g. destroyed
+		case observerStarting:
+			// Another goroutine is starting the run loop; wait on same result
+			done := obs.startDone
+			obs.mu.Unlock()
+			<-done
+			return nil
+		case observerRunning:
+			obs.mu.Unlock()
+			return nil
+		case observerDestroyed:
+			obs.mu.Unlock()
+			return fmt.Errorf("cannot start observer: observer has been destroyed and cannot be restarted")
 		case observerSetup:
-			// proceed to start
+			// Proceed to signal start
 		}
 		break
 	}
 
 	obs.state = observerStarting
-	pump := obs.startPumping
+	pump := obs.signalStart
 	obs.mu.Unlock()
 
 	close(pump)
@@ -318,7 +323,7 @@ func (obs *deviceObserver) destroy() error {
 		break
 	}
 
-	destroy := obs.destroyObserver
+	destroy := obs.signalDestroy
 	obs.mu.Unlock()
 
 	close(destroy)
