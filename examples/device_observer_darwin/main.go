@@ -15,6 +15,9 @@ func main() {
 	fmt.Println("The background observer automatically updates the manager's device list")
 	fmt.Println("when cameras are connected or disconnected.")
 
+	// Calling StartObserver without calling SetupObserver prior implicitly calls SetupObserver
+	// due to state machine internals. We make SetupObserver and StartObserver distinct because
+	// not all downstream programs will want to start pumping the NSRunLoop to handle events immediately.
 	err := camera.StartObserver()
 	if err != nil {
 		fmt.Printf("failed to start observer: %v\n", err)
