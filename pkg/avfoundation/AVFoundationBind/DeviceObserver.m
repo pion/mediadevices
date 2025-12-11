@@ -27,6 +27,7 @@
 
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
+#import <string.h>
 #import "DeviceObserver.h"
 
 
@@ -125,8 +126,8 @@ void deviceEventBridge(void *pUserData, DeviceEventType eventType, DeviceInfo *p
         AVCaptureDevice *refDevice = refNewDeviceMap[uid];
         DeviceInfo info;
         memset(&info, 0, sizeof(info));
-        strncpy(info.uid, refDevice.uniqueID.UTF8String, MAX_DEVICE_UID_CHARS);
-        strncpy(info.name, refDevice.localizedName.UTF8String, MAX_DEVICE_NAME_CHARS);
+        strlcpy(info.uid, refDevice.uniqueID.UTF8String, sizeof(info.uid));
+        strlcpy(info.name, refDevice.localizedName.UTF8String, sizeof(info.name));
 
         if (mCallback) {
             mCallback(mUserData, DeviceEventConnected, &info);
@@ -138,8 +139,8 @@ void deviceEventBridge(void *pUserData, DeviceEventType eventType, DeviceInfo *p
         AVCaptureDevice *refDevice = refOldDeviceMap[uid];
         DeviceInfo info;
         memset(&info, 0, sizeof(info));
-        strncpy(info.uid, refDevice.uniqueID.UTF8String, MAX_DEVICE_UID_CHARS);
-        strncpy(info.name, refDevice.localizedName.UTF8String, MAX_DEVICE_NAME_CHARS);
+        strlcpy(info.uid, refDevice.uniqueID.UTF8String, sizeof(info.uid));
+        strlcpy(info.name, refDevice.localizedName.UTF8String, sizeof(info.name));
 
         if (mCallback) {
             mCallback(mUserData, DeviceEventDisconnected, &info);
@@ -234,8 +235,8 @@ STATUS DeviceObserverGetDevices(DeviceInfo *pDevices, int *pCount) {
             if (i >= MAX_DEVICES) break;
 
             memset(&pDevices[i], 0, sizeof(DeviceInfo));
-            strncpy(pDevices[i].uid, refDevice.uniqueID.UTF8String, MAX_DEVICE_UID_CHARS);
-            strncpy(pDevices[i].name, refDevice.localizedName.UTF8String, MAX_DEVICE_NAME_CHARS);
+            strlcpy(pDevices[i].uid, refDevice.uniqueID.UTF8String, sizeof(pDevices[i].uid));
+            strlcpy(pDevices[i].name, refDevice.localizedName.UTF8String, sizeof(pDevices[i].name));
             i++;
         }
 
