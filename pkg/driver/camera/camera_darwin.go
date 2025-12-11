@@ -91,6 +91,12 @@ func SetupObserver() error {
 // If SetupObserver has not been called, StartObserver will call it first.
 // Safe to call concurrently and idempotently.
 func StartObserver() error {
+	// Call SetupObserver first to ensure SetOnDeviceChange callback is registered.
+	// This is safe as observer methods are idempotent and handle concurrency.
+	if err := SetupObserver(); err != nil {
+		return err
+	}
+
 	if err := avfoundation.StartObserver(); err != nil {
 		return err
 	}
@@ -122,12 +128,10 @@ func (cam *camera) Close() error {
 		cam.cancel()
 		cam.cancel = nil
 	}
-
 	if cam.rcClose != nil {
 		cam.rcClose()
 		cam.rcClose = nil
 	}
-
 	if cam.session != nil {
 		err := cam.session.Close()
 		cam.session = nil

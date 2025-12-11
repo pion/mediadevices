@@ -131,13 +131,12 @@ func goDeviceEventCallback(userData unsafe.Pointer, eventType C.int, device *C.D
 func (obs *deviceObserver) setup() error {
 	obs.mu.Lock()
 
-	if obs.state == observerSetup || obs.state == observerStarting || obs.state == observerRunning {
+	switch obs.state {
+	case observerSetup, observerStarting, observerRunning:
 		// Already setup or beyond
 		obs.mu.Unlock()
 		return nil
-	}
-
-	if obs.state == observerDestroyed {
+	case observerDestroyed:
 		obs.mu.Unlock()
 		return fmt.Errorf("device observer is single-use and was destroyed, so it cannot be restarted")
 	}
@@ -299,20 +298,24 @@ func (obs *deviceObserver) start() error {
 func (obs *deviceObserver) destroy() error {
 	obs.mu.Lock()
 
-	switch obs.state {
-	case observerInitial, observerDestroyed:
-		obs.state = observerDestroyed
-		obs.mu.Unlock()
-		return nil
-	case observerSetup, observerRunning:
-		// Proceed to destroy
-	case observerStarting:
-		// Wait for transition to running
-		done := obs.startDone
-		obs.mu.Unlock()
-		<-done
-		obs.mu.Lock()
-		// Proceed to destroy
+	for {
+		switch obs.state {
+		case observerInitial, observerDestroyed:
+			obs.state = observerDestroyed
+			obs.mu.Unlock()
+			return nil
+		case observerSetup, observerRunning:
+			// Set state to destroyed before unlocking to prevent concurrent destroy
+			obs.state = observerDestroyed
+		case observerStarting:
+			// Wait for transition to running
+			done := obs.startDone
+			obs.mu.Unlock()
+			<-done
+			obs.mu.Lock() // lock and check state again
+			continue
+		}
+		break
 	}
 
 	destroy := obs.destroyObserver
@@ -320,10 +323,6 @@ func (obs *deviceObserver) destroy() error {
 
 	close(destroy)
 	obs.wg.Wait()
-
-	obs.mu.Lock()
-	obs.state = observerDestroyed
-	obs.mu.Unlock()
 
 	return nil
 }
