@@ -15,8 +15,16 @@ func main() {
 	fmt.Println("The background observer automatically updates the manager's device list")
 	fmt.Println("when cameras are connected or disconnected.")
 
-	camera.StartObserver()
-	defer camera.DestroyObserver()
+	err := camera.StartObserver()
+	if err != nil {
+		fmt.Printf("failed to start observer: %v\n", err)
+	}
+	defer func() {
+		err := camera.DestroyObserver()
+		if err != nil {
+			fmt.Printf("failed to destroy observer: %v\n", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(os.Stdin)
 	queryCount := 0
