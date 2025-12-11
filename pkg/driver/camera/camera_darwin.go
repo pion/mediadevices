@@ -180,14 +180,25 @@ func (cam *camera) Properties() []prop.Media {
 }
 
 func (cam *camera) IsAvailable() (bool, error) {
-	if avfoundation.IsObserverRunning() {
-		if _, ok := avfoundation.LookupCachedDevice(cam.device.UID); ok {
-			return true, nil
-		}
+	if !avfoundation.IsObserverRunning() {
+		return false, availability.ErrObserverUnavailable
+	}
+
+	if _, ok := avfoundation.LookupCachedDevice(cam.device.UID); !ok {
 		return false, availability.ErrNoDevice
 	}
 
-	return false, availability.ErrObserverUnavailable
+	// Probe device availability by attempting to open a session
+	session, err := avfoundation.NewSession(cam.device)
+	if err != nil {
+		return false, availability.ErrBusy
+	}
+	if session == nil {
+		panic("session was nil while error was nil")
+	}
+	session.Close()
+
+	return true, nil
 }
 
 // syncVideoRecorders keeps the manager in lockstep with the hardware before the first user query.
