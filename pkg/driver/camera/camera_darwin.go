@@ -1,7 +1,11 @@
 package camera
 
 import (
+	"context"
+	"errors"
 	"image"
+	"io"
+	"time"
 
 	"github.com/pion/mediadevices/pkg/avfoundation"
 	"github.com/pion/mediadevices/pkg/driver"
@@ -14,7 +18,10 @@ type camera struct {
 	device  avfoundation.Device
 	session *avfoundation.Session
 	rcClose func()
+	cancel  context.CancelFunc
 }
+
+const readTimeout = 3 * time.Second
 
 func init() {
 	Initialize()
@@ -53,6 +60,11 @@ func (cam *camera) Close() error {
 	if cam.rcClose != nil {
 		cam.rcClose()
 	}
+
+	if cam.cancel != nil {
+		cam.cancel()
+	}
+
 	return cam.session.Close()
 }
 
@@ -66,10 +78,24 @@ func (cam *camera) VideoRecord(property prop.Media) (video.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cam.cancel = cancel
 	cam.rcClose = rc.Close
 	r := video.ReaderFunc(func() (image.Image, func(), error) {
-		frame, _, err := rc.Read()
+		if ctx.Err() != nil {
+			// Return EOF if the camera is already closed.
+			return nil, func() {}, io.EOF
+		}
+
+		readCtx, cancel := context.WithTimeout(ctx, readTimeout)
+		defer cancel()
+
+		frame, _, err := rc.ReadContext(readCtx)
 		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+				return nil, func() {}, io.EOF
+			}
 			return nil, func() {}, err
 		}
 		return decoder.Decode(frame, property.Width, property.Height)
