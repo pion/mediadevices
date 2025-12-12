@@ -131,6 +131,8 @@ func (obs *deviceObserver) setup() error {
 	obs.mu.Lock()
 
 	switch obs.state {
+	case observerInitial:
+		// Continue with setup
 	case observerSetup, observerStarting, observerRunning:
 		// Already setup or beyond
 		obs.mu.Unlock()
