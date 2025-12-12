@@ -5,9 +5,10 @@ import (
 )
 
 var (
-	ErrUnimplemented = NewError("not implemented")
-	ErrBusy          = NewError("device or resource busy")
-	ErrNoDevice      = NewError("no such device")
+	ErrObserverUnavailable = NewError("observer unavailable (not started or destroyed)")
+	ErrUnimplemented       = NewError("not implemented")
+	ErrBusy                = NewError("device or resource busy")
+	ErrNoDevice            = NewError("no such device")
 )
 
 type errorString struct {
