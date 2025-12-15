@@ -13,6 +13,7 @@ import (
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/driver"
+	"github.com/pion/mediadevices/pkg/driver/availability"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -60,17 +61,17 @@ func Initialize() {
 
 // SetupObserver is a stub implementation for Windows.
 func SetupObserver() error {
-	return nil
+	return availability.ErrUnimplemented
 }
 
 // StartObserver is a stub implementation for Windows.
 func StartObserver() error {
-	return nil
+	return availability.ErrUnimplemented
 }
 
 // DestroyObserver is a stub implementation for Windows.
 func DestroyObserver() error {
-	return nil
+	return availability.ErrUnimplemented
 }
 
 func (c *camera) Open() error {

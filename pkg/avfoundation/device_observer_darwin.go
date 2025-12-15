@@ -127,6 +127,7 @@ func goDeviceEventCallback(userData unsafe.Pointer, eventType C.int, device *C.D
 
 // setup initializes the device observer and starts a goroutine locked to a thread for NSRunLoop,
 // but does not begin pumping the run loop yet. The goroutine waits idle until start is called.
+// This function assumes the caller invoked it from the main thread to set up AVFoundation KVO properly.
 func (obs *deviceObserver) setup() error {
 	obs.mu.Lock()
 
@@ -162,8 +163,6 @@ func (obs *deviceObserver) setup() error {
 	obs.mu.Unlock()
 
 	go func() {
-		// Since caller is expected to invoke setup from the main thread,
-		// we can lock this bg goroutine to the main thread here to set up C observer on.
 		defer obs.wg.Done()
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
@@ -225,6 +224,7 @@ func (obs *deviceObserver) waitForStartAndRun(initialDevices []Device) {
 	case <-obs.signalDestroy:
 		C.DeviceObserverStop()
 		C.DeviceObserverDestroy()
+		<-obs.startDone
 		return
 	case <-obs.signalStart:
 		// Transition to running
@@ -307,8 +307,16 @@ func (obs *deviceObserver) destroy() error {
 
 	for {
 		switch obs.state {
-		case observerInitial, observerDestroyed:
+		case observerInitial:
 			obs.state = observerDestroyed
+			destroy := obs.signalDestroy
+			obs.mu.Unlock()
+			if destroy != nil { // may be nil if setup wasn't called
+				close(destroy)
+				obs.wg.Wait()
+			}
+			return nil
+		case observerDestroyed:
 			obs.mu.Unlock()
 			return nil
 		case observerSetup, observerRunning:

@@ -222,7 +222,7 @@ func (session *Session) Close() error {
 func (session *Session) Open(property prop.Media) (*ReadCloser, error) {
 	frameFormat, ok := frameFormatToAVBind(property.FrameFormat)
 	if !ok {
-		return nil, fmt.Errorf("unsupported frame format")
+		return nil, fmt.Errorf("Unsupported frame format")
 	}
 
 	cProperty := C.AVBindMediaProperty{
