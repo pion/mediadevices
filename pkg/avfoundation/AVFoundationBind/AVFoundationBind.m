@@ -30,6 +30,12 @@
 #import "AVFoundationBind.h"
 #include <string.h>
 
+// AVFoundationBind.m is the entry point for cgo compilation (included by avfoundation_darwin.go).
+// Including DeviceObserver.m here compiles both into a single compilation unit,
+// making all symbols available to the linker.
+#include "DeviceObserver.m"
+
+
 #define CHK(condition, status) \
     do { \
         if(!(condition)) { \
