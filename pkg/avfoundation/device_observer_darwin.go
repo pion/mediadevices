@@ -224,7 +224,7 @@ func (obs *deviceObserver) waitForStartAndRun(initialDevices []Device) {
 	case <-obs.signalDestroy:
 		C.DeviceObserverStop()
 		C.DeviceObserverDestroy()
-		<-obs.startDone
+		close(obs.startDone)
 		return
 	case <-obs.signalStart:
 		// Transition to running
