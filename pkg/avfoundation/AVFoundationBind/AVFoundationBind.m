@@ -226,7 +226,7 @@ STATUS AVBindDevices(AVBindMediaType mediaType, PAVBindDevice *ppDevices, int *p
             refAllTypes = @[
                 AVCaptureDeviceTypeBuiltInWideAngleCamera,
                 AVCaptureDeviceTypeMicrophone,
-                AVCaptureDeviceTypeExternal,
+                AVCaptureDeviceTypeContinuityCamera,
             ];
         } else {
             @throw [NSException exceptionWithName:UnrecognizedMacOSVersionException
