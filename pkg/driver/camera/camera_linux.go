@@ -98,6 +98,21 @@ func Initialize() {
 	discover(discovered, "/dev/video*")
 }
 
+// SetupObserver is a stub implementation for Linux.
+func SetupObserver() error {
+	return availability.ErrUnimplemented
+}
+
+// StartObserver is a stub implementation for Linux.
+func StartObserver() error {
+	return availability.ErrUnimplemented
+}
+
+// DestroyObserver is a stub implementation for Linux.
+func DestroyObserver() error {
+	return availability.ErrUnimplemented
+}
+
 func discover(discovered map[string]struct{}, pattern string) {
 	devices, err := filepath.Glob(pattern)
 	if err != nil {
