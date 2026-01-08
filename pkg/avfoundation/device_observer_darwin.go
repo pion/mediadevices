@@ -5,7 +5,7 @@ package avfoundation
 #cgo LDFLAGS: -framework AVFoundation -framework Foundation -framework CoreMedia -framework CoreVideo
 #include <stdlib.h>
 #include <string.h>
-#include "AVFoundationBind/DeviceObserver.h"
+#include "DeviceObserver.h"
 
 extern void deviceEventBridge(void *userData, DeviceEventType eventType, DeviceInfo *device);
 
