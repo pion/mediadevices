@@ -3,8 +3,7 @@ package avfoundation
 
 // #cgo CFLAGS: -x objective-c
 // #cgo LDFLAGS: -framework AVFoundation -framework Foundation -framework CoreMedia -framework CoreVideo
-// #include "AVFoundationBind/AVFoundationBind.h"
-// #include "AVFoundationBind/AVFoundationBind.m"
+// #include "AVFoundationBind.h"
 // extern void onData(void*, void*, int);
 // void onDataBridge(void *userData, void *buf, int len) {
 // 	onData(userData, buf, len);
