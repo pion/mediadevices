@@ -1,5 +1,5 @@
-//go:build !windows
-// +build !windows
+//go:build !nomicrophone
+// +build !nomicrophone
 
 package microphone
 
