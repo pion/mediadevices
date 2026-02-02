@@ -6,7 +6,7 @@
 
 // For SVT-AV1 v4.0.0+ support
 // See below for documentation of low delay value:
-// https://github.com/BlueSwordM/SVT-AV1/blob/master/Docs/Parameters.md#gop-size-and-type-options
+// https://gitlab.com/AOMediaCodec/SVT-AV1/-/blob/master/Docs/Parameters.md#gop-size-and-type-options
 #ifndef SVT_AV1_PRED_LOW_DELAY
 #define SVT_AV1_PRED_LOW_DELAY 1
 #endif
