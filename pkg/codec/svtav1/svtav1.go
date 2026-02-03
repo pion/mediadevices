@@ -40,7 +40,7 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	enc.param.profile = C.MAIN_PROFILE
 	enc.param.enc_mode = C.int8_t(params.Preset)
 	enc.param.rate_control_mode = C.SVT_AV1_RC_MODE_CBR
-	enc.param.pred_structure = C.SVT_AV1_PRED_LOW_DELAY_B
+	enc.param.pred_structure = C.SVT_AV1_PRED_LOW_DELAY
 	enc.param.target_bit_rate = C.uint32_t(params.BitRate)
 	enc.param.frame_rate_numerator = C.uint32_t(p.FrameRate * 1000)
 	enc.param.frame_rate_denominator = 1000

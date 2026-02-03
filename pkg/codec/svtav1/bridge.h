@@ -4,6 +4,13 @@
 #include <EbSvtAv1Enc.h>
 #include <stdbool.h>
 
+// For SVT-AV1 v4.0.0+ support
+// See below for documentation of low delay value:
+// https://gitlab.com/AOMediaCodec/SVT-AV1/-/blob/master/Docs/Parameters.md#gop-size-and-type-options
+#ifndef SVT_AV1_PRED_LOW_DELAY
+#define SVT_AV1_PRED_LOW_DELAY 1
+#endif
+
 #define ERR_INIT_ENC_HANDLER 1
 #define ERR_SET_ENC_PARAM 2
 #define ERR_ENC_INIT 3
