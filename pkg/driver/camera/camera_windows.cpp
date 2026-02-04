@@ -71,6 +71,13 @@ int listCamera(cameraList* list, const char** errstr)
 
   safeRelease(&sysDevEnum);
 
+  if (enumMon == nullptr)
+  {
+    list->num = 0;
+    list->name = nullptr;
+    return 0;
+  }
+
   {
     IMoniker* moniker;
     list->num = 0;
@@ -137,6 +144,12 @@ int selectCamera(camera* cam, IMoniker** monikerSelected, const char** errstr)
   }
 
   safeRelease(&sysDevEnum);
+
+  if (enumMon == nullptr)
+  {
+    *errstr = errEnumDevice;
+    return 0;
+  }
 
   {
     IMoniker* moniker;
