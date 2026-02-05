@@ -1,3 +1,6 @@
+//go:build !nomicrophone
+// +build !nomicrophone
+
 package microphone
 
 import (

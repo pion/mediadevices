@@ -21,6 +21,16 @@
 go get -u github.com/pion/mediadevices
 ```
 
+### Build Tags
+
+`mediadevices` provides a `nomicrophone` build tag. Use this tag to build without microphone support. This is particularly useful for:
+- Cross-compilation where CGO dependencies like `malgo` are unavailable.
+- Projects where audio is not required.
+
+```bash
+go build -tags nomicrophone
+```
+
 ### Usage
 
 The following snippet shows how to capture a camera stream and store a frame as a jpeg image:
