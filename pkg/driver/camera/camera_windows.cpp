@@ -33,6 +33,27 @@ void printErr(HRESULT hr)
 // returned pointer must be released by free() after use.
 char* getCameraName(IMoniker* moniker)
 {
+  IPropertyBag* pPropBag = nullptr;
+  VARIANT varName;
+  VariantInit(&varName);
+  
+  // Try to get FriendlyName
+  if (SUCCEEDED(moniker->BindToStorage(nullptr, nullptr, IID_IPropertyBag, (void**)&pPropBag)))
+  {
+    if (SUCCEEDED(pPropBag->Read(L"FriendlyName", &varName, 0)))
+    {
+      std::string nameStr = utf16Decode(varName.bstrVal);
+      char* ret = (char*)malloc(nameStr.size() + 1);
+      memcpy(ret, nameStr.c_str(), nameStr.size() + 1);
+      VariantClear(&varName);
+      pPropBag->Release();
+      return ret;
+    }
+    pPropBag->Release();
+  }
+  VariantClear(&varName);
+  
+  // Fallback to display name
   LPOLESTR name;
   if (FAILED(moniker->GetDisplayName(nullptr, nullptr, &name)))
     return nullptr;
@@ -325,20 +346,10 @@ int openCamera(camera* cam, const char** errstr)
     AM_MEDIA_TYPE mediaType;
     memset(&mediaType, 0, sizeof(mediaType));
     mediaType.majortype = MEDIATYPE_Video;
-    mediaType.subtype = MEDIASUBTYPE_YUY2;
+    // Accept any format by leaving subtype as zeros (equivalent to GUID_NULL)
+    memset(&mediaType.subtype, 0, sizeof(GUID));
     mediaType.formattype = FORMAT_VideoInfo;
-    mediaType.bFixedSizeSamples = 1;
-    mediaType.cbFormat = sizeof(VIDEOINFOHEADER);
-
-    VIDEOINFOHEADER videoInfoHdr;
-    memset(&videoInfoHdr, 0, sizeof(VIDEOINFOHEADER));
-    videoInfoHdr.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    videoInfoHdr.bmiHeader.biWidth = cam->width;
-    videoInfoHdr.bmiHeader.biHeight = cam->height;
-    videoInfoHdr.bmiHeader.biPlanes = 1;
-    videoInfoHdr.bmiHeader.biBitCount = 16;
-    videoInfoHdr.bmiHeader.biCompression = MAKEFOURCC('Y', 'U', 'Y', '2');
-    mediaType.pbFormat = (BYTE*)&videoInfoHdr;
+    // Let DirectShow negotiate format automatically
     if (FAILED(grabber->SetMediaType(&mediaType)))
     {
       *errstr = errGrabber;
@@ -379,6 +390,9 @@ int openCamera(camera* cam, const char** errstr)
   safeRelease(&src);
   safeRelease(&dst);
 
+  // FIX: Don't connect to null renderer
+  // Null renderer causes DirectShow to pause after one frame
+  /*
   end = getPin(grabberFilter, PINDIR_OUTPUT);
   nul = getPin(nullFilter, PINDIR_INPUT);
   if (end == nullptr || nul == nullptr ||
@@ -390,6 +404,7 @@ int openCamera(camera* cam, const char** errstr)
 
   safeRelease(&end);
   safeRelease(&nul);
+  */
 
   safeRelease(&nullFilter);
   safeRelease(&captureFilter);
@@ -435,29 +450,74 @@ HRESULT SampleGrabberCallback::BufferCB(double sampleTime, BYTE* buf, LONG len)
 {
   BYTE* gobuf = (BYTE*)cam_->buf;
   const int nPix = cam_->width * cam_->height;
-  if (len > nPix * 2)
+  const int expectedNV12 = nPix + nPix / 2;
+  const int expectedYUY2 = nPix * 2;
+  
+  if (abs(len - expectedNV12) <= 10)
   {
-    fprintf(stderr, "Wrong frame buffer size: %d > %d\n", len, nPix * 2);
-    return S_OK;
-  }
-  int yi = 0;
-  int cbi = cam_->width * cam_->height;
-  int cri = cbi + cbi / 2;
-  // Pack as I422
-  for (int y = 0; y < cam_->height; ++y)
-  {
-    int j = y * cam_->width * 2;
-    for (int x = 0; x < cam_->width / 2; ++x)
+    // NV12 → I420: Copy Y, de-interleave UV
+    memcpy(gobuf, buf, nPix);
+    const BYTE* uv = buf + nPix;
+    BYTE* u = gobuf + nPix;
+    BYTE* v = u + nPix / 4;
+    
+    int uvSize = nPix / 4;
+    int i = 0;
+    
+    // Process 4 pixels at a time
+    for (; i < uvSize - 3; i += 4)
     {
-      gobuf[yi] = buf[j];
-      gobuf[cbi] = buf[j + 1];
-      gobuf[yi + 1] = buf[j + 2];
-      gobuf[cri] = buf[j + 3];
-      j += 4;
-      yi += 2;
-      cbi++;
-      cri++;
+      u[i] = uv[i * 2];
+      v[i] = uv[i * 2 + 1];
+      u[i + 1] = uv[(i + 1) * 2];
+      v[i + 1] = uv[(i + 1) * 2 + 1];
+      u[i + 2] = uv[(i + 2) * 2];
+      v[i + 2] = uv[(i + 2) * 2 + 1];
+      u[i + 3] = uv[(i + 3) * 2];
+      v[i + 3] = uv[(i + 3) * 2 + 1];
     }
+    
+    // Handle remaining pixels
+    for (; i < uvSize; i++)
+    {
+      u[i] = uv[i * 2];
+      v[i] = uv[i * 2 + 1];
+    }
+  }
+  else if (abs(len - expectedYUY2) <= 10)
+  {
+    // YUY2 → I420: Extract Y, subsample and average UV vertically
+    BYTE* y = gobuf;
+    BYTE* u = gobuf + nPix;
+    BYTE* v = u + nPix / 4;
+    
+    for (int row = 0; row < cam_->height; row += 2)
+    {
+      const BYTE* src1 = buf + row * cam_->width * 2;
+      const BYTE* src2 = src1 + cam_->width * 2;
+      
+      for (int col = 0; col < cam_->width; col += 2)
+      {
+        y[0] = src1[0];
+        y[1] = src1[2];
+        y[cam_->width] = src2[0];
+        y[cam_->width + 1] = src2[2];
+        y += 2;
+        
+        *u++ = (src1[1] + src2[1]) / 2;
+        *v++ = (src1[3] + src2[3]) / 2;
+        
+        src1 += 4;
+        src2 += 4;
+      }
+      y += cam_->width;
+    }
+  }
+  else
+  {
+    fprintf(stderr, "Unexpected buffer size: %d (expected NV12=%d or YUY2=%d)\n", 
+            len, expectedNV12, expectedYUY2);
+    return S_OK;
   }
 
   imageCallback((size_t)cam_);
