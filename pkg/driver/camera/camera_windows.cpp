@@ -52,6 +52,27 @@ void printErr(HRESULT hr)
 // returned pointer must be released by free() after use.
 char* getCameraName(IMoniker* moniker)
 {
+  // Try to get the friendly name via IPropertyBag.
+  IPropertyBag* propBag = nullptr;
+  if (SUCCEEDED(moniker->BindToStorage(0, 0, IID_IPropertyBag, (void**)&propBag)))
+  {
+    VARIANT varName;
+    VariantInit(&varName);
+    if (SUCCEEDED(propBag->Read(L"FriendlyName", &varName, 0)))
+    {
+      std::string nameStr = utf16Decode(varName.bstrVal);
+      VariantClear(&varName);
+      propBag->Release();
+
+      char* ret = (char*)malloc(nameStr.size() + 1);
+      memcpy(ret, nameStr.c_str(), nameStr.size() + 1);
+      return ret;
+    }
+    VariantClear(&varName);
+    propBag->Release();
+  }
+
+  // Fallback to display name.
   LPOLESTR name;
   if (FAILED(moniker->GetDisplayName(nullptr, nullptr, &name)))
     return nullptr;
