@@ -17,6 +17,16 @@ static const GUID LOCAL_MEDIASUBTYPE_NV12 =
 static const uint32_t FOURCC_NV12 = 0x3231564E; // 'NV12'
 static const uint32_t FOURCC_YUY2 = 0x32595559; // 'YUY2'
 
+// freeMediaType frees an AM_MEDIA_TYPE* allocated by GetStreamCaps.
+static void freeMediaType(AM_MEDIA_TYPE* mt)
+{
+  if (mt->cbFormat != 0)
+    CoTaskMemFree(mt->pbFormat);
+  if (mt->pUnk != nullptr)
+    mt->pUnk->Release();
+  CoTaskMemFree(mt);
+}
+
 
 imageProp* getProp(camera* cam, int i)
 {
@@ -328,6 +338,55 @@ int openCamera(camera* cam, const char** errstr)
     goto fail;
   }
 
+  // Configure the capture pin format via IAMStreamConfig so the pin
+  // negotiation succeeds for both FORMAT_VideoInfo and FORMAT_VideoInfo2.
+  {
+    IPin* capturePin = getPin(captureFilter, PINDIR_OUTPUT);
+    if (capturePin != nullptr)
+    {
+      IAMStreamConfig* streamConfig = nullptr;
+      if (SUCCEEDED(capturePin->QueryInterface(IID_IAMStreamConfig, (void**)&streamConfig)))
+      {
+        int count = 0, size = 0;
+        if (SUCCEEDED(streamConfig->GetNumberOfCapabilities(&count, &size)))
+        {
+          for (int i = 0; i < count; ++i)
+          {
+            VIDEO_STREAM_CONFIG_CAPS caps;
+            AM_MEDIA_TYPE* mt = nullptr;
+            if (FAILED(streamConfig->GetStreamCaps(i, &mt, (BYTE*)&caps)))
+              continue;
+
+            if (mt->majortype != MEDIATYPE_Video || mt->pbFormat == nullptr)
+            {
+              freeMediaType(mt);
+              continue;
+            }
+
+            BITMAPINFOHEADER* bmi = nullptr;
+            if (mt->formattype == FORMAT_VideoInfo)
+              bmi = &((VIDEOINFOHEADER*)mt->pbFormat)->bmiHeader;
+            else if (mt->formattype == FORMAT_VideoInfo2)
+              bmi = &((VIDEOINFOHEADER2*)mt->pbFormat)->bmiHeader;
+
+            if (bmi != nullptr &&
+                bmi->biWidth == cam->width &&
+                bmi->biHeight == cam->height &&
+                bmi->biCompression == cam->fcc)
+            {
+              streamConfig->SetFormat(mt);
+              freeMediaType(mt);
+              break;
+            }
+            freeMediaType(mt);
+          }
+        }
+        safeRelease(&streamConfig);
+      }
+      safeRelease(&capturePin);
+    }
+  }
+
   if (FAILED(CoCreateInstance(
           CLSID_SampleGrabber, nullptr, CLSCTX_INPROC,
           IID_IBaseFilter, (void**)&grabberFilter)))
@@ -346,31 +405,11 @@ int openCamera(camera* cam, const char** errstr)
     AM_MEDIA_TYPE mediaType;
     memset(&mediaType, 0, sizeof(mediaType));
     mediaType.majortype = MEDIATYPE_Video;
-    mediaType.formattype = FORMAT_VideoInfo;
-    mediaType.bFixedSizeSamples = 1;
-    mediaType.cbFormat = sizeof(VIDEOINFOHEADER);
-
-    VIDEOINFOHEADER videoInfoHdr;
-    memset(&videoInfoHdr, 0, sizeof(VIDEOINFOHEADER));
-    videoInfoHdr.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    videoInfoHdr.bmiHeader.biWidth = cam->width;
-    videoInfoHdr.bmiHeader.biHeight = cam->height;
-    videoInfoHdr.bmiHeader.biPlanes = 1;
-
     if (cam->fcc == FOURCC_NV12)
-    {
       mediaType.subtype = LOCAL_MEDIASUBTYPE_NV12;
-      videoInfoHdr.bmiHeader.biBitCount = 12;
-      videoInfoHdr.bmiHeader.biCompression = FOURCC_NV12;
-    }
     else
-    {
       mediaType.subtype = MEDIASUBTYPE_YUY2;
-      videoInfoHdr.bmiHeader.biBitCount = 16;
-      videoInfoHdr.bmiHeader.biCompression = MAKEFOURCC('Y', 'U', 'Y', '2');
-    }
-
-    mediaType.pbFormat = (BYTE*)&videoInfoHdr;
+    // formattype left as GUID_NULL (wildcard) - accepts both VideoInfo and VideoInfo2
     if (FAILED(grabber->SetMediaType(&mediaType)))
     {
       *errstr = errGrabber;
