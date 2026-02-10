@@ -49,11 +49,15 @@ func Initialize() {
 	}
 
 	for i := 0; i < int(list.num); i++ {
-		name := C.GoString(C.getName(&list, C.int(i)))
-		driver.GetManager().Register(&camera{name: name}, driver.Info{
-			Label:      name,
+		label := C.GoString(C.getName(&list, C.int(i)))
+		info := driver.Info{
+			Label:      label,
 			DeviceType: driver.Camera,
-		})
+		}
+		if fn := C.getFriendlyName(&list, C.int(i)); fn != nil {
+			info.Name = C.GoString(fn)
+		}
+		driver.GetManager().Register(&camera{name: label}, info)
 	}
 
 	C.freeCameraList(&list, &errStr)

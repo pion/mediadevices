@@ -33,6 +33,7 @@ typedef struct
 {
   int num;
   char** name;
+  char** friendlyName;
 } cameraList;
 
 int openCamera(camera* cam, const char** errstr);
@@ -44,6 +45,7 @@ int freeCameraList(cameraList* list, const char** errstr);
 imageProp* getProp(camera* cam, int i);
 
 char* getName(cameraList* list, int i);
+char* getFriendlyName(cameraList* list, int i);
 
 #ifdef __cplusplus
 }
