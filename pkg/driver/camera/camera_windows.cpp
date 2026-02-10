@@ -8,6 +8,14 @@
 #include "camera_windows.hpp"
 #include "_cgo_export.h"
 
+// MinGW may not define MEDIASUBTYPE_NV12.
+// {3231564E-0000-0010-8000-00AA00389B71}
+static const GUID LOCAL_MEDIASUBTYPE_NV12 =
+    {0x3231564E, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71}};
+
+static const uint32_t FOURCC_NV12 = 0x3231564E; // 'NV12'
+static const uint32_t FOURCC_YUY2 = 0x32595559; // 'YUY2'
+
 
 imageProp* getProp(camera* cam, int i)
 {
@@ -325,7 +333,6 @@ int openCamera(camera* cam, const char** errstr)
     AM_MEDIA_TYPE mediaType;
     memset(&mediaType, 0, sizeof(mediaType));
     mediaType.majortype = MEDIATYPE_Video;
-    mediaType.subtype = MEDIASUBTYPE_YUY2;
     mediaType.formattype = FORMAT_VideoInfo;
     mediaType.bFixedSizeSamples = 1;
     mediaType.cbFormat = sizeof(VIDEOINFOHEADER);
@@ -336,8 +343,20 @@ int openCamera(camera* cam, const char** errstr)
     videoInfoHdr.bmiHeader.biWidth = cam->width;
     videoInfoHdr.bmiHeader.biHeight = cam->height;
     videoInfoHdr.bmiHeader.biPlanes = 1;
-    videoInfoHdr.bmiHeader.biBitCount = 16;
-    videoInfoHdr.bmiHeader.biCompression = MAKEFOURCC('Y', 'U', 'Y', '2');
+
+    if (cam->fcc == FOURCC_NV12)
+    {
+      mediaType.subtype = LOCAL_MEDIASUBTYPE_NV12;
+      videoInfoHdr.bmiHeader.biBitCount = 12;
+      videoInfoHdr.bmiHeader.biCompression = FOURCC_NV12;
+    }
+    else
+    {
+      mediaType.subtype = MEDIASUBTYPE_YUY2;
+      videoInfoHdr.bmiHeader.biBitCount = 16;
+      videoInfoHdr.bmiHeader.biCompression = MAKEFOURCC('Y', 'U', 'Y', '2');
+    }
+
     mediaType.pbFormat = (BYTE*)&videoInfoHdr;
     if (FAILED(grabber->SetMediaType(&mediaType)))
     {
@@ -440,23 +459,41 @@ HRESULT SampleGrabberCallback::BufferCB(double sampleTime, BYTE* buf, LONG len)
     fprintf(stderr, "Wrong frame buffer size: %d > %d\n", len, nPix * 2);
     return S_OK;
   }
-  int yi = 0;
-  int cbi = cam_->width * cam_->height;
-  int cri = cbi + cbi / 2;
-  // Pack as I422
-  for (int y = 0; y < cam_->height; ++y)
+
+  if (cam_->fcc == FOURCC_NV12)
   {
-    int j = y * cam_->width * 2;
-    for (int x = 0; x < cam_->width / 2; ++x)
+    // NV12: Y plane (nPix bytes) + interleaved UV plane (nPix/2 bytes).
+    // Convert to I420 planar: Y + U + V separate planes.
+    memcpy(gobuf, buf, nPix);
+    BYTE* uv = buf + nPix;
+    int ui = nPix;
+    int vi = nPix + nPix / 4;
+    for (int i = 0; i < nPix / 2; i += 2)
     {
-      gobuf[yi] = buf[j];
-      gobuf[cbi] = buf[j + 1];
-      gobuf[yi + 1] = buf[j + 2];
-      gobuf[cri] = buf[j + 3];
-      j += 4;
-      yi += 2;
-      cbi++;
-      cri++;
+      gobuf[ui++] = uv[i];
+      gobuf[vi++] = uv[i + 1];
+    }
+  }
+  else
+  {
+    // YUY2: packed YUYV. Convert to I422 planar.
+    int yi = 0;
+    int cbi = nPix;
+    int cri = cbi + cbi / 2;
+    for (int y = 0; y < cam_->height; ++y)
+    {
+      int j = y * cam_->width * 2;
+      for (int x = 0; x < cam_->width / 2; ++x)
+      {
+        gobuf[yi] = buf[j];
+        gobuf[cbi] = buf[j + 1];
+        gobuf[yi + 1] = buf[j + 2];
+        gobuf[cri] = buf[j + 3];
+        j += 4;
+        yi += 2;
+        cbi++;
+        cri++;
+      }
     }
   }
 
