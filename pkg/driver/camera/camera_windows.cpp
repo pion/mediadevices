@@ -2,6 +2,7 @@
 #include <unistd.h>
 
 #include <dshow.h>
+#include <dvdmedia.h>
 #include <qedit.h>
 #include <mmsystem.h>
 
@@ -240,14 +241,26 @@ int listResolution(camera* cam, const char** errstr)
         continue;
 
       if (mediaType->majortype != MEDIATYPE_Video ||
-          mediaType->formattype != FORMAT_VideoInfo ||
           mediaType->pbFormat == nullptr)
         continue;
 
-      VIDEOINFOHEADER* videoInfoHdr = (VIDEOINFOHEADER*)mediaType->pbFormat;
-      cam->props[iProp].width = videoInfoHdr->bmiHeader.biWidth;
-      cam->props[iProp].height = videoInfoHdr->bmiHeader.biHeight;
-      cam->props[iProp].fcc = videoInfoHdr->bmiHeader.biCompression;
+      BITMAPINFOHEADER* bmi = nullptr;
+      if (mediaType->formattype == FORMAT_VideoInfo)
+      {
+        bmi = &((VIDEOINFOHEADER*)mediaType->pbFormat)->bmiHeader;
+      }
+      else if (mediaType->formattype == FORMAT_VideoInfo2)
+      {
+        bmi = &((VIDEOINFOHEADER2*)mediaType->pbFormat)->bmiHeader;
+      }
+      else
+      {
+        continue;
+      }
+
+      cam->props[iProp].width = bmi->biWidth;
+      cam->props[iProp].height = bmi->biHeight;
+      cam->props[iProp].fcc = bmi->biCompression;
       iProp++;
     }
     cam->numProps = iProp;
