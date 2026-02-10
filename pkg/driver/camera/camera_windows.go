@@ -79,6 +79,10 @@ func DestroyObserver() error {
 }
 
 func (c *camera) Open() error {
+	// COM is per-thread on Windows. Go goroutines can run on any OS thread,
+	// so ensure COM is initialized on the current one before making COM calls.
+	C.CoInitializeEx(nil, C.COINIT_MULTITHREADED)
+
 	c.ch = make(chan []byte)
 	c.cam = &C.camera{
 		name: C.CString(c.name),
@@ -124,6 +128,8 @@ func (c *camera) Close() error {
 }
 
 func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
+	C.CoInitializeEx(nil, C.COINIT_MULTITHREADED)
+
 	nPix := p.Width * p.Height
 	c.buf = make([]byte, nPix*2)
 	c.bufGo = make([]byte, nPix*2)
