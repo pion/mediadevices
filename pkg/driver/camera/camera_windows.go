@@ -1,6 +1,6 @@
 package camera
 
-// #cgo LDFLAGS: -lstrmiids -lole32 -lquartz
+// #cgo LDFLAGS: -lstrmiids -lole32 -loleaut32 -lquartz
 // #include <dshow.h>
 // #include "camera_windows.hpp"
 import "C"
