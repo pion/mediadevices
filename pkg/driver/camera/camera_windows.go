@@ -1,6 +1,6 @@
 package camera
 
-// #cgo LDFLAGS: -lstrmiids -lole32 -lquartz
+// #cgo LDFLAGS: -lstrmiids -lole32 -loleaut32 -lquartz
 // #include <dshow.h>
 // #include "camera_windows.hpp"
 import "C"
@@ -25,9 +25,18 @@ var (
 )
 
 type camera struct {
-	name  string
-	cam   *C.camera
-	ch    chan []byte
+	name string
+	// mu protects cam, closed, and the fields they gate.
+	mu  sync.Mutex
+	cam *C.camera
+	// closed guards against double closing.
+	closed bool
+
+	// ch delivers decoded frame data from the DirectShow callback to the Go reader.
+	ch chan []byte
+	// done is closed on Close() to unblock any in-flight imageCallback send.
+	done chan struct{}
+
 	buf   []byte
 	bufGo []byte
 }
@@ -49,11 +58,15 @@ func Initialize() {
 	}
 
 	for i := 0; i < int(list.num); i++ {
-		name := C.GoString(C.getName(&list, C.int(i)))
-		driver.GetManager().Register(&camera{name: name}, driver.Info{
-			Label:      name,
+		label := C.GoString(C.getName(&list, C.int(i)))
+		info := driver.Info{
+			Label:      label,
 			DeviceType: driver.Camera,
-		})
+		}
+		if fn := C.getFriendlyName(&list, C.int(i)); fn != nil {
+			info.Name = C.GoString(fn)
+		}
+		driver.GetManager().Register(&camera{name: label}, info)
 	}
 
 	C.freeCameraList(&list, &errStr)
@@ -75,13 +88,24 @@ func DestroyObserver() error {
 }
 
 func (c *camera) Open() error {
+	// COM is per-thread on Windows. Go goroutines can run on any OS thread,
+	// so ensure COM is initialized on the current one before making COM calls.
+	C.CoInitializeEx(nil, C.COINIT_MULTITHREADED)
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.ch = make(chan []byte)
+	c.done = make(chan struct{})
+	c.closed = false
 	c.cam = &C.camera{
 		name: C.CString(c.name),
 	}
 
 	var errStr *C.char
 	if C.listResolution(c.cam, &errStr) != 0 {
+		C.free(unsafe.Pointer(c.cam.name))
+		c.cam = nil
 		return fmt.Errorf("failed to open device: %s", C.GoString(errStr))
 	}
 
@@ -98,32 +122,55 @@ func imageCallback(cam uintptr) {
 	}
 
 	copy(cb.bufGo, cb.buf)
-	cb.ch <- cb.bufGo
+	select {
+	case cb.ch <- cb.bufGo:
+	case <-cb.done:
+	}
 }
 
 func (c *camera) Close() error {
-	callbacksMu.Lock()
-	key := uintptr(unsafe.Pointer(c.cam))
-	if _, ok := callbacks[key]; ok {
-		delete(callbacks, key)
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		return nil
 	}
-	callbacksMu.Unlock()
-	close(c.ch)
+	c.closed = true
+	cam := c.cam
+	c.cam = nil
+	c.mu.Unlock()
 
-	if c.cam != nil {
-		C.free(unsafe.Pointer(c.cam.name))
-		C.freeCamera(c.cam)
-		c.cam = nil
+	// Remove from callbacks map so no new imageCallback calls find this cam
+	callbacksMu.Lock()
+	delete(callbacks, uintptr(unsafe.Pointer(cam)))
+	callbacksMu.Unlock()
+
+	close(c.done)
+
+	if cam != nil {
+		C.free(unsafe.Pointer(cam.name))
+		C.freeCamera(cam)
 	}
+
+	close(c.ch)
 	return nil
 }
 
 func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
+	C.CoInitializeEx(nil, C.COINIT_MULTITHREADED)
+
 	nPix := p.Width * p.Height
-	c.buf = make([]byte, nPix*2) // for YUY2
+	c.buf = make([]byte, nPix*2)
 	c.bufGo = make([]byte, nPix*2)
 	c.cam.width = C.int(p.Width)
 	c.cam.height = C.int(p.Height)
+
+	switch p.FrameFormat {
+	case frame.FormatNV12:
+		c.cam.fcc = fourccNV12
+	default:
+		c.cam.fcc = fourccYUY2
+	}
+
 	c.cam.buf = C.size_t(uintptr(unsafe.Pointer(&c.buf[0])))
 
 	var errStr *C.char
@@ -142,12 +189,24 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 		if !ok {
 			return nil, func() {}, io.EOF
 		}
-		img.Y = b[:nPix]
-		img.Cb = b[nPix : nPix+nPix/2]
-		img.Cr = b[nPix+nPix/2 : nPix*2]
-		img.YStride = p.Width
-		img.CStride = p.Width / 2
-		img.SubsampleRatio = image.YCbCrSubsampleRatio422
+
+		if p.FrameFormat == frame.FormatNV12 {
+			// I420: Y plane (nPix) + U plane (nPix/4) + V plane (nPix/4)
+			img.Y = b[:nPix]
+			img.Cb = b[nPix : nPix+nPix/4]
+			img.Cr = b[nPix+nPix/4 : nPix+nPix/2]
+			img.YStride = p.Width
+			img.CStride = p.Width / 2
+			img.SubsampleRatio = image.YCbCrSubsampleRatio420
+		} else { // YUY2
+			// I422: Y plane (nPix) + Cb plane (nPix/2) + Cr plane (nPix/2)
+			img.Y = b[:nPix]
+			img.Cb = b[nPix : nPix+nPix/2]
+			img.Cr = b[nPix+nPix/2 : nPix*2]
+			img.YStride = p.Width
+			img.CStride = p.Width / 2
+			img.SubsampleRatio = image.YCbCrSubsampleRatio422
+		}
 		img.Rect = image.Rect(0, 0, p.Width, p.Height)
 		return img, func() {}, nil
 	})
@@ -155,23 +214,36 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 }
 
 func (c *camera) Properties() []prop.Media {
+	c.mu.Lock()
+	cam := c.cam
+	c.mu.Unlock()
+	if cam == nil {
+		return nil
+	}
 	properties := []prop.Media{}
-	for i := 0; i < int(c.cam.numProps); i++ {
-		p := C.getProp(c.cam, C.int(i))
-		// TODO: support other FOURCC
-		if p.fcc == fourccYUY2 {
-			properties = append(properties, prop.Media{
-				Video: prop.Video{
-					Width:       int(p.width),
-					Height:      int(p.height),
-					FrameFormat: frame.FormatYUY2,
-				},
-			})
+	for i := 0; i < int(cam.numProps); i++ {
+		p := C.getProp(cam, C.int(i))
+		var fmt frame.Format
+		switch p.fcc {
+		case fourccYUY2:
+			fmt = frame.FormatYUY2
+		case fourccNV12:
+			fmt = frame.FormatNV12
+		default:
+			continue
 		}
+		properties = append(properties, prop.Media{
+			Video: prop.Video{
+				Width:       int(p.width),
+				Height:      int(p.height),
+				FrameFormat: fmt,
+			},
+		})
 	}
 	return properties
 }
 
 const (
 	fourccYUY2 = 0x32595559
+	fourccNV12 = 0x3231564E
 )
