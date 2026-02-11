@@ -17,6 +17,7 @@ typedef struct
 {
   int width;
   int height;
+  uint32_t fcc;
   size_t buf;  // uintptr
 
   char* name;

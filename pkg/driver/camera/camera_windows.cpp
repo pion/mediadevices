@@ -2,11 +2,25 @@
 #include <unistd.h>
 
 #include <dshow.h>
+#include <dvdmedia.h>
 #include <qedit.h>
 #include <mmsystem.h>
 
 #include "camera_windows.hpp"
 #include "_cgo_export.h"
+
+static const uint32_t FOURCC_NV12 = 0x3231564E; // 'NV12'
+static const uint32_t FOURCC_YUY2 = 0x32595559; // 'YUY2'
+
+// freeMediaType frees an AM_MEDIA_TYPE* allocated by GetStreamCaps.
+static void freeMediaType(AM_MEDIA_TYPE* mt)
+{
+  if (mt->cbFormat != 0)
+    CoTaskMemFree(mt->pbFormat);
+  if (mt->pUnk != nullptr)
+    mt->pUnk->Release();
+  CoTaskMemFree(mt);
+}
 
 
 imageProp* getProp(camera* cam, int i)
@@ -232,14 +246,26 @@ int listResolution(camera* cam, const char** errstr)
         continue;
 
       if (mediaType->majortype != MEDIATYPE_Video ||
-          mediaType->formattype != FORMAT_VideoInfo ||
           mediaType->pbFormat == nullptr)
         continue;
 
-      VIDEOINFOHEADER* videoInfoHdr = (VIDEOINFOHEADER*)mediaType->pbFormat;
-      cam->props[iProp].width = videoInfoHdr->bmiHeader.biWidth;
-      cam->props[iProp].height = videoInfoHdr->bmiHeader.biHeight;
-      cam->props[iProp].fcc = videoInfoHdr->bmiHeader.biCompression;
+      BITMAPINFOHEADER* bmi = nullptr;
+      if (mediaType->formattype == FORMAT_VideoInfo)
+      {
+        bmi = &((VIDEOINFOHEADER*)mediaType->pbFormat)->bmiHeader;
+      }
+      else if (mediaType->formattype == FORMAT_VideoInfo2)
+      {
+        bmi = &((VIDEOINFOHEADER2*)mediaType->pbFormat)->bmiHeader;
+      }
+      else
+      {
+        continue;
+      }
+
+      cam->props[iProp].width = bmi->biWidth;
+      cam->props[iProp].height = bmi->biHeight;
+      cam->props[iProp].fcc = bmi->biCompression;
       iProp++;
     }
     cam->numProps = iProp;
@@ -307,6 +333,55 @@ int openCamera(camera* cam, const char** errstr)
     goto fail;
   }
 
+  // Configure the capture pin format via IAMStreamConfig so the pin
+  // negotiation succeeds for both FORMAT_VideoInfo and FORMAT_VideoInfo2.
+  {
+    IPin* capturePin = getPin(captureFilter, PINDIR_OUTPUT);
+    if (capturePin != nullptr)
+    {
+      IAMStreamConfig* streamConfig = nullptr;
+      if (SUCCEEDED(capturePin->QueryInterface(IID_IAMStreamConfig, (void**)&streamConfig)))
+      {
+        int count = 0, size = 0;
+        if (SUCCEEDED(streamConfig->GetNumberOfCapabilities(&count, &size)))
+        {
+          for (int i = 0; i < count; ++i)
+          {
+            VIDEO_STREAM_CONFIG_CAPS caps;
+            AM_MEDIA_TYPE* mt = nullptr;
+            if (FAILED(streamConfig->GetStreamCaps(i, &mt, (BYTE*)&caps)))
+              continue;
+
+            if (mt->majortype != MEDIATYPE_Video || mt->pbFormat == nullptr)
+            {
+              freeMediaType(mt);
+              continue;
+            }
+
+            BITMAPINFOHEADER* bmi = nullptr;
+            if (mt->formattype == FORMAT_VideoInfo)
+              bmi = &((VIDEOINFOHEADER*)mt->pbFormat)->bmiHeader;
+            else if (mt->formattype == FORMAT_VideoInfo2)
+              bmi = &((VIDEOINFOHEADER2*)mt->pbFormat)->bmiHeader;
+
+            if (bmi != nullptr &&
+                bmi->biWidth == cam->width &&
+                bmi->biHeight == cam->height &&
+                bmi->biCompression == cam->fcc)
+            {
+              streamConfig->SetFormat(mt);
+              freeMediaType(mt);
+              break;
+            }
+            freeMediaType(mt);
+          }
+        }
+        safeRelease(&streamConfig);
+      }
+      safeRelease(&capturePin);
+    }
+  }
+
   if (FAILED(CoCreateInstance(
           CLSID_SampleGrabber, nullptr, CLSCTX_INPROC,
           IID_IBaseFilter, (void**)&grabberFilter)))
@@ -325,20 +400,11 @@ int openCamera(camera* cam, const char** errstr)
     AM_MEDIA_TYPE mediaType;
     memset(&mediaType, 0, sizeof(mediaType));
     mediaType.majortype = MEDIATYPE_Video;
-    mediaType.subtype = MEDIASUBTYPE_YUY2;
-    mediaType.formattype = FORMAT_VideoInfo;
-    mediaType.bFixedSizeSamples = 1;
-    mediaType.cbFormat = sizeof(VIDEOINFOHEADER);
-
-    VIDEOINFOHEADER videoInfoHdr;
-    memset(&videoInfoHdr, 0, sizeof(VIDEOINFOHEADER));
-    videoInfoHdr.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    videoInfoHdr.bmiHeader.biWidth = cam->width;
-    videoInfoHdr.bmiHeader.biHeight = cam->height;
-    videoInfoHdr.bmiHeader.biPlanes = 1;
-    videoInfoHdr.bmiHeader.biBitCount = 16;
-    videoInfoHdr.bmiHeader.biCompression = MAKEFOURCC('Y', 'U', 'Y', '2');
-    mediaType.pbFormat = (BYTE*)&videoInfoHdr;
+    if (cam->fcc == FOURCC_NV12)
+      mediaType.subtype = MEDIASUBTYPE_NV12;
+    else
+      mediaType.subtype = MEDIASUBTYPE_YUY2;
+    // formattype left as GUID_NULL (wildcard) - accepts both VideoInfo and VideoInfo2
     if (FAILED(grabber->SetMediaType(&mediaType)))
     {
       *errstr = errGrabber;
@@ -440,23 +506,41 @@ HRESULT SampleGrabberCallback::BufferCB(double sampleTime, BYTE* buf, LONG len)
     fprintf(stderr, "Wrong frame buffer size: %d > %d\n", len, nPix * 2);
     return S_OK;
   }
-  int yi = 0;
-  int cbi = cam_->width * cam_->height;
-  int cri = cbi + cbi / 2;
-  // Pack as I422
-  for (int y = 0; y < cam_->height; ++y)
+
+  if (cam_->fcc == FOURCC_NV12)
   {
-    int j = y * cam_->width * 2;
-    for (int x = 0; x < cam_->width / 2; ++x)
+    // NV12: Y plane (nPix bytes) + interleaved UV plane (nPix/2 bytes).
+    // Convert to I420 planar: Y + U + V separate planes.
+    memcpy(gobuf, buf, nPix);
+    BYTE* uv = buf + nPix;
+    int ui = nPix;
+    int vi = nPix + nPix / 4;
+    for (int i = 0; i < nPix / 2; i += 2)
     {
-      gobuf[yi] = buf[j];
-      gobuf[cbi] = buf[j + 1];
-      gobuf[yi + 1] = buf[j + 2];
-      gobuf[cri] = buf[j + 3];
-      j += 4;
-      yi += 2;
-      cbi++;
-      cri++;
+      gobuf[ui++] = uv[i];
+      gobuf[vi++] = uv[i + 1];
+    }
+  }
+  else
+  {
+    // YUY2: packed YUYV. Convert to I422 planar.
+    int yi = 0;
+    int cbi = nPix;
+    int cri = cbi + cbi / 2;
+    for (int y = 0; y < cam_->height; ++y)
+    {
+      int j = y * cam_->width * 2;
+      for (int x = 0; x < cam_->width / 2; ++x)
+      {
+        gobuf[yi] = buf[j];
+        gobuf[cbi] = buf[j + 1];
+        gobuf[yi + 1] = buf[j + 2];
+        gobuf[cri] = buf[j + 3];
+        j += 4;
+        yi += 2;
+        cbi++;
+        cri++;
+      }
     }
   }
 
