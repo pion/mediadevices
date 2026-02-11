@@ -5,17 +5,9 @@
 #include <dvdmedia.h>
 #include <qedit.h>
 #include <mmsystem.h>
-#include <wmcodecdsp.h>
 
 #include "camera_windows.hpp"
 #include "_cgo_export.h"
-
-// MinGW may not define MEDIASUBTYPE_NV12.
-// {3231564E-0000-0010-8000-00AA00389B71}
-#ifndef MEDIASUBTYPE_NV12
-static const GUID MEDIASUBTYPE_NV12 =
-    {0x3231564E, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71}};
-#endif
 
 static const uint32_t FOURCC_NV12 = 0x3231564E; // 'NV12'
 static const uint32_t FOURCC_YUY2 = 0x32595559; // 'YUY2'
