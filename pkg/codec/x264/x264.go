@@ -72,11 +72,29 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	// Reference: https://code.videolan.org/videolan/x264/-/blob/7923c5818b50a3d8816eed222a7c43b418a73b36/encoder/ratecontrol.c#L657
 	params.BitRate /= 1000
 
+	// Map Go LogLevel to x264 log level constants.
+	// x264 uses: X264_LOG_NONE(-1), X264_LOG_ERROR(0), X264_LOG_WARNING(1),
+	// X264_LOG_INFO(2), X264_LOG_DEBUG(3).
+	x264LogLevel := C.int(C.X264_LOG_INFO)
+	switch params.LogLevel {
+	case LogNone:
+		x264LogLevel = C.X264_LOG_NONE
+	case LogError:
+		x264LogLevel = C.X264_LOG_ERROR
+	case LogWarning:
+		x264LogLevel = C.X264_LOG_WARNING
+	case LogInfo:
+		x264LogLevel = C.X264_LOG_INFO
+	case LogDebug:
+		x264LogLevel = C.X264_LOG_DEBUG
+	}
+
 	param := C.x264_param_t{
 		i_csp:        C.X264_CSP_I420,
 		i_width:      C.int(p.Width),
 		i_height:     C.int(p.Height),
 		i_keyint_max: C.int(params.KeyFrameInterval),
+		i_log_level:  x264LogLevel,
 	}
 	param.rc.i_bitrate = C.int(params.BitRate)
 	param.rc.i_vbv_max_bitrate = param.rc.i_bitrate
