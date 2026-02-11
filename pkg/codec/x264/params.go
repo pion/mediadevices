@@ -12,7 +12,29 @@ type Params struct {
 
 	// Faster preset has lower CPU usage but lower quality
 	Preset Preset
+
+	// LogLevel controls the verbosity of x264's internal logging.
+	// Messages at this level and above (more severe) will be emitted.
+	// Defaults to LogWarning, which suppresses info-level messages
+	// that x264 writes to stderr.
+	LogLevel LogLevel
 }
+
+// LogLevel controls which x264 log messages are emitted.
+type LogLevel int
+
+const (
+	// LogNone suppresses all log output from x264.
+	LogNone LogLevel = iota
+	// LogError shows only error messages.
+	LogError
+	// LogWarning shows warnings and errors.
+	LogWarning
+	// LogInfo shows info, warnings, and errors (x264 default).
+	LogInfo
+	// LogDebug shows all messages including debug output.
+	LogDebug
+)
 
 // Preset represents a set of default configurations from libx264
 type Preset int
@@ -36,6 +58,7 @@ func NewParams() (Params, error) {
 		BaseParams: codec.BaseParams{
 			KeyFrameInterval: 60,
 		},
+		LogLevel: LogWarning,
 	}, nil
 }
 
