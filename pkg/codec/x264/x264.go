@@ -75,7 +75,7 @@ func newEncoder(r video.Reader, p prop.Media, params Params) (codec.ReadCloser, 
 	// Map Go LogLevel to x264 log level constants.
 	// x264 uses: X264_LOG_NONE(-1), X264_LOG_ERROR(0), X264_LOG_WARNING(1),
 	// X264_LOG_INFO(2), X264_LOG_DEBUG(3).
-	x264LogLevel := C.int(C.X264_LOG_WARNING)
+	x264LogLevel := C.int(C.X264_LOG_INFO)
 	switch params.LogLevel {
 	case LogNone:
 		x264LogLevel = C.X264_LOG_NONE

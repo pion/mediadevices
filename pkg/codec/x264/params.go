@@ -14,9 +14,8 @@ type Params struct {
 	Preset Preset
 
 	// LogLevel controls the verbosity of x264's internal logging.
-	// Messages at this level and above (more severe) will be emitted.
-	// Defaults to LogWarning, which suppresses info-level messages
-	// that x264 writes to stderr.
+	// Messages at this level and above severities will be emitted.
+	// Defaults to LogInfo to match x264's default behavior.
 	LogLevel LogLevel
 }
 
@@ -58,7 +57,7 @@ func NewParams() (Params, error) {
 		BaseParams: codec.BaseParams{
 			KeyFrameInterval: 60,
 		},
-		LogLevel: LogWarning,
+		LogLevel: LogInfo,
 	}, nil
 }
 
