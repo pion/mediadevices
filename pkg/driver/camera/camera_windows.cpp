@@ -5,7 +5,6 @@
 #include <dvdmedia.h>
 #include <qedit.h>
 #include <mmsystem.h>
-#include <wmcodecdsp.h>
 
 #include "camera_windows.hpp"
 #include "_cgo_export.h"
