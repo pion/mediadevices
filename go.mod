@@ -1,16 +1,16 @@
 module github.com/pion/mediadevices
 
-go 1.21
+go 1.21.0
 
 require (
 	github.com/blackjack/webcam v0.6.1
 	github.com/gen2brain/malgo v0.11.24
 	github.com/google/uuid v1.6.0
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
-	github.com/pion/interceptor v0.1.42
+	github.com/pion/interceptor v0.1.44
 	github.com/pion/logging v0.2.4
 	github.com/pion/rtcp v1.2.16
-	github.com/pion/rtp v1.8.26
+	github.com/pion/rtp v1.10.1
 	github.com/pion/webrtc/v4 v4.1.8
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/image v0.23.0
