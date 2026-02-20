@@ -2,6 +2,8 @@
 #include <unistd.h>
 
 #include <dshow.h>
+#include <amvideo.h>
+#include <dvdmedia.h>
 #include <qedit.h>
 #include <mmsystem.h>
 
@@ -119,7 +121,7 @@ int freeCameraList(cameraList* list, const char** errstr)
     }
     delete list->name;
   }
-  return 1;
+  return 0;
 }
 
 // selectCamera stores pointer to the selected device IMoniker* according to the configs in camera*.
@@ -175,7 +177,8 @@ int selectCamera(camera* cam, IMoniker** monikerSelected, const char** errstr)
 fail:
   safeRelease(&sysDevEnum);
   safeRelease(&enumMon);
-  return 1;
+  // Signal failure. Callers treat non-zero as success.
+  return 0;
 }
 
 // listResolution stores list of the device to camera*.
@@ -195,7 +198,17 @@ int listResolution(camera* cam, const char** errstr)
     goto fail;
   }
 
-  moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&captureFilter);
+  if (moniker == nullptr)
+  {
+    *errstr = errEnumDevice;
+    goto fail;
+  }
+
+  if (FAILED(moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&captureFilter)))
+  {
+    *errstr = errEnumDevice;
+    goto fail;
+  }
   safeRelease(&moniker);
 
   src = getPin(captureFilter, PINDIR_OUTPUT);
@@ -232,14 +245,40 @@ int listResolution(camera* cam, const char** errstr)
         continue;
 
       if (mediaType->majortype != MEDIATYPE_Video ||
-          mediaType->formattype != FORMAT_VideoInfo ||
           mediaType->pbFormat == nullptr)
         continue;
 
-      VIDEOINFOHEADER* videoInfoHdr = (VIDEOINFOHEADER*)mediaType->pbFormat;
-      cam->props[iProp].width = videoInfoHdr->bmiHeader.biWidth;
-      cam->props[iProp].height = videoInfoHdr->bmiHeader.biHeight;
-      cam->props[iProp].fcc = videoInfoHdr->bmiHeader.biCompression;
+      int width = 0;
+      int height = 0;
+      uint32_t fcc = 0;
+      if (mediaType->formattype == FORMAT_VideoInfo)
+      {
+        VIDEOINFOHEADER* videoInfoHdr = (VIDEOINFOHEADER*)mediaType->pbFormat;
+        width = videoInfoHdr->bmiHeader.biWidth;
+        height = videoInfoHdr->bmiHeader.biHeight;
+        fcc = (uint32_t)videoInfoHdr->bmiHeader.biCompression;
+      }
+      else if (mediaType->formattype == FORMAT_VideoInfo2)
+      {
+        VIDEOINFOHEADER2* videoInfoHdr = (VIDEOINFOHEADER2*)mediaType->pbFormat;
+        width = videoInfoHdr->bmiHeader.biWidth;
+        height = videoInfoHdr->bmiHeader.biHeight;
+        fcc = (uint32_t)videoInfoHdr->bmiHeader.biCompression;
+      }
+      else
+      {
+        continue;
+      }
+
+      // biHeight can be negative (top-down). Normalize to a positive size.
+      if (width < 0)
+        width = -width;
+      if (height < 0)
+        height = -height;
+
+      cam->props[iProp].width = width;
+      cam->props[iProp].height = height;
+      cam->props[iProp].fcc = fcc;
       iProp++;
     }
     cam->numProps = iProp;
@@ -283,7 +322,18 @@ int openCamera(camera* cam, const char** errstr)
   {
     goto fail;
   }
-  moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&captureFilter);
+
+  if (moniker == nullptr)
+  {
+    *errstr = errEnumDevice;
+    goto fail;
+  }
+
+  if (FAILED(moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&captureFilter)))
+  {
+    *errstr = errEnumDevice;
+    goto fail;
+  }
   safeRelease(&moniker);
 
   if (FAILED(CoCreateInstance(
