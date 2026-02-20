@@ -10,6 +10,7 @@ import (
 	"image"
 	"io"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/driver"
@@ -25,11 +26,12 @@ var (
 )
 
 type camera struct {
-	name  string
-	cam   *C.camera
-	ch    chan []byte
-	buf   []byte
-	bufGo []byte
+	name   string
+	cam    *C.camera
+	ch     chan []byte
+	buf    []byte
+	bufGo  []byte
+	closed atomic.Bool
 }
 
 func init() {
@@ -75,6 +77,7 @@ func DestroyObserver() error {
 }
 
 func (c *camera) Open() error {
+	c.closed.Store(false)
 	c.ch = make(chan []byte)
 	c.cam = &C.camera{
 		name: C.CString(c.name),
@@ -96,19 +99,35 @@ func imageCallback(cam uintptr) {
 	if !ok {
 		return
 	}
+	if cb.closed.Load() {
+		return
+	}
 
 	copy(cb.bufGo, cb.buf)
-	cb.ch <- cb.bufGo
+	// The native capture graph may deliver frames concurrently with teardown.
+	// Avoid panicking on send-to-closed-channel, and avoid blocking the callback.
+	defer func() {
+		_ = recover()
+	}()
+	select {
+	case cb.ch <- cb.bufGo:
+	default:
+	}
 }
 
 func (c *camera) Close() error {
+	c.closed.Store(true)
+
 	callbacksMu.Lock()
 	key := uintptr(unsafe.Pointer(c.cam))
 	if _, ok := callbacks[key]; ok {
 		delete(callbacks, key)
 	}
 	callbacksMu.Unlock()
-	close(c.ch)
+	if c.ch != nil {
+		close(c.ch)
+		c.ch = nil
+	}
 
 	if c.cam != nil {
 		C.free(unsafe.Pointer(c.cam.name))
@@ -158,20 +177,22 @@ func (c *camera) Properties() []prop.Media {
 	properties := []prop.Media{}
 	for i := 0; i < int(c.cam.numProps); i++ {
 		p := C.getProp(c.cam, C.int(i))
-		// TODO: support other FOURCC
-		if p.fcc == fourccYUY2 {
-			properties = append(properties, prop.Media{
-				Video: prop.Video{
-					Width:       int(p.width),
-					Height:      int(p.height),
-					FrameFormat: frame.FormatYUY2,
-				},
-			})
+		w := int(p.width)
+		h := int(p.height)
+		if w <= 0 || h <= 0 {
+			continue
 		}
+		// We request YUY2 from the DirectShow SampleGrabber.
+		// Even if the camera's native caps are MJPG/etc, DirectShow can often insert
+		// a decoder/colorspace converter so the grabber still receives YUY2.
+		properties = append(properties, prop.Media{
+			Video: prop.Video{
+				Width:       w,
+				Height:      h,
+				FrameFormat: frame.FormatYUY2,
+			},
+		})
 	}
+
 	return properties
 }
-
-const (
-	fourccYUY2 = 0x32595559
-)
