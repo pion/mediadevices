@@ -33,6 +33,11 @@ char* getName(cameraList* list, int i)
   return list->name[i];
 }
 
+char* getFriendlyName(cameraList* list, int i)
+{
+  return list->friendlyName[i];
+}
+
 
 // printErr shows string representation of HRESULT.
 // This is for debugging.
@@ -43,7 +48,7 @@ void printErr(HRESULT hr)
   fprintf(stderr, "%s\n", buf);
 }
 
-// getCameraName returns name of the device.
+// getCameraName returns the display name (device path) of the device.
 // returned pointer must be released by free() after use.
 char* getCameraName(IMoniker* moniker)
 {
@@ -59,6 +64,33 @@ char* getCameraName(IMoniker* moniker)
   CoGetMalloc(1, &comalloc);
   comalloc->Free(name);
 
+  return ret;
+}
+
+// getDeviceFriendlyName returns the human-readable name of the device via IPropertyBag.
+// Returns nullptr if the friendly name is not available.
+// returned pointer must be released by free() after use.
+static char* getDeviceFriendlyName(IMoniker* moniker)
+{
+  IPropertyBag* propBag = nullptr;
+  if (FAILED(moniker->BindToStorage(0, 0, IID_IPropertyBag, (void**)&propBag)))
+    return nullptr;
+
+  VARIANT varName;
+  VariantInit(&varName);
+  if (FAILED(propBag->Read(L"FriendlyName", &varName, 0)))
+  {
+    VariantClear(&varName);
+    propBag->Release();
+    return nullptr;
+  }
+
+  std::string nameStr = utf16Decode(varName.bstrVal);
+  VariantClear(&varName);
+  propBag->Release();
+
+  char* ret = (char*)malloc(nameStr.size() + 1);
+  memcpy(ret, nameStr.c_str(), nameStr.size() + 1);
   return ret;
 }
 
@@ -89,6 +121,7 @@ int listCamera(cameraList* list, const char** errstr)
   {
     list->num = 0;
     list->name = nullptr;
+    list->friendlyName = nullptr;
     return 0;
   }
 
@@ -103,11 +136,13 @@ int listCamera(cameraList* list, const char** errstr)
 
     enumMon->Reset();
     list->name = new char*[list->num];
+    list->friendlyName = new char*[list->num];
 
     int i = 0;
     while (enumMon->Next(1, &moniker, nullptr) == S_OK)
     {
       list->name[i] = getCameraName(moniker);
+      list->friendlyName[i] = getDeviceFriendlyName(moniker);
       moniker->Release();
       i++;
     }
@@ -129,9 +164,17 @@ int freeCameraList(cameraList* list, const char** errstr)
   {
     for (int i = 0; i < list->num; ++i)
     {
-      delete list->name[i];
+      free(list->name[i]);
     }
-    delete list->name;
+    delete[] list->name;
+  }
+  if (list->friendlyName != nullptr)
+  {
+    for (int i = 0; i < list->num; ++i)
+    {
+      free(list->friendlyName[i]);
+    }
+    delete[] list->friendlyName;
   }
   return 1;
 }
@@ -265,7 +308,8 @@ int listResolution(camera* cam, const char** errstr)
 
       cam->props[iProp].width = bmi->biWidth;
       cam->props[iProp].height = bmi->biHeight;
-      cam->props[iProp].fcc = bmi->biCompression;
+      // Use subtype.Data1 for the FourCC; some drivers leave biCompression as 0.
+      cam->props[iProp].fcc = mediaType->subtype.Data1;
       iProp++;
     }
     cam->numProps = iProp;
@@ -367,7 +411,7 @@ int openCamera(camera* cam, const char** errstr)
             if (bmi != nullptr &&
                 bmi->biWidth == cam->width &&
                 bmi->biHeight == cam->height &&
-                bmi->biCompression == cam->fcc)
+                mt->subtype.Data1 == cam->fcc)
             {
               streamConfig->SetFormat(mt);
               freeMediaType(mt);
