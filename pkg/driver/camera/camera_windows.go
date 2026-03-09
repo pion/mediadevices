@@ -82,6 +82,7 @@ func (c *camera) Open() error {
 
 	var errStr *C.char
 	if C.listResolution(c.cam, &errStr) != 0 {
+		C.free(unsafe.Pointer(c.cam.name))
 		return fmt.Errorf("failed to open device: %s", C.GoString(errStr))
 	}
 
@@ -120,10 +121,18 @@ func (c *camera) Close() error {
 
 func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	nPix := p.Width * p.Height
-	c.buf = make([]byte, nPix*2) // for YUY2
+	c.buf = make([]byte, nPix*2)
 	c.bufGo = make([]byte, nPix*2)
 	c.cam.width = C.int(p.Width)
 	c.cam.height = C.int(p.Height)
+
+	switch p.FrameFormat {
+	case frame.FormatNV12:
+		c.cam.fcc = fourccNV12
+	default:
+		c.cam.fcc = fourccYUY2
+	}
+
 	c.cam.buf = C.size_t(uintptr(unsafe.Pointer(&c.buf[0])))
 
 	var errStr *C.char
@@ -142,12 +151,24 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 		if !ok {
 			return nil, func() {}, io.EOF
 		}
-		img.Y = b[:nPix]
-		img.Cb = b[nPix : nPix+nPix/2]
-		img.Cr = b[nPix+nPix/2 : nPix*2]
-		img.YStride = p.Width
-		img.CStride = p.Width / 2
-		img.SubsampleRatio = image.YCbCrSubsampleRatio422
+
+		if p.FrameFormat == frame.FormatNV12 {
+			// I420: Y plane (nPix) + U plane (nPix/4) + V plane (nPix/4)
+			img.Y = b[:nPix]
+			img.Cb = b[nPix : nPix+nPix/4]
+			img.Cr = b[nPix+nPix/4 : nPix+nPix/2]
+			img.YStride = p.Width
+			img.CStride = p.Width / 2
+			img.SubsampleRatio = image.YCbCrSubsampleRatio420
+		} else { // YUY2
+			// I422: Y plane (nPix) + Cb plane (nPix/2) + Cr plane (nPix/2)
+			img.Y = b[:nPix]
+			img.Cb = b[nPix : nPix+nPix/2]
+			img.Cr = b[nPix+nPix/2 : nPix*2]
+			img.YStride = p.Width
+			img.CStride = p.Width / 2
+			img.SubsampleRatio = image.YCbCrSubsampleRatio422
+		}
 		img.Rect = image.Rect(0, 0, p.Width, p.Height)
 		return img, func() {}, nil
 	})
@@ -158,20 +179,27 @@ func (c *camera) Properties() []prop.Media {
 	properties := []prop.Media{}
 	for i := 0; i < int(c.cam.numProps); i++ {
 		p := C.getProp(c.cam, C.int(i))
-		// TODO: support other FOURCC
-		if p.fcc == fourccYUY2 {
-			properties = append(properties, prop.Media{
-				Video: prop.Video{
-					Width:       int(p.width),
-					Height:      int(p.height),
-					FrameFormat: frame.FormatYUY2,
-				},
-			})
+		var fmt frame.Format
+		switch p.fcc {
+		case fourccYUY2:
+			fmt = frame.FormatYUY2
+		case fourccNV12:
+			fmt = frame.FormatNV12
+		default:
+			continue
 		}
+		properties = append(properties, prop.Media{
+			Video: prop.Video{
+				Width:       int(p.width),
+				Height:      int(p.height),
+				FrameFormat: fmt,
+			},
+		})
 	}
 	return properties
 }
 
 const (
 	fourccYUY2 = 0x32595559
+	fourccNV12 = 0x3231564E
 )
