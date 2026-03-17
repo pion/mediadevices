@@ -85,6 +85,13 @@ static char* getDeviceFriendlyName(IMoniker* moniker)
     return nullptr;
   }
 
+  if (varName.vt != VT_BSTR || varName.bstrVal == nullptr)
+  {
+    VariantClear(&varName);
+    propBag->Release();
+    return nullptr;
+  }
+
   std::string nameStr = utf16Decode(varName.bstrVal);
   VariantClear(&varName);
   propBag->Release();
@@ -135,8 +142,8 @@ int listCamera(cameraList* list, const char** errstr)
     }
 
     enumMon->Reset();
-    list->name = new char*[list->num];
-    list->friendlyName = new char*[list->num];
+    list->name = new char*[list->num]();
+    list->friendlyName = new char*[list->num]();
 
     int i = 0;
     while (enumMon->Next(1, &moniker, nullptr) == S_OK)
@@ -146,6 +153,7 @@ int listCamera(cameraList* list, const char** errstr)
       moniker->Release();
       i++;
     }
+    list->num = i;
   }
 
   safeRelease(&enumMon);
@@ -290,7 +298,10 @@ int listResolution(camera* cam, const char** errstr)
 
       if (mediaType->majortype != MEDIATYPE_Video ||
           mediaType->pbFormat == nullptr)
+      {
+        freeMediaType(mediaType);
         continue;
+      }
 
       BITMAPINFOHEADER* bmi = nullptr;
       if (mediaType->formattype == FORMAT_VideoInfo)
@@ -303,6 +314,7 @@ int listResolution(camera* cam, const char** errstr)
       }
       else
       {
+        freeMediaType(mediaType);
         continue;
       }
 
@@ -310,6 +322,7 @@ int listResolution(camera* cam, const char** errstr)
       cam->props[iProp].height = bmi->biHeight;
       // Use subtype.Data1 for the FourCC; some drivers leave biCompression as 0.
       cam->props[iProp].fcc = mediaType->subtype.Data1;
+      freeMediaType(mediaType);
       iProp++;
     }
     cam->numProps = iProp;

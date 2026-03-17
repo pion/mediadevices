@@ -49,7 +49,11 @@ func Initialize() {
 	}
 
 	for i := 0; i < int(list.num); i++ {
-		label := C.GoString(C.getName(&list, C.int(i)))
+		cName := C.getName(&list, C.int(i))
+		if cName == nil {
+			continue
+		}
+		label := C.GoString(cName)
 		info := driver.Info{
 			Label:      label,
 			DeviceType: driver.Camera,
