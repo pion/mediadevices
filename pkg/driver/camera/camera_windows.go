@@ -33,8 +33,9 @@ type camera struct {
 	ch     chan []byte
 	done   chan struct{}
 
-	buf   []byte
-	bufGo []byte
+	cbuf   unsafe.Pointer // C.malloc'd buffer for DirectShow writes
+	bufLen int            // byte length of cbuf
+	bufGo  []byte
 }
 
 func init() {
@@ -125,7 +126,7 @@ func imageCallback(cam uintptr) {
 		return
 	}
 
-	copy(cb.bufGo, cb.buf)
+	copy(cb.bufGo, unsafe.Slice((*byte)(cb.cbuf), cb.bufLen))
 	select {
 	case cb.ch <- cb.bufGo:
 	case <-cb.done:
@@ -141,6 +142,8 @@ func (c *camera) Close() error {
 	c.closed = true
 	cam := c.cam
 	c.cam = nil
+	cbuf := c.cbuf
+	c.cbuf = nil
 	done := c.done
 	ch := c.ch
 	c.mu.Unlock()
@@ -159,6 +162,8 @@ func (c *camera) Close() error {
 		C.freeCamera(cam)
 	}
 
+	C.free(cbuf)
+
 	if ch != nil {
 		close(ch)
 	}
@@ -176,8 +181,13 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	}
 
 	nPix := p.Width * p.Height
-	c.buf = make([]byte, nPix*2)
-	c.bufGo = make([]byte, nPix*2)
+	bufSize := nPix * 2
+	c.cbuf = C.malloc(C.size_t(bufSize))
+	if c.cbuf == nil {
+		return nil, fmt.Errorf("failed to allocate frame buffer")
+	}
+	c.bufLen = bufSize
+	c.bufGo = make([]byte, bufSize)
 	c.cam.width = C.int(p.Width)
 	c.cam.height = C.int(p.Height)
 
@@ -188,10 +198,12 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 		c.cam.fcc = fourccYUY2
 	}
 
-	c.cam.buf = C.size_t(uintptr(unsafe.Pointer(&c.buf[0])))
+	c.cam.buf = C.size_t(uintptr(c.cbuf))
 
 	var errStr *C.char
 	if C.openCamera(c.cam, &errStr) != 0 {
+		C.free(c.cbuf)
+		c.cbuf = nil
 		return nil, fmt.Errorf("failed to open device: %s", C.GoString(errStr))
 	}
 
