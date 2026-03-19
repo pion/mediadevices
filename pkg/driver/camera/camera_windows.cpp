@@ -323,7 +323,6 @@ int listResolution(camera* cam, const char** errstr)
       cam->props[iProp].fcc = mediaType->subtype.Data1;
       freeMediaType(mediaType);
       iProp++;
-      freeMediaType(mediaType);
     }
     cam->numProps = iProp;
   }

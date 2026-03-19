@@ -26,16 +26,12 @@ var (
 
 type camera struct {
 	name string
-	// mu protects cam, closed, and the fields they gate.
-	mu  sync.Mutex
-	cam *C.camera
-	// closed guards against double closing.
+	// mu protects fields under as per the mutex hat pattern
+	mu     sync.Mutex
+	cam    *C.camera
 	closed bool
-
-	// ch delivers decoded frame data from the DirectShow callback to the Go reader.
-	ch chan []byte
-	// done is closed on Close() to unblock any in-flight imageCallback send.
-	done chan struct{}
+	ch     chan []byte
+	done   chan struct{}
 
 	buf   []byte
 	bufGo []byte
@@ -98,6 +94,10 @@ func (c *camera) Open() error {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if c.cam != nil {
+		return fmt.Errorf("camera already open")
+	}
 
 	c.ch = make(chan []byte)
 	c.done = make(chan struct{})
@@ -219,14 +219,13 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 
 func (c *camera) Properties() []prop.Media {
 	c.mu.Lock()
-	cam := c.cam
-	c.mu.Unlock()
-	if cam == nil {
+	defer c.mu.Unlock()
+	if c.cam == nil {
 		return nil
 	}
 	properties := []prop.Media{}
-	for i := 0; i < int(cam.numProps); i++ {
-		p := C.getProp(cam, C.int(i))
+	for i := 0; i < int(c.cam.numProps); i++ {
+		p := C.getProp(c.cam, C.int(i))
 		var fmt frame.Format
 		switch p.fcc {
 		case fourccYUY2:
