@@ -26,7 +26,7 @@ var (
 
 type camera struct {
 	name string
-	// mu protects fields under as per the mutex hat pattern
+	// mu protects the fields under as per the mutex hat convention.
 	mu     sync.Mutex
 	cam    *C.camera
 	closed bool
@@ -141,6 +141,8 @@ func (c *camera) Close() error {
 	c.closed = true
 	cam := c.cam
 	c.cam = nil
+	done := c.done
+	ch := c.ch
 	c.mu.Unlock()
 
 	// Remove from callbacks map so no new imageCallback calls find this cam
@@ -148,19 +150,30 @@ func (c *camera) Close() error {
 	delete(callbacks, uintptr(unsafe.Pointer(cam)))
 	callbacksMu.Unlock()
 
-	close(c.done)
+	if done != nil {
+		close(done)
+	}
 
 	if cam != nil {
 		C.free(unsafe.Pointer(cam.name))
 		C.freeCamera(cam)
 	}
 
-	close(c.ch)
+	if ch != nil {
+		close(ch)
+	}
 	return nil
 }
 
 func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	C.CoInitializeEx(nil, C.COINIT_MULTITHREADED)
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.cam == nil {
+		return nil, fmt.Errorf("camera not open")
+	}
 
 	nPix := p.Width * p.Height
 	c.buf = make([]byte, nPix*2)
