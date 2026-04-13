@@ -33,6 +33,7 @@ Encoder *enc_new(x264_param_t param, char *preset, int *rc) {
   free(preset);
 
   /* Configure non-default params */
+  e->param.i_log_level = param.i_log_level;
   e->param.i_csp = param.i_csp;
   e->param.i_width = param.i_width;
   e->param.i_height = param.i_height;
