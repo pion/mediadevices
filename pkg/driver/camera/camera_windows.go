@@ -121,12 +121,13 @@ func (c *camera) Open() error {
 func imageCallback(cam uintptr) {
 	callbacksMu.RLock()
 	cb, ok := callbacks[uintptr(unsafe.Pointer(cam))]
-	callbacksMu.RUnlock()
 	if !ok {
+		callbacksMu.RUnlock()
 		return
 	}
-
 	copy(cb.bufGo, unsafe.Slice((*byte)(cb.cbuf), cb.bufLen))
+	callbacksMu.RUnlock()
+
 	select {
 	case cb.ch <- cb.bufGo:
 	case <-cb.done:
