@@ -253,7 +253,6 @@ int listResolution(camera* cam, const char** errstr)
   ICaptureGraphBuilder2* captureGraph = nullptr;
   IAMStreamConfig* config = nullptr;
   IPin* src = nullptr;
-  LPOLESTR name;
 
   if (!selectCamera(cam, &moniker, errstr))
   {
@@ -623,7 +622,7 @@ void freeCamera(camera* cam)
 
   if (cam->props)
   {
-    delete cam->props;
+    delete[] cam->props;
     cam->props = nullptr;
   }
 }

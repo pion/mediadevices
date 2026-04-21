@@ -25,11 +25,17 @@ var (
 )
 
 type camera struct {
-	name  string
-	cam   *C.camera
-	ch    chan []byte
-	buf   []byte
-	bufGo []byte
+	name string
+	// mu protects the fields under as per the mutex hat convention.
+	mu     sync.Mutex
+	cam    *C.camera
+	closed bool
+	ch     chan []byte
+	done   chan struct{}
+
+	cbuf   unsafe.Pointer // C.malloc'd buffer for DirectShow writes
+	bufLen int            // byte length of cbuf
+	bufGo  []byte
 }
 
 func init() {
@@ -83,7 +89,20 @@ func DestroyObserver() error {
 }
 
 func (c *camera) Open() error {
+	// COM is per-thread on Windows. Go goroutines can run on any OS thread,
+	// so ensure COM is initialized on the current one before making COM calls.
+	C.CoInitializeEx(nil, C.COINIT_MULTITHREADED)
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.cam != nil {
+		return fmt.Errorf("camera already open")
+	}
+
 	c.ch = make(chan []byte)
+	c.done = make(chan struct{})
+	c.closed = false
 	c.cam = &C.camera{
 		name: C.CString(c.name),
 	}
@@ -91,6 +110,7 @@ func (c *camera) Open() error {
 	var errStr *C.char
 	if C.listResolution(c.cam, &errStr) != 0 {
 		C.free(unsafe.Pointer(c.cam.name))
+		c.cam = nil
 		return fmt.Errorf("failed to open device: %s", C.GoString(errStr))
 	}
 
@@ -101,36 +121,74 @@ func (c *camera) Open() error {
 func imageCallback(cam uintptr) {
 	callbacksMu.RLock()
 	cb, ok := callbacks[uintptr(unsafe.Pointer(cam))]
-	callbacksMu.RUnlock()
 	if !ok {
+		callbacksMu.RUnlock()
 		return
 	}
+	copy(cb.bufGo, unsafe.Slice((*byte)(cb.cbuf), cb.bufLen))
+	callbacksMu.RUnlock()
 
-	copy(cb.bufGo, cb.buf)
-	cb.ch <- cb.bufGo
+	select {
+	case cb.ch <- cb.bufGo:
+	case <-cb.done:
+	}
 }
 
 func (c *camera) Close() error {
-	callbacksMu.Lock()
-	key := uintptr(unsafe.Pointer(c.cam))
-	if _, ok := callbacks[key]; ok {
-		delete(callbacks, key)
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		return nil
 	}
-	callbacksMu.Unlock()
-	close(c.ch)
+	c.closed = true
+	cam := c.cam
+	c.cam = nil
+	cbuf := c.cbuf
+	c.cbuf = nil
+	done := c.done
+	ch := c.ch
+	c.mu.Unlock()
 
-	if c.cam != nil {
-		C.free(unsafe.Pointer(c.cam.name))
-		C.freeCamera(c.cam)
-		c.cam = nil
+	// Remove from callbacks map so no new imageCallback calls find this cam
+	callbacksMu.Lock()
+	delete(callbacks, uintptr(unsafe.Pointer(cam)))
+	callbacksMu.Unlock()
+
+	if done != nil {
+		close(done)
+	}
+
+	if cam != nil {
+		C.free(unsafe.Pointer(cam.name))
+		C.freeCamera(cam)
+	}
+
+	C.free(cbuf)
+
+	if ch != nil {
+		close(ch)
 	}
 	return nil
 }
 
 func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
+	C.CoInitializeEx(nil, C.COINIT_MULTITHREADED)
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.cam == nil {
+		return nil, fmt.Errorf("camera not open")
+	}
+
 	nPix := p.Width * p.Height
-	c.buf = make([]byte, nPix*2)
-	c.bufGo = make([]byte, nPix*2)
+	bufSize := nPix * 2
+	c.cbuf = C.malloc(C.size_t(bufSize))
+	if c.cbuf == nil {
+		return nil, fmt.Errorf("failed to allocate frame buffer")
+	}
+	c.bufLen = bufSize
+	c.bufGo = make([]byte, bufSize)
 	c.cam.width = C.int(p.Width)
 	c.cam.height = C.int(p.Height)
 
@@ -141,10 +199,12 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 		c.cam.fcc = fourccYUY2
 	}
 
-	c.cam.buf = C.size_t(uintptr(unsafe.Pointer(&c.buf[0])))
+	c.cam.buf = C.size_t(uintptr(c.cbuf))
 
 	var errStr *C.char
 	if C.openCamera(c.cam, &errStr) != 0 {
+		C.free(c.cbuf)
+		c.cbuf = nil
 		return nil, fmt.Errorf("failed to open device: %s", C.GoString(errStr))
 	}
 
@@ -184,6 +244,11 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 }
 
 func (c *camera) Properties() []prop.Media {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.cam == nil {
+		return nil
+	}
 	properties := []prop.Media{}
 	for i := 0; i < int(c.cam.numProps); i++ {
 		p := C.getProp(c.cam, C.int(i))
