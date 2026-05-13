@@ -156,6 +156,7 @@ func newParams(codecIface *C.vpx_codec_iface_t) (Params, error) {
 		RateControlMaxQuantizer:      uint(cfg.rc_max_quantizer),
 		LagInFrames:                  uint(cfg.g_lag_in_frames),
 		ErrorResilient:               ErrorResilientMode(cfg.g_error_resilient),
+		EncodingThreads:              uint(cfg.g_threads),
 	}, nil
 }
 
@@ -188,6 +189,9 @@ func newEncoder(r video.Reader, p prop.Media, params Params, codecIface *C.vpx_c
 	cfg.g_lag_in_frames = C.uint(params.LagInFrames)
 	cfg.rc_target_bitrate = C.uint(params.BitRate) / 1000
 	cfg.kf_max_dist = C.uint(params.KeyFrameInterval)
+	if params.EncodingThreads > 0 {
+		cfg.g_threads = C.uint(params.EncodingThreads)
+	}
 
 	cfg.rc_resize_allowed = 0
 	cfg.g_pass = C.VPX_RC_ONE_PASS

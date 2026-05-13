@@ -18,6 +18,11 @@ type Params struct {
 	RateControlMaxQuantizer      uint
 	LagInFrames                  uint
 	ErrorResilient               ErrorResilientMode
+	// EncodingThreads sets libvpx's g_threads. 0 leaves the libvpx default
+	// (single-thread). Multi-threaded encoding can substantially improve
+	// throughput on multi-core hosts; the effective ceiling depends on
+	// resolution and codec (VP8 typically benefits up to ~4 threads, VP9 more).
+	EncodingThreads uint
 }
 
 // RateControlMode represents rate control mode.

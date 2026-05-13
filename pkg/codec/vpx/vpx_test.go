@@ -312,6 +312,35 @@ func TestShouldImplementBitRateControl(t *testing.T) {
 	}
 }
 
+func TestEncodingThreadsBuilds(t *testing.T) {
+	// Smoke-test that Params.EncodingThreads is plumbed to cfg.g_threads.
+	// Setting >0 must produce a working encoder; default (0) leaves libvpx's
+	// own default in place.
+	for name, threads := range map[string]uint{
+		"Default": 0,
+		"Four":    4,
+	} {
+		t.Run(name, func(t *testing.T) {
+			p, err := NewVP8Params()
+			if err != nil {
+				t.Fatal(err)
+			}
+			p.BitRate = 100000
+			p.EncodingThreads = threads
+			enc, err := p.BuildVideoEncoder(
+				video.ReaderFunc(func() (image.Image, func(), error) {
+					return image.NewYCbCr(image.Rect(0, 0, 64, 64), image.YCbCrSubsampleRatio420), func() {}, nil
+				}),
+				prop.Media{Video: prop.Video{Width: 64, Height: 64, FrameRate: 30}},
+			)
+			if err != nil {
+				t.Fatalf("BuildVideoEncoder failed with EncodingThreads=%d: %v", threads, err)
+			}
+			assert.NoError(t, enc.Close())
+		})
+	}
+}
+
 func TestShouldImplementKeyFrameControl(t *testing.T) {
 	e := &encoder{}
 	if _, ok := e.Controller().(codec.KeyFrameController); !ok {
