@@ -271,8 +271,30 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	// and consequently the codec will read the first frame from the buffer. This means the first frame won't
 	// have a pause to the second frame, which means if the delay is <1 ms (vpx duration resolution), duration
 	// is going to be 0.
-	if duration == 0 {
+	//
+	// Also clamp implausibly large durations. tLastFrame is only updated after a successful encode, so when
+	// an encoder sits idle for a long time (waiting for a remote subscriber, paused upstream, etc.) the next
+	// frame's duration can exceed UINT32_MAX microseconds. libvpx 1.15.0+ rejects any duration strictly
+	// greater than UINT32_MAX with VPX_CODEC_INVALID_PARAM — see libvpx/vpx/src/vpx_encoder.c:206 (added in
+	// libvpx commit 7fb8ceccf, "Restrict ranges of duration,deadline to UINT32_MAX", 2024-03-14):
+	//
+	//   else if (duration > UINT32_MAX || deadline > UINT32_MAX)
+	//       res = VPX_CODEC_INVALID_PARAM;
+	//
+	// UINT32_MAX microseconds is about 71m35s, so any encoder idle for longer than that fails its next
+	// encode. Older libvpx (≤ 1.14.x) silently accepted huge durations, which is why this surfaced as a
+	// new failure mode after a libvpx upgrade to 1.15+. Once the error fires, the failure path below also
+	// does not update tLastFrame, so every subsequent encode sees an even larger duration and fails
+	// identically — the encoder is permanently unusable until recreated.
+	//
+	// Substituting a sane synthetic frame interval keeps the encoder healthy across idle gaps; pts
+	// continues monotonically from tStart so libvpx's internal pts ordering remains correct.
+	const maxFrameDurationUs = 1_000_000   // 1s — well below libvpx 1.15+'s UINT32_MAX μs (~71 min) limit
+	const fallbackFrameDurationUs = 33_333 // ~30fps frame interval, a sensible "this is a fresh frame"
+	if duration <= 0 {
 		duration = 1
+	} else if duration > maxFrameDurationUs {
+		duration = fallbackFrameDurationUs
 	}
 
 	targetVpxBitrate := C.uint(float32(e.targetBitrate / 1000)) // convert to kilobits / second
