@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -303,6 +304,80 @@ func TestSetBitrate(t *testing.T) {
 		})
 
 	}
+}
+
+// TestEncodeErrorIncludesDetail verifies that when vpx_codec_encode returns
+// a non-OK code, the Go error message includes libvpx's err_detail string
+// (set inside libvpx's ERROR(...) macro). This is the field that holds the
+// specific reason for VPX_CODEC_INVALID_PARAM and similar errors.
+//
+// We trigger the failure deterministically by reaching into the encoder
+// after the first successful encode and forcing a size mismatch between
+// e.raw (the vpx_image_t the encoder hands to vpx_codec_encode) and the
+// encoder cfg's expected dimensions. libvpx's validate_img() rejects this
+// with "Image size must match encoder init configuration size" via the
+// ERROR macro and returns VPX_CODEC_INVALID_PARAM. With this change, the
+// Go error wraps that detail string so oncall/operator-side logs can see
+// the specific cause instead of a bare error code.
+func TestEncodeErrorIncludesDetail(t *testing.T) {
+	p, err := NewVP8Params()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := p.BuildVideoEncoder(
+		video.ReaderFunc(func() (image.Image, func(), error) {
+			return image.NewYCbCr(image.Rect(0, 0, 320, 240), image.YCbCrSubsampleRatio420), func() {}, nil
+		}),
+		prop.Media{
+			Video: prop.Video{
+				Width:       320,
+				Height:      240,
+				FrameRate:   1,
+				FrameFormat: frame.FormatI420,
+			},
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+
+	// First read succeeds and initializes libvpx with cfg.g_w/g_h = 320/240.
+	if _, rel, err := r.Read(); err != nil {
+		t.Fatalf("first read should succeed: %v", err)
+	} else {
+		rel()
+	}
+
+	// Force a size mismatch inside the encoder by mutating e.raw's display
+	// dimensions to disagree with e.cfg. The Read() path doesn't touch d_w/d_h
+	// unless image dimensions change (which they won't here), so the corrupt
+	// e.raw flows directly into vpx_codec_encode and triggers validate_img.
+	e := r.(*encoder)
+	e.mu.Lock()
+	e.raw.d_w = 100
+	e.raw.d_h = 100
+	e.mu.Unlock()
+
+	_, _, err = r.Read()
+	if err == nil {
+		t.Skip("forced mismatch unexpectedly succeeded — libvpx tolerant on this build")
+	}
+	t.Logf("error: %v", err)
+	if !strings.Contains(err.Error(), "vpx_codec_encode failed") {
+		t.Fatalf("unexpected error shape: %v", err)
+	}
+	// The new error shape is "vpx_codec_encode failed (N): <detail>"; we
+	// require the colon-detail suffix is present. The detail itself
+	// (libvpx's err_detail) should be non-empty for this size-mismatch path.
+	if !strings.Contains(err.Error(), "): ") {
+		t.Fatalf("error missing detail suffix; expected `(N): <detail>` shape, got: %v", err)
+	}
+	suffix := err.Error()[strings.Index(err.Error(), "): ")+3:]
+	if suffix == "" {
+		t.Fatalf("err_detail is empty; expected libvpx to set it for the size-mismatch path")
+	}
+	t.Logf("extracted libvpx err_detail: %q", suffix)
 }
 
 func TestShouldImplementBitRateControl(t *testing.T) {

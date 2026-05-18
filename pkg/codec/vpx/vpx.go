@@ -47,6 +47,18 @@ package vpx
 //   raw->planes[0] = raw->planes[1] = raw->planes[2] = 0;
 //   return ret;
 // }
+//
+// // NULL-safe wrapper around vpx_codec_error_detail. libvpx sets err_detail
+// // inside its ERROR(...) macro (e.g. vp8_cx_iface.c:108-112) with the
+// // specific reason for failures like VPX_CODEC_INVALID_PARAM, but the field
+// // is NULL when no detail is available. Returning an empty C string in that
+// // case keeps the Go side simple.
+// const char *error_detail_safe(vpx_codec_ctx_t *ctx) {
+//   if (ctx == NULL) return "";
+//   const char *d = vpx_codec_error_detail(ctx);
+//   if (d == NULL) return "";
+//   return d;
+// }
 import "C"
 
 import (
@@ -204,7 +216,7 @@ func newEncoder(r video.Reader, p prop.Media, params Params, codecIface *C.vpx_c
 	if ec := C.vpx_codec_enc_init_ver(
 		codec, codecIface, cfg, 0, C.VPX_ENCODER_ABI_VERSION,
 	); ec != 0 {
-		return nil, fmt.Errorf("vpx_codec_enc_init failed (%d)", ec)
+		return nil, fmt.Errorf("vpx_codec_enc_init failed (%d): %s", ec, C.GoString(C.error_detail_safe(codec)))
 	}
 	t0 := time.Now()
 	return &encoder{
@@ -251,7 +263,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		if ec := C.vpx_codec_enc_init_ver(
 			newCodec, e.codec.iface, e.cfg, 0, C.VPX_ENCODER_ABI_VERSION,
 		); ec != 0 {
-			return nil, func() {}, fmt.Errorf("vpx_codec_enc_init failed (%d)", ec)
+			return nil, func() {}, fmt.Errorf("vpx_codec_enc_init failed (%d): %s", ec, C.GoString(C.error_detail_safe(newCodec)))
 		}
 		C.free(unsafe.Pointer(e.codec))
 		e.codec = newCodec
@@ -262,7 +274,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	}
 
 	if ec := C.vpx_codec_enc_config_set(e.codec, e.cfg); ec != 0 {
-		return nil, func() {}, fmt.Errorf("vpx_codec_enc_config_set failed (%d)", ec)
+		return nil, func() {}, fmt.Errorf("vpx_codec_enc_config_set failed (%d): %s", ec, C.GoString(C.error_detail_safe(e.codec)))
 	}
 
 	duration := t.Sub(e.tLastFrame).Microseconds()
@@ -280,7 +292,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		e.cfg.rc_target_bitrate = targetVpxBitrate
 		rc := C.vpx_codec_enc_config_set(e.codec, e.cfg)
 		if rc != C.VPX_CODEC_OK {
-			return nil, func() {}, fmt.Errorf("vpx_codec_enc_config_set failed (%d)", rc)
+			return nil, func() {}, fmt.Errorf("vpx_codec_enc_config_set failed (%d): %s", rc, C.GoString(C.error_detail_safe(e.codec)))
 		}
 	}
 
@@ -293,7 +305,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		C.long(t.Sub(e.tStart).Microseconds()), C.ulong(duration), C.long(flags), C.ulong(e.deadline),
 		(*C.uchar)(&yuvImg.Y[0]), (*C.uchar)(&yuvImg.Cb[0]), (*C.uchar)(&yuvImg.Cr[0]),
 	); ec != C.VPX_CODEC_OK {
-		return nil, func() {}, fmt.Errorf("vpx_codec_encode failed (%d)", ec)
+		return nil, func() {}, fmt.Errorf("vpx_codec_encode failed (%d): %s", ec, C.GoString(C.error_detail_safe(e.codec)))
 	}
 
 	e.requireKeyFrame = false
