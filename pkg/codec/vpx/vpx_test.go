@@ -365,6 +365,94 @@ func TestEncoderFrameMonotonic(t *testing.T) {
 	}
 }
 
+// TestEncoderHandlesLongIdleGap verifies the duration clamp in the Read()
+// path. When an encoder sits idle for a long time (no frames arriving from
+// the source, so vpx_codec_encode is never called and tLastFrame stays at
+// encoder-creation time), the next frame would otherwise be encoded with
+// `duration = t.Sub(tLastFrame).Microseconds()` — a value potentially in
+// the trillions of microseconds.
+//
+// libvpx 1.15.0+ explicitly rejects any duration > UINT32_MAX with
+// VPX_CODEC_INVALID_PARAM at vpx/src/vpx_encoder.c:206 (added in libvpx
+// commit 7fb8ceccf, 2024-03-14). UINT32_MAX μs is about 71m35s, so any
+// encoder idle longer than that fails its next encode. Because the failure
+// path inside Read() does not refresh tLastFrame, every subsequent frame
+// sees an even larger duration and fails identically — the encoder becomes
+// permanently unusable until recreated.
+//
+// The clamp in Read() substitutes a sane synthetic frame interval when the
+// computed duration exceeds maxFrameDurationUs, keeping the encoder usable
+// across idle gaps of arbitrary length.
+func TestEncoderHandlesLongIdleGap(t *testing.T) {
+	params, err := NewVP8Params()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rcloser, err := params.BuildVideoEncoder(
+		video.ReaderFunc(func() (image.Image, func(), error) {
+			return image.NewYCbCr(
+				image.Rect(0, 0, 320, 240),
+				image.YCbCrSubsampleRatio420,
+			), func() {}, nil
+		},
+		), prop.Media{
+			Video: prop.Video{
+				Width:       320,
+				Height:      240,
+				FrameRate:   30,
+				FrameFormat: frame.FormatI420,
+			},
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rcloser.Close()
+
+	e, ok := rcloser.(*encoder)
+	if !ok {
+		t.Fatalf("expected *encoder, got %T", rcloser)
+	}
+
+	// Simulate an encoder that has sat idle since creation. tStart and
+	// tLastFrame are both rewound, mirroring the production sequence where
+	// the encoder waited hours for a remote subscriber before its first
+	// frame arrived.
+	e.mu.Lock()
+	const idleDuration = 6 * time.Hour
+	e.tStart = e.tStart.Add(-idleDuration)
+	e.tLastFrame = e.tLastFrame.Add(-idleDuration)
+	tLastFrameBefore := e.tLastFrame
+	e.mu.Unlock()
+
+	// First encode after the idle gap must succeed.
+	if _, rel, err := rcloser.Read(); err != nil {
+		t.Fatalf("encode after long idle gap failed: %v", err)
+	} else {
+		rel()
+	}
+
+	// tLastFrame must be refreshed so subsequent frames see a normal-sized
+	// duration. The bug's permanence stemmed from tLastFrame staying stale
+	// on the failure path.
+	e.mu.Lock()
+	tLastFrameAfter := e.tLastFrame
+	e.mu.Unlock()
+	if !tLastFrameAfter.After(tLastFrameBefore) {
+		t.Fatalf("tLastFrame not refreshed after encode (before=%v after=%v)",
+			tLastFrameBefore, tLastFrameAfter)
+	}
+
+	// Subsequent encodes must continue working.
+	for i := 0; i < 3; i++ {
+		if _, rel, err := rcloser.Read(); err != nil {
+			t.Fatalf("encode %d after recovery failed: %v", i, err)
+		} else {
+			rel()
+		}
+	}
+}
+
 func TestVP8DynamicQPControl(t *testing.T) {
 	t.Run("VP8", func(t *testing.T) {
 		p, err := NewVP8Params()
