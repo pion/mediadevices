@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.25", "1.24"] # auto-update/supported-go-version-list
+        go: ["1.26", "1.25"] # auto-update/supported-go-version-list
     name: Linux Go ${{ matrix.go }}
     steps:
       - name: Checkout
@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.25", "1.24"] # auto-update/supported-go-version-list
+        go: ["1.26", "1.25"] # auto-update/supported-go-version-list
     runs-on: macos-latest
     name: Darwin Go ${{ matrix.go }}
     steps:
