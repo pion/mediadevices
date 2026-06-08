@@ -35,7 +35,7 @@ jobs:
             libxext-dev
       - name: Run Test Suite
         run: make test
-      - uses: codecov/codecov-action@v6
+      - uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
   build-darwin:
@@ -63,7 +63,7 @@ jobs:
             x264
       - name: Run Test Suite
         run: make test
-      - uses: codecov/codecov-action@v6
+      - uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
   check-licenses:
