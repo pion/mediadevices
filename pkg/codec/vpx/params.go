@@ -18,6 +18,11 @@ type Params struct {
 	RateControlMaxQuantizer      uint
 	LagInFrames                  uint
 	ErrorResilient               ErrorResilientMode
+	// CPUUsed maps to VP8E_SET_CPUUSED (encode speed/quality tradeoff).
+	// Higher = faster encode, lower quality. For the realtime deadline a
+	// value around 6-8 is typical for software VP8; libvpx's default of 0
+	// is the slowest/highest-quality setting. Applied after encoder init.
+	CPUUsed int
 }
 
 // RateControlMode represents rate control mode.
