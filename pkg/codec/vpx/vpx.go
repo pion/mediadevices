@@ -35,6 +35,14 @@ package vpx
 //   return malloc(sizeof(vpx_image_t));
 // }
 //
+// // Set cpu-used (encode speed) on an initialized codec context.
+// // vpx_codec_control is a variadic macro, so it can't be called from cgo
+// // directly; this wrapper pins the VP8E_SET_CPUUSED control (the same enum
+// // value is honored by both the VP8 and VP9 cx interfaces).
+// vpx_codec_err_t set_cpu_used(vpx_codec_ctx_t *ctx, int cpu_used) {
+//   return vpx_codec_control(ctx, VP8E_SET_CPUUSED, cpu_used);
+// }
+//
 // // Wrap encode function to keep Go memory safe
 // vpx_codec_err_t encode_wrapper(
 //     vpx_codec_ctx_t* codec, vpx_image_t* raw,
@@ -98,6 +106,10 @@ const (
 	kRateControlThreshold = 0.15
 	kMinQuantizer         = 20
 	kMaxQuantizer         = 63
+	// defaultRealtimeCPUUsed is the default VP8E_SET_CPUUSED applied to
+	// encoders built from NewVP8Params/NewVP9Params. libvpx defaults to 0
+	// (slowest/highest quality); 8 targets realtime software encode speed.
+	defaultRealtimeCPUUsed = 8
 )
 
 // VP8Params is codec specific paramaters
@@ -161,6 +173,7 @@ func newParams(codecIface *C.vpx_codec_iface_t) (Params, error) {
 	}
 	return Params{
 		Deadline:                     time.Microsecond * time.Duration(C.VPX_DL_REALTIME),
+		CPUUsed:                      defaultRealtimeCPUUsed,
 		RateControlEndUsage:          RateControlMode(cfg.rc_end_usage),
 		RateControlUndershootPercent: uint(cfg.rc_undershoot_pct),
 		RateControlOvershootPercent:  uint(cfg.rc_overshoot_pct),
@@ -217,6 +230,13 @@ func newEncoder(r video.Reader, p prop.Media, params Params, codecIface *C.vpx_c
 		codec, codecIface, cfg, 0, C.VPX_ENCODER_ABI_VERSION,
 	); ec != 0 {
 		return nil, fmt.Errorf("vpx_codec_enc_init failed (%d): %s", ec, C.GoString(C.error_detail_safe(codec)))
+	}
+
+	// Set encode speed. libvpx defaults cpu-used to 0 (slowest/highest
+	// quality); for the realtime deadline this dominates per-frame encode
+	// latency. Applying a higher cpu-used trades quality for speed.
+	if ec := C.set_cpu_used(codec, C.int(params.CPUUsed)); ec != 0 {
+		return nil, fmt.Errorf("vpx_codec_control VP8E_SET_CPUUSED failed (%d): %s", ec, C.GoString(C.error_detail_safe(codec)))
 	}
 	t0 := time.Now()
 	return &encoder{
