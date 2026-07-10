@@ -182,6 +182,24 @@ An open source API that allows applications such as VLC media player or GStreame
 * Installation:
   * Ubuntu: `apt install libva-dev`
 
+#### Video codecs implemented using ffmpeg
+
+* Package: [github.com/pion/mediadevices/pkg/codec/ffmpeg](https://pkg.go.dev/github.com/pion/mediadevices/pkg/codec/ffmpeg)
+* Installation: You need to enable CGO, and provide the ffmpeg headers and libraries when compiling. For more detail, checkout
+https://github.com/asticode/go-astiav?tab=readme-ov-file#install-ffmpeg-from-source.
+  * NVENC: If you want to use nvenc, you need to install [FFmpeg/nv-codec-headers](https://github.com/FFmpeg/nv-codec-headers) too.
+  Make sure that your driver's version is supported by the nv-codec-headers version you are installing.
+  To install it, clone the repo, checkout to wanted version, and `sudo make install`.
+
+> Currently, only ffmpeg n7.0 and n7.1 are supported.
+
+##### nvenc
+
+Requires ffmpeg build with `--enable-nonfree --enable-nvenc`.
+
+##### x264
+
+Requires ffmpeg build with `--enable-libx264 --enable-gpl`.
 
 #### Audio Codecs
 
