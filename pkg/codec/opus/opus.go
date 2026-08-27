@@ -113,7 +113,7 @@ func (e *encoder) Read() ([]byte, func(), error) {
 	}
 
 	if n < 0 {
-		err = errors.New("failed to encode")
+		return nil, func() {}, fmt.Errorf("failed to encode: opus_encode returned %d", n)
 	}
 
 	return encoded[:n:n], func() {}, err
