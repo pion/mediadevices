@@ -84,10 +84,15 @@ func TestResolutionChangeDoesNotLeakOldCodecContext(t *testing.T) {
 	t.Logf("live heap bytes after %d resolution switches: %d (%.1f bytes per switch)",
 		switches, leaked, float64(perSwitch))
 
-	// After the fix every old context is fully destroyed, so live bytes
-	// return to the baseline and per-switch leakage is ~0. Before the fix
-	// each reinit leaks the whole internal state of one encoder context.
-	if perSwitch > 4096 {
+	// The threshold distinguishes the regression this test guards against
+	// from allocator noise. Before the fix each reinit leaks the whole
+	// internal state of one encoder context (~790KB per switch, measured
+	// with libvpx 1.17). After the fix the measurement is 0 on macOS and
+	// ~5KB per switch on Linux CI (libvpx 1.14's destroy leaves a few KB
+	// behind, visible through mallinfo2). 64KB per switch keeps a 13x
+	// margin below the pre-fix level while staying well above the noise.
+	const maxPerSwitchBytes = 64 * 1024
+	if perSwitch > maxPerSwitchBytes {
 		t.Fatalf("old codec context memory leaked across resolution changes: %d bytes (%d per switch)",
 			leaked, perSwitch)
 	}
