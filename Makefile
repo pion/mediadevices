@@ -73,11 +73,11 @@ $(foreach codec, $(codec_list), \
 # Description:
 # 	Run a series of tests
 $(cmd_test):
-	go vet -tags opustest $(pkgs_without_ext_device)
+	go vet $(pkgs_without_ext_device)
 	go build $(pkgs_without_ext_device)
 	# go build without CGO
 	CGO_ENABLED=0 go build $(pkgs_without_cgo)
 	# go build with CGO
 	CGO_ENABLED=1 go build $(pkgs_without_ext_device)
 	$(MAKE) --directory=$(examples_dir)
-	go test -v -race -coverprofile=coverage.txt -covermode=atomic -tags opustest $(pkgs_without_ext_device)
+	go test -v -race -coverprofile=coverage.txt -covermode=atomic $(pkgs_without_ext_device)
