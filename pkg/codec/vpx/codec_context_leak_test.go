@@ -1,27 +1,16 @@
-//go:build vpxtest
-
 package vpx
 
 import (
 	"image"
 	"testing"
 
+	"github.com/pion/mediadevices/internal/cgoheap"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
 func yuv420Frame(w, h int) *image.YCbCr {
-	img := image.NewYCbCr(image.Rect(0, 0, w, h), image.YCbCrSubsampleRatio420)
-	for i := range img.Y {
-		img.Y[i] = 128
-	}
-	for i := range img.Cb {
-		img.Cb[i] = 128
-	}
-	for i := range img.Cr {
-		img.Cr[i] = 128
-	}
-	return img
+	return image.NewYCbCr(image.Rect(0, 0, w, h), image.YCbCrSubsampleRatio420)
 }
 
 // TestResolutionChangeDoesNotLeakOldCodecContext reproduces the leak where a
@@ -66,7 +55,7 @@ func TestResolutionChangeDoesNotLeakOldCodecContext(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	baseline := heapInUse()
+	baseline := cgoheap.HeapInUse()
 	const switches = 40
 	for i := 0; i < switches; i++ {
 		// 32x32 triggers reinit.
@@ -79,7 +68,7 @@ func TestResolutionChangeDoesNotLeakOldCodecContext(t *testing.T) {
 		}
 	}
 
-	leaked := heapInUse() - baseline
+	leaked := cgoheap.HeapInUse() - baseline
 	perSwitch := leaked / switches
 	t.Logf("live heap bytes after %d resolution switches: %d (%.1f bytes per switch)",
 		switches, leaked, float64(perSwitch))
