@@ -25,6 +25,10 @@ func yuv420Frame(w, h int) *image.YCbCr {
 // resolutions. After the fix, live bytes return to the baseline after each
 // switch; before the fix, they grow with every reinitialization.
 func TestResolutionChangeDoesNotLeakOldCodecContext(t *testing.T) {
+	if !cgoheap.Supported() {
+		t.Skip("heap measurement not supported on this libc/platform")
+	}
+
 	p, err := NewVP8Params()
 	if err != nil {
 		t.Fatal(err)
