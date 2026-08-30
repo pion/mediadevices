@@ -21,3 +21,9 @@ import "C"
 func HeapInUse() uint64 {
 	return uint64(C.cgoheap_in_use())
 }
+
+// Supported reports whether HeapInUse returns meaningful data on this
+// platform.
+func Supported() bool {
+	return true
+}
