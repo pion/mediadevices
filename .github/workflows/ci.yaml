@@ -80,3 +80,17 @@ jobs:
         run: go install github.com/google/go-licenses@latest
       - name: Checking licenses
         run: go-licenses check ./...
+  build-alpine:
+    runs-on: ubuntu-latest
+    container: alpine:3.23
+    name: Alpine musl (cgoheap + vpx regression)
+    steps:
+      - name: Install dependencies
+        run: |
+          apk add --no-cache go gcc musl-dev libvpx-dev pkgconf make git nodejs
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Build and test vpx on musl
+        run: |
+          go build ./internal/cgoheap/
+          go test -v -run 'TestImageSizeChange|TestResolutionChangeDoesNotLeakOldCodecContext' ./pkg/codec/vpx/
