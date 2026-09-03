@@ -283,8 +283,15 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		if ec := C.vpx_codec_enc_init_ver(
 			newCodec, e.codec.iface, e.cfg, 0, C.VPX_ENCODER_ABI_VERSION,
 		); ec != 0 {
-			return nil, func() {}, fmt.Errorf("vpx_codec_enc_init failed (%d): %s", ec, C.GoString(C.error_detail_safe(newCodec)))
+			// The failed init did not acquire internal resources, so the
+			// shell can be freed directly. Capture the error detail first.
+			errDetail := C.GoString(C.error_detail_safe(newCodec))
+			C.free(unsafe.Pointer(newCodec))
+			return nil, func() {}, fmt.Errorf("vpx_codec_enc_init failed (%d): %s", ec, errDetail)
 		}
+		// Destroy the old context to release the internal state allocated
+		// by its enc_init.
+		C.vpx_codec_destroy(e.codec)
 		C.free(unsafe.Pointer(e.codec))
 		e.codec = newCodec
 
