@@ -82,15 +82,30 @@ jobs:
         run: go-licenses check ./...
   build-alpine:
     runs-on: ubuntu-latest
-    container: alpine:3.23
-    name: Alpine musl (cgoheap + vpx regression)
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.26", "1.25"] # auto-update/supported-go-version-list
+    container: golang:${{ matrix.go }}-alpine
+    name: Alpine musl Go ${{ matrix.go }}
     steps:
       - name: Install dependencies
         run: |
-          apk add --no-cache go gcc musl-dev libvpx-dev pkgconf make git nodejs
+          apk add --no-cache \
+            g++ \
+            gcc \
+            git \
+            libva-dev \
+            libvpx-dev \
+            libx11-dev \
+            libxext-dev \
+            make \
+            musl-dev \
+            opus-dev \
+            pkgconf \
+            svt-av1-dev \
+            x264-dev
       - name: Checkout
         uses: actions/checkout@v7
-      - name: Build and test vpx on musl
-        run: |
-          go build ./internal/cgoheap/
-          go test -v -run 'TestImageSizeChange|TestResolutionChangeDoesNotLeakOldCodecContext' ./pkg/codec/vpx/
+      - name: Run Test Suite
+        run: make test
