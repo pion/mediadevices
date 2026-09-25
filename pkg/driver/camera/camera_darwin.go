@@ -22,8 +22,6 @@ type camera struct {
 	cancel  context.CancelFunc
 }
 
-const readTimeout = 3 * time.Second
-
 func init() {
 	Initialize()
 }
@@ -154,6 +152,7 @@ func (cam *camera) VideoRecord(property prop.Media) (video.Reader, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cam.cancel = cancel
 	cam.rcClose = rc.Close
+	readTimeout := time.Duration(getCameraReadTimeout()) * time.Second
 	r := video.ReaderFunc(func() (image.Image, func(), error) {
 		if ctx.Err() != nil {
 			// Return EOF if the camera is already closed.
@@ -165,7 +164,10 @@ func (cam *camera) VideoRecord(property prop.Media) (video.Reader, error) {
 
 		frame, _, err := rc.ReadContext(readCtx)
 		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return nil, func() {}, errReadTimeout
+			}
+			if errors.Is(err, context.Canceled) {
 				return nil, func() {}, io.EOF
 			}
 			return nil, func() {}, err

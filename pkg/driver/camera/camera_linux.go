@@ -11,7 +11,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -31,8 +30,7 @@ const (
 )
 
 var (
-	errReadTimeout = errors.New("read timeout")
-	errEmptyFrame  = errors.New("empty frame")
+	errEmptyFrame = errors.New("empty frame")
 	// Reference: https://commons.wikimedia.org/wiki/File:Vector_Video_Standards2.svg
 	supportedResolutions = [][2]int{
 		{320, 240},
@@ -182,19 +180,6 @@ func newCamera(path string) *camera {
 		reversedFormats: reversedFormats,
 	}
 	return c
-}
-
-func getCameraReadTimeout() uint32 {
-	// default to 5 seconds
-	var readTimeoutSec uint32 = 5
-	if val, ok := os.LookupEnv("PION_MEDIADEVICES_CAMERA_READ_TIMEOUT"); ok {
-		if valInt, err := strconv.Atoi(val); err == nil {
-			if valInt > 0 {
-				readTimeoutSec = uint32(valInt)
-			}
-		}
-	}
-	return readTimeoutSec
 }
 
 func (c *camera) Open() error {
