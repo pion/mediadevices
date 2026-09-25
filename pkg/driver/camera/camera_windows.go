@@ -10,6 +10,7 @@ import (
 	"image"
 	"io"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/pion/mediadevices/pkg/driver"
@@ -213,11 +214,24 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	callbacksMu.Unlock()
 
 	img := &image.YCbCr{}
+	ch := c.ch
+	done := c.done
+	readTimeout := time.Duration(getCameraReadTimeout()) * time.Second
 
 	r := video.ReaderFunc(func() (image.Image, func(), error) {
-		b, ok := <-c.ch
-		if !ok {
+		var (
+			b  []byte
+			ok bool
+		)
+		select {
+		case b, ok = <-ch:
+			if !ok {
+				return nil, func() {}, io.EOF
+			}
+		case <-done:
 			return nil, func() {}, io.EOF
+		case <-time.After(readTimeout):
+			return nil, func() {}, errReadTimeout
 		}
 
 		if p.FrameFormat == frame.FormatNV12 {
