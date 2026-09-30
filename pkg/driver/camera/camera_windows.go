@@ -37,6 +37,7 @@ type camera struct {
 	cbuf   unsafe.Pointer // C.malloc'd buffer for DirectShow writes
 	bufLen int            // byte length of cbuf
 	bufGo  []byte
+	mjpeg  bool
 }
 
 func init() {
@@ -119,18 +120,24 @@ func (c *camera) Open() error {
 }
 
 //export imageCallback
-func imageCallback(cam uintptr) {
+func imageCallback(cam uintptr, frameLen C.int) {
 	callbacksMu.RLock()
 	cb, ok := callbacks[uintptr(unsafe.Pointer(cam))]
 	if !ok {
 		callbacksMu.RUnlock()
 		return
 	}
-	copy(cb.bufGo, unsafe.Slice((*byte)(cb.cbuf), cb.bufLen))
+	n := min(int(frameLen), cb.bufLen)
+	b := cb.bufGo[:n]
+	if cb.mjpeg {
+		// The decoder reads the frame after this returns, so it must not share bufGo with the next frame.
+		b = make([]byte, n)
+	}
+	copy(b, unsafe.Slice((*byte)(cb.cbuf), n))
 	callbacksMu.RUnlock()
 
 	select {
-	case cb.ch <- cb.bufGo:
+	case cb.ch <- b:
 	case <-cb.done:
 	}
 }
@@ -193,9 +200,20 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	c.cam.width = C.int(p.Width)
 	c.cam.height = C.int(p.Height)
 
+	var decoder frame.Decoder
+	c.mjpeg = false
 	switch p.FrameFormat {
 	case frame.FormatNV12:
 		c.cam.fcc = fourccNV12
+	case frame.FormatMJPEG:
+		c.cam.fcc = fourccMJPG
+		c.mjpeg = true
+		var err error
+		if decoder, err = frame.NewDecoder(frame.FormatMJPEG); err != nil {
+			C.free(c.cbuf)
+			c.cbuf = nil
+			return nil, err
+		}
 	default:
 		c.cam.fcc = fourccYUY2
 	}
@@ -232,6 +250,10 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 			return nil, func() {}, io.EOF
 		case <-time.After(readTimeout):
 			return nil, func() {}, errReadTimeout
+		}
+
+		if decoder != nil {
+			return decoder.Decode(b, p.Width, p.Height)
 		}
 
 		if p.FrameFormat == frame.FormatNV12 {
@@ -272,6 +294,8 @@ func (c *camera) Properties() []prop.Media {
 			fmt = frame.FormatYUY2
 		case fourccNV12:
 			fmt = frame.FormatNV12
+		case fourccMJPG:
+			fmt = frame.FormatMJPEG
 		default:
 			continue
 		}
@@ -289,4 +313,5 @@ func (c *camera) Properties() []prop.Media {
 const (
 	fourccYUY2 = 0x32595559
 	fourccNV12 = 0x3231564E
+	fourccMJPG = 0x47504A4D
 )

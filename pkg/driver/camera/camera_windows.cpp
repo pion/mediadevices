@@ -11,6 +11,7 @@
 
 static const uint32_t FOURCC_NV12 = 0x3231564E; // 'NV12'
 static const uint32_t FOURCC_YUY2 = 0x32595559; // 'YUY2'
+static const uint32_t FOURCC_MJPG = 0x47504A4D; // 'MJPG'
 
 // freeMediaType frees an AM_MEDIA_TYPE* allocated by GetStreamCaps.
 static void freeMediaType(AM_MEDIA_TYPE* mt)
@@ -458,6 +459,8 @@ int openCamera(camera* cam, const char** errstr)
     mediaType.majortype = MEDIATYPE_Video;
     if (cam->fcc == FOURCC_NV12)
       mediaType.subtype = MEDIASUBTYPE_NV12;
+    else if (cam->fcc == FOURCC_MJPG)
+      mediaType.subtype = MEDIASUBTYPE_MJPG;
     else
       mediaType.subtype = MEDIASUBTYPE_YUY2;
     // formattype left as GUID_NULL (wildcard) - accepts both VideoInfo and VideoInfo2
@@ -563,7 +566,14 @@ HRESULT SampleGrabberCallback::BufferCB(double sampleTime, BYTE* buf, LONG len)
     return S_OK;
   }
 
-  if (cam_->fcc == FOURCC_NV12)
+  int frameLen = nPix * 2;
+  if (cam_->fcc == FOURCC_MJPG)
+  {
+    // MJPG: compressed, variable-length frame. Pass it through for decoding in Go.
+    memcpy(gobuf, buf, len);
+    frameLen = len;
+  }
+  else if (cam_->fcc == FOURCC_NV12)
   {
     // NV12: Y plane (nPix bytes) + interleaved UV plane (nPix/2 bytes).
     // Convert to I420 planar: Y + U + V separate planes.
@@ -600,7 +610,7 @@ HRESULT SampleGrabberCallback::BufferCB(double sampleTime, BYTE* buf, LONG len)
     }
   }
 
-  imageCallback((size_t)cam_);
+  imageCallback((size_t)cam_, frameLen);
   return S_OK;
 }
 
