@@ -124,8 +124,7 @@ func imageCallback(cam uintptr, data unsafe.Pointer, frameLen C.int) {
 		callbacksMu.RUnlock()
 		return
 	}
-	// data may be DirectShow's own sample buffer, which is only valid until the
-	// C caller returns, so it must be copied here rather than after the send.
+
 	b := C.GoBytes(data, frameLen)
 	callbacksMu.RUnlock()
 
