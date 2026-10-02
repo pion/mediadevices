@@ -36,8 +36,6 @@ type camera struct {
 
 	cbuf   unsafe.Pointer // C.malloc'd buffer for DirectShow writes
 	bufLen int            // byte length of cbuf
-	bufGo  []byte
-	mjpeg  bool
 }
 
 func init() {
@@ -128,12 +126,8 @@ func imageCallback(cam uintptr, frameLen C.int) {
 		return
 	}
 	n := min(int(frameLen), cb.bufLen)
-	b := cb.bufGo[:n]
-	if cb.mjpeg {
-		// The decoder reads the frame after this returns, so it must not share bufGo with the next frame.
-		b = make([]byte, n)
-	}
-	copy(b, unsafe.Slice((*byte)(cb.cbuf), n))
+	// Each frame gets its own slice so the reader can keep it after the next frame arrives.
+	b := C.GoBytes(cb.cbuf, C.int(n))
 	callbacksMu.RUnlock()
 
 	select {
@@ -196,18 +190,15 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 		return nil, fmt.Errorf("failed to allocate frame buffer")
 	}
 	c.bufLen = bufSize
-	c.bufGo = make([]byte, bufSize)
 	c.cam.width = C.int(p.Width)
 	c.cam.height = C.int(p.Height)
 
 	var decoder frame.Decoder
-	c.mjpeg = false
 	switch p.FrameFormat {
 	case frame.FormatNV12:
 		c.cam.fcc = fourccNV12
 	case frame.FormatMJPEG:
 		c.cam.fcc = fourccMJPG
-		c.mjpeg = true
 		var err error
 		if decoder, err = frame.NewDecoder(frame.FormatMJPEG); err != nil {
 			C.free(c.cbuf)
