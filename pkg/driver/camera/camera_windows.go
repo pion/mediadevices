@@ -146,7 +146,6 @@ func (c *camera) Close() error {
 	cbuf := c.cbuf
 	c.cbuf = nil
 	done := c.done
-	ch := c.ch
 	c.mu.Unlock()
 
 	// Remove from callbacks map so no new imageCallback calls find this cam
@@ -165,9 +164,6 @@ func (c *camera) Close() error {
 
 	C.free(cbuf)
 
-	if ch != nil {
-		close(ch)
-	}
 	return nil
 }
 
@@ -226,15 +222,9 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	readTimeout := time.Duration(getCameraReadTimeout()) * time.Second
 
 	r := video.ReaderFunc(func() (image.Image, func(), error) {
-		var (
-			b  []byte
-			ok bool
-		)
+		var b []byte
 		select {
-		case b, ok = <-ch:
-			if !ok {
-				return nil, func() {}, io.EOF
-			}
+		case b = <-ch:
 		case <-done:
 			return nil, func() {}, io.EOF
 		case <-time.After(readTimeout):
