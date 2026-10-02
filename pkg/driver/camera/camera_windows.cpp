@@ -11,6 +11,7 @@
 
 static const uint32_t FOURCC_NV12 = 0x3231564E; // 'NV12'
 static const uint32_t FOURCC_YUY2 = 0x32595559; // 'YUY2'
+static const uint32_t FOURCC_MJPG = 0x47504A4D; // 'MJPG'
 
 // freeMediaType frees an AM_MEDIA_TYPE* allocated by GetStreamCaps.
 static void freeMediaType(AM_MEDIA_TYPE* mt)
@@ -458,6 +459,8 @@ int openCamera(camera* cam, const char** errstr)
     mediaType.majortype = MEDIATYPE_Video;
     if (cam->fcc == FOURCC_NV12)
       mediaType.subtype = MEDIASUBTYPE_NV12;
+    else if (cam->fcc == FOURCC_MJPG)
+      mediaType.subtype = MEDIASUBTYPE_MJPG;
     else
       mediaType.subtype = MEDIASUBTYPE_YUY2;
     // formattype left as GUID_NULL (wildcard) - accepts both VideoInfo and VideoInfo2
@@ -557,13 +560,24 @@ HRESULT SampleGrabberCallback::BufferCB(double sampleTime, BYTE* buf, LONG len)
 {
   BYTE* gobuf = (BYTE*)cam_->buf;
   const int nPix = cam_->width * cam_->height;
-  if (len > nPix * 2)
+  // Raw frames are converted into gobuf, which holds nPix * 2 bytes. MJPG frames
+  // are compressed and variable-length and never touch gobuf, so they're exempt.
+  if (cam_->fcc != FOURCC_MJPG && len > nPix * 2)
   {
     fprintf(stderr, "Wrong frame buffer size: %d > %d\n", len, nPix * 2);
     return S_OK;
   }
 
-  if (cam_->fcc == FOURCC_NV12)
+  BYTE* out = gobuf;
+  int frameLen = nPix * 2;
+  if (cam_->fcc == FOURCC_MJPG)
+  {
+    // MJPG: hand DirectShow's buffer straight to Go, which copies it before
+    // imageCallback returns.
+    out = buf;
+    frameLen = (int)len;
+  }
+  else if (cam_->fcc == FOURCC_NV12)
   {
     // NV12: Y plane (nPix bytes) + interleaved UV plane (nPix/2 bytes).
     // Convert to I420 planar: Y + U + V separate planes.
@@ -600,7 +614,7 @@ HRESULT SampleGrabberCallback::BufferCB(double sampleTime, BYTE* buf, LONG len)
     }
   }
 
-  imageCallback((size_t)cam_);
+  imageCallback((size_t)cam_, out, frameLen);
   return S_OK;
 }
 
