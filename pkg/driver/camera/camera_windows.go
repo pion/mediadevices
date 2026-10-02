@@ -183,6 +183,15 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 		return nil, fmt.Errorf("camera not open")
 	}
 
+	var decoder frame.Decoder
+	if p.FrameFormat == frame.FormatMJPEG {
+		var err error
+		decoder, err = frame.NewDecoder(frame.FormatMJPEG)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	nPix := p.Width * p.Height
 	bufSize := nPix * 2
 	c.cbuf = C.malloc(C.size_t(bufSize))
@@ -193,18 +202,11 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	c.cam.width = C.int(p.Width)
 	c.cam.height = C.int(p.Height)
 
-	var decoder frame.Decoder
 	switch p.FrameFormat {
 	case frame.FormatNV12:
 		c.cam.fcc = fourccNV12
 	case frame.FormatMJPEG:
 		c.cam.fcc = fourccMJPG
-		var err error
-		if decoder, err = frame.NewDecoder(frame.FormatMJPEG); err != nil {
-			C.free(c.cbuf)
-			c.cbuf = nil
-			return nil, err
-		}
 	default:
 		c.cam.fcc = fourccYUY2
 	}
@@ -222,7 +224,6 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	callbacks[uintptr(unsafe.Pointer(c.cam))] = c
 	callbacksMu.Unlock()
 
-	img := &image.YCbCr{}
 	ch := c.ch
 	done := c.done
 	readTimeout := time.Duration(getCameraReadTimeout()) * time.Second
@@ -247,6 +248,7 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 			return decoder.Decode(b, p.Width, p.Height)
 		}
 
+		img := &image.YCbCr{}
 		if p.FrameFormat == frame.FormatNV12 {
 			// I420: Y plane (nPix) + U plane (nPix/4) + V plane (nPix/4)
 			img.Y = b[:nPix]
