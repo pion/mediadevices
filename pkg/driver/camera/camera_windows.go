@@ -34,8 +34,7 @@ type camera struct {
 	ch     chan []byte
 	done   chan struct{}
 
-	cbuf   unsafe.Pointer // C.malloc'd buffer for DirectShow writes
-	bufLen int            // byte length of cbuf
+	cbuf unsafe.Pointer // C.malloc'd buffer for DirectShow writes
 }
 
 func init() {
@@ -118,16 +117,16 @@ func (c *camera) Open() error {
 }
 
 //export imageCallback
-func imageCallback(cam uintptr, frameLen C.int) {
+func imageCallback(cam uintptr, data unsafe.Pointer, frameLen C.int) {
 	callbacksMu.RLock()
 	cb, ok := callbacks[uintptr(unsafe.Pointer(cam))]
 	if !ok {
 		callbacksMu.RUnlock()
 		return
 	}
-	n := min(int(frameLen), cb.bufLen)
-	// Each frame gets its own slice so the reader can keep it after the next frame arrives.
-	b := C.GoBytes(cb.cbuf, C.int(n))
+	// data may be DirectShow's own sample buffer, which is only valid until the
+	// C caller returns, so it must be copied here rather than after the send.
+	b := C.GoBytes(data, frameLen)
 	callbacksMu.RUnlock()
 
 	select {
@@ -198,7 +197,6 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	if c.cbuf == nil {
 		return nil, fmt.Errorf("failed to allocate frame buffer")
 	}
-	c.bufLen = bufSize
 	c.cam.width = C.int(p.Width)
 	c.cam.height = C.int(p.Height)
 

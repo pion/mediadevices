@@ -560,18 +560,22 @@ HRESULT SampleGrabberCallback::BufferCB(double sampleTime, BYTE* buf, LONG len)
 {
   BYTE* gobuf = (BYTE*)cam_->buf;
   const int nPix = cam_->width * cam_->height;
-  if (len > nPix * 2)
+  // Raw frames are converted into gobuf, which holds nPix * 2 bytes. MJPG frames
+  // are compressed and variable-length and never touch gobuf, so they're exempt.
+  if (cam_->fcc != FOURCC_MJPG && len > nPix * 2)
   {
     fprintf(stderr, "Wrong frame buffer size: %d > %d\n", len, nPix * 2);
     return S_OK;
   }
 
+  BYTE* out = gobuf;
   int frameLen = nPix * 2;
   if (cam_->fcc == FOURCC_MJPG)
   {
-    // MJPG: compressed, variable-length frame. Pass it through for decoding in Go.
-    memcpy(gobuf, buf, len);
-    frameLen = len;
+    // MJPG: hand DirectShow's buffer straight to Go, which copies it before
+    // imageCallback returns.
+    out = buf;
+    frameLen = (int)len;
   }
   else if (cam_->fcc == FOURCC_NV12)
   {
@@ -610,7 +614,7 @@ HRESULT SampleGrabberCallback::BufferCB(double sampleTime, BYTE* buf, LONG len)
     }
   }
 
-  imageCallback((size_t)cam_, frameLen);
+  imageCallback((size_t)cam_, out, frameLen);
   return S_OK;
 }
 
