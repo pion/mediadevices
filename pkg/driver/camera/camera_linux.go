@@ -137,7 +137,7 @@ func discover(discovered map[string]struct{}, pattern string) {
 		}
 
 		var name, busInfo string
-		if webcamCam, err := webcam.Open(cam.path); err == nil {
+		if webcamCam, err := openWebcam(cam.path); err == nil {
 			defer webcamCam.Close()
 			name, _ = webcamCam.GetName()
 			busInfo, _ = webcamCam.GetBusInfo()
@@ -182,8 +182,15 @@ func newCamera(path string) *camera {
 	return c
 }
 
+func openWebcam(path string) (*webcam.Webcam, error) {
+	if closeOnExec {
+		return webcam.OpenWithCloseOnExec(path)
+	}
+	return webcam.Open(path)
+}
+
 func (c *camera) Open() error {
-	cam, err := webcam.Open(c.path)
+	cam, err := openWebcam(c.path)
 	if err != nil {
 		return err
 	}
@@ -403,7 +410,7 @@ func (c *camera) IsAvailable() (bool, error) {
 	// close the opened file descriptor as quickly as possible and in all cases, including panics
 	func() {
 		var cam *webcam.Webcam
-		if cam, err = webcam.Open(c.path); err == nil {
+		if cam, err = openWebcam(c.path); err == nil {
 			defer cam.Close()
 			var index int32
 			// "Drivers must implement all the input ioctls when the device has one or more inputs..."
