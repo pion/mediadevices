@@ -34,9 +34,7 @@ type camera struct {
 	ch     chan []byte
 	done   chan struct{}
 
-	cbuf   unsafe.Pointer // C.malloc'd buffer for DirectShow writes
-	bufLen int            // byte length of cbuf
-	bufGo  []byte
+	cbuf unsafe.Pointer // C.malloc'd buffer for DirectShow writes
 }
 
 func init() {
@@ -119,18 +117,19 @@ func (c *camera) Open() error {
 }
 
 //export imageCallback
-func imageCallback(cam uintptr) {
+func imageCallback(cam uintptr, data unsafe.Pointer, frameLen C.int) {
 	callbacksMu.RLock()
 	cb, ok := callbacks[uintptr(unsafe.Pointer(cam))]
 	if !ok {
 		callbacksMu.RUnlock()
 		return
 	}
-	copy(cb.bufGo, unsafe.Slice((*byte)(cb.cbuf), cb.bufLen))
+
+	b := C.GoBytes(data, frameLen)
 	callbacksMu.RUnlock()
 
 	select {
-	case cb.ch <- cb.bufGo:
+	case cb.ch <- b:
 	case <-cb.done:
 	}
 }
@@ -147,7 +146,6 @@ func (c *camera) Close() error {
 	cbuf := c.cbuf
 	c.cbuf = nil
 	done := c.done
-	ch := c.ch
 	c.mu.Unlock()
 
 	// Remove from callbacks map so no new imageCallback calls find this cam
@@ -166,9 +164,6 @@ func (c *camera) Close() error {
 
 	C.free(cbuf)
 
-	if ch != nil {
-		close(ch)
-	}
 	return nil
 }
 
@@ -182,20 +177,29 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 		return nil, fmt.Errorf("camera not open")
 	}
 
+	var decoder frame.Decoder
+	if p.FrameFormat == frame.FormatMJPEG {
+		var err error
+		decoder, err = frame.NewDecoder(frame.FormatMJPEG)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	nPix := p.Width * p.Height
 	bufSize := nPix * 2
 	c.cbuf = C.malloc(C.size_t(bufSize))
 	if c.cbuf == nil {
 		return nil, fmt.Errorf("failed to allocate frame buffer")
 	}
-	c.bufLen = bufSize
-	c.bufGo = make([]byte, bufSize)
 	c.cam.width = C.int(p.Width)
 	c.cam.height = C.int(p.Height)
 
 	switch p.FrameFormat {
 	case frame.FormatNV12:
 		c.cam.fcc = fourccNV12
+	case frame.FormatMJPEG:
+		c.cam.fcc = fourccMJPG
 	default:
 		c.cam.fcc = fourccYUY2
 	}
@@ -213,27 +217,25 @@ func (c *camera) VideoRecord(p prop.Media) (video.Reader, error) {
 	callbacks[uintptr(unsafe.Pointer(c.cam))] = c
 	callbacksMu.Unlock()
 
-	img := &image.YCbCr{}
 	ch := c.ch
 	done := c.done
 	readTimeout := time.Duration(getCameraReadTimeout()) * time.Second
 
 	r := video.ReaderFunc(func() (image.Image, func(), error) {
-		var (
-			b  []byte
-			ok bool
-		)
+		var b []byte
 		select {
-		case b, ok = <-ch:
-			if !ok {
-				return nil, func() {}, io.EOF
-			}
+		case b = <-ch:
 		case <-done:
 			return nil, func() {}, io.EOF
 		case <-time.After(readTimeout):
 			return nil, func() {}, errReadTimeout
 		}
 
+		if decoder != nil {
+			return decoder.Decode(b, p.Width, p.Height)
+		}
+
+		img := &image.YCbCr{}
 		if p.FrameFormat == frame.FormatNV12 {
 			// I420: Y plane (nPix) + U plane (nPix/4) + V plane (nPix/4)
 			img.Y = b[:nPix]
@@ -272,6 +274,8 @@ func (c *camera) Properties() []prop.Media {
 			fmt = frame.FormatYUY2
 		case fourccNV12:
 			fmt = frame.FormatNV12
+		case fourccMJPG:
+			fmt = frame.FormatMJPEG
 		default:
 			continue
 		}
@@ -289,4 +293,5 @@ func (c *camera) Properties() []prop.Media {
 const (
 	fourccYUY2 = 0x32595559
 	fourccNV12 = 0x3231564E
+	fourccMJPG = 0x47504A4D
 )
