@@ -23,6 +23,14 @@ const LabelSeparator = ";"
 
 var errReadTimeout = errors.New("read timeout")
 
+var closeOnExec bool
+
+// SetCloseOnExec enables O_CLOEXEC on V4L2 FDs opened by this package so
+// they aren't inherited by subprocesses. Linux-only.
+func SetCloseOnExec(enabled bool) {
+	closeOnExec = enabled
+}
+
 func getCameraReadTimeout() uint32 {
 	// default to 5 seconds
 	var readTimeoutSec uint32 = 5
