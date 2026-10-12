@@ -56,7 +56,7 @@ func decodeMJPEG(frame []byte, width, height int) (image.Image, func(), error) {
 	}
 
 	if err != nil {
-		return nil, nil, err
+		return nil, func() {}, err
 	}
 
 	return img, func() {}, err
