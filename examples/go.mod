@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/esimov/pigo v1.4.6
 	github.com/pion/mediadevices v0.0.0
-	github.com/pion/webrtc/v4 v4.2.23
+	github.com/pion/webrtc/v4 v4.2.24
 )
 
 require (
@@ -13,7 +13,7 @@ require (
 	github.com/gen2brain/malgo v0.11.26 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/pion/datachannel v1.6.3 // indirect
-	github.com/pion/dtls/v3 v3.1.10 // indirect
+	github.com/pion/dtls/v3 v3.1.13 // indirect
 	github.com/pion/ice/v4 v4.4.7 // indirect
 	github.com/pion/interceptor v0.1.49 // indirect
 	github.com/pion/logging v0.2.4 // indirect
