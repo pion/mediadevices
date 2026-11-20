@@ -69,7 +69,7 @@ outer:
 	for _, wantCodec := range codecNames {
 		wantCodecLower := strings.ToLower(wantCodec)
 		for _, encoder := range selector.videoEncoders {
-			// MimeType is formated as "video/<codecName>"
+			// MimeType is formatted as "video/<codecName>"
 			if strings.HasSuffix(strings.ToLower(encoder.RTPCodec().MimeType), wantCodecLower) {
 				encodedReader, err = encoder.BuildVideoEncoder(reader, inputProp)
 				if err == nil {
@@ -110,7 +110,7 @@ outer:
 	for _, wantCodec := range codecNames {
 		wantCodecLower := strings.ToLower(wantCodec)
 		for _, encoder := range selector.audioEncoders {
-			// MimeType is formated as "audio/<codecName>"
+			// MimeType is formatted as "audio/<codecName>"
 			if strings.HasSuffix(strings.ToLower(encoder.RTPCodec().MimeType), wantCodecLower) {
 				encodedReader, err = encoder.BuildAudioEncoder(reader, inputProp)
 				if err == nil {
