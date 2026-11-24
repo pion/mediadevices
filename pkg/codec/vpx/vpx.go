@@ -285,6 +285,9 @@ func (e *encoder) Read() ([]byte, func(), error) {
 		); ec != 0 {
 			return nil, func() {}, fmt.Errorf("vpx_codec_enc_init failed (%d): %s", ec, C.GoString(C.error_detail_safe(newCodec)))
 		}
+		// Release the old encoder's internal state before freeing the context
+		// struct, as Close does; C.free alone leaks the whole encoder.
+		C.vpx_codec_destroy(e.codec)
 		C.free(unsafe.Pointer(e.codec))
 		e.codec = newCodec
 

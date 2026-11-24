@@ -6,6 +6,8 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -166,6 +168,96 @@ func TestImageSizeChange(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestImageSizeChangeNoLeak encodes frames whose size keeps alternating. Each
+// change re-initializes the libvpx encoder; the old encoder's native memory
+// must be released, so process RSS has to stay flat across many changes.
+//
+// VP8 only: VP9 goes through the same re-initialization code, but its larger
+// per-encoder allocations make an RSS-based check slow and memory-hungry.
+func TestImageSizeChangeNoLeak(t *testing.T) {
+	if _, ok := readRSS(); !ok {
+		t.Skip("RSS not available (requires /proc/self/status)")
+	}
+	p, err := NewVP8Params()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sizes := []image.Rectangle{image.Rect(0, 0, 320, 240), image.Rect(0, 0, 160, 120)}
+	var cnt uint32
+	r, err := p.BuildVideoEncoder(
+		video.ReaderFunc(func() (image.Image, func(), error) {
+			i := atomic.AddUint32(&cnt, 1)
+			return image.NewYCbCr(sizes[i%2], image.YCbCrSubsampleRatio420), func() {}, nil
+		}),
+		prop.Media{
+			Video: prop.Video{
+				Width:       320,
+				Height:      240,
+				FrameRate:   30,
+				FrameFormat: frame.FormatI420,
+			},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+
+	encode := func(n int) {
+		for i := 0; i < n; i++ {
+			_, rel, err := r.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			rel()
+		}
+	}
+
+	// RSS grows during the first size changes while the allocator settles,
+	// then stays flat. Measure only after that warm-up.
+	encode(200)
+	before, _ := readRSS()
+	const sizeChanges = 200
+	encode(sizeChanges)
+	after, _ := readRSS()
+
+	// Leaking the old encoder on every change grows RSS by hundreds of MB over
+	// this window; released properly it stays roughly flat.
+	growth := after - before
+	t.Logf("RSS growth over %d frame size changes: %d MB", sizeChanges, growth>>20)
+	const maxGrowth = 20 << 20
+	if growth > maxGrowth {
+		t.Errorf("RSS grew by %d MB over %d frame size changes, old encoders are not released",
+			growth>>20, sizeChanges)
+	}
+}
+
+// readRSS returns the resident set size of the current process in bytes.
+func readRSS() (int64, bool) {
+	b, err := os.ReadFile("/proc/self/status")
+	if err != nil {
+		return 0, false
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		if strings.HasPrefix(line, "VmRSS:") {
+			fields := strings.Fields(line)
+			if len(fields) < 2 {
+				return 0, false
+			}
+			kb, err := strconv.ParseInt(fields[1], 10, 64)
+			if err != nil {
+				return 0, false
+			}
+			return kb << 10, true
+		}
+	}
+	return 0, false
 }
 
 func TestRequestKeyFrame(t *testing.T) {
